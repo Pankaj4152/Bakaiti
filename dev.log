@@ -1,0 +1,8 @@
+▲ Next.js 16.2.12 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.13:3000
+- Environments: .env.local
+✓ Ready in 13.9s
+  Downloading swc package @next/swc-wasm-nodejs... to C:\Users\Admin\AppData\Local\next-swc
+  Skipping creating a lockfile at F:\Projects\Chitput\.next\dev\lock because we're using WASM bindings
+[?25h
