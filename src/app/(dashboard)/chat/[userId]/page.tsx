@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChatInput } from "./chat-input"
 import { MessageList } from "./message-list"
 import { MarkRead } from "./mark-read"
+import { MobileMenuButton } from "./chat-header"
 
 export default async function ConversationPage({
   params,
@@ -60,16 +61,19 @@ export default async function ConversationPage({
   return (
     <>
       <MarkRead conversationId={conversationId} />
-      <a
-        href={`/profile/${userId}`}
-        className="flex items-center gap-3 px-4 h-14 border-b flex-shrink-0 hover:bg-accent transition-colors"
-      >
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={otherUser.avatar_url ?? undefined} />
-          <AvatarFallback>{otherUser.name[0]?.toUpperCase()}</AvatarFallback>
-        </Avatar>
-        <span className="font-semibold">{otherUser.name}</span>
-      </a>
+      <div className="flex items-center gap-1 px-2 h-14 border-b flex-shrink-0">
+        <MobileMenuButton />
+        <a
+          href={`/profile/${userId}`}
+          className="flex items-center gap-3 px-2 h-full flex-1 hover:bg-accent transition-colors rounded"
+        >
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={otherUser.avatar_url ?? undefined} />
+            <AvatarFallback>{otherUser.name[0]?.toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <span className="font-semibold">{otherUser.name}</span>
+        </a>
+      </div>
       <MessageList
         messages={messages ?? []}
         currentUserId={currentUser.id}

@@ -63,15 +63,25 @@ export function MessageList({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [display])
 
+  useEffect(() => {
+    messages.current = initialMessages
+    setDisplay(initialMessages)
+  }, [initialMessages])
+
   const firstUnreadIndex = display.findIndex(
     (m) => !m.read && m.sender_id !== currentUserId
   )
 
+  const isSameSender = (i: number) =>
+    i > 0 && display[i].sender_id === display[i - 1].sender_id
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
       {display.map((msg, i) => {
         const isMine = msg.sender_id === currentUserId
         const showUnreadSeparator = i === firstUnreadIndex
+        const grouped = isSameSender(i)
+        const isLastInGroup = i === display.length - 1 || display[i + 1].sender_id !== msg.sender_id
 
         return (
           <div key={msg.id}>
@@ -82,27 +92,33 @@ export function MessageList({
                 <div className="flex-1 h-px bg-border" />
               </div>
             )}
-            <div className={`flex gap-2 ${isMine ? "flex-row-reverse" : ""}`}>
+            <div className={`flex gap-2 ${isMine ? "flex-row-reverse" : ""} ${grouped ? "mt-0.5" : "mt-2"}`}>
               {!isMine && (
-                <Avatar className="h-7 w-7 mt-1 flex-shrink-0">
-                  <AvatarImage src={msg.sender?.avatar_url ?? undefined} />
-                  <AvatarFallback className="text-xs">
-                    {msg.sender?.name?.[0]?.toUpperCase() ?? "?"}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="w-7 flex-shrink-0">
+                  {isLastInGroup ? (
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src={msg.sender?.avatar_url ?? undefined} />
+                      <AvatarFallback className="text-xs">
+                        {msg.sender?.name?.[0]?.toUpperCase() ?? "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="h-7 w-7" />
+                  )}
+                </div>
               )}
-              <div className="flex flex-col items-end gap-0.5">
+              <div className="flex flex-col items-end gap-0.5 max-w-[75%]">
                 <div
-                  className={`max-w-[70%] rounded-2xl px-3.5 py-2 text-sm ${
+                  className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words ${
                     isMine
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-muted rounded-bl-md"
-                  }`}
+                      ? "bg-primary text-primary-foreground rounded-[18px] rounded-br-[6px]"
+                      : "bg-muted rounded-[18px] rounded-bl-[6px]"
+                  } ${grouped ? (isMine ? "rounded-br-[18px]" : "rounded-bl-[18px]") : ""}`}
                 >
                   {msg.content}
                 </div>
                 {isMine && (
-                  <span className={`text-[10px] px-1 ${msg.read ? "text-blue-400" : "text-muted-foreground"}`}>
+                  <span className={`text-[10px] px-1 leading-none ${msg.read ? "text-blue-400" : "text-muted-foreground"}`}>
                     {msg.read ? "✓✓" : "✓"}
                   </span>
                 )}

@@ -3,165 +3,110 @@
 import { useEffect, useState, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { Search, Info, MessageCircle } from "lucide-react"
-import type { User } from "@/types"
+import { MessageCircle } from "lucide-react"
+import { AddUserDialog } from "./add-user-dialog"
 
-export function UserList() {
-  const [results, setResults] = useState<User[]>([])
-  const [search, setSearch] = useState("")
-  const [activeChat, setActiveChat] = useState<User | null>(null)
-  const [unread, setUnread] = useState(false)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+interface ConversationItem {
+  id: string
+  otherUser: { id: string; name: string; username: string; avatar_url: string | null } | null
+  lastMessage: { content: string; created_at: string; isMine: boolean } | null
+  unreadCount: number
+}
+
+export function UserList({ onNav }: { onNav?: () => void }) {
+  const [conversations, setConversations] = useState<ConversationItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [myProfile, setMyProfile] = useState<{ id: string; name: string; username: string; avatar_url: string | null } | null>(null)
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
+  const hasLoaded = useRef(false)
+
+  const load = () => {
+    fetch("/api/conversations")
+      .then((r) => r.json())
+      .then((res) => {
+        setConversations(res.data ?? [])
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+      .finally(() => { hasLoaded.current = true })
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email) {
-        supabase.from("allowed_users").select("id").eq("email", user.email).maybeSingle().then(({ data }) => {
-          if (data) setCurrentUserId(data.id)
-        })
-      }
+      if (!user?.email) return
+      supabase
+        .from("allowed_users")
+        .select("id, name, username, avatar_url")
+        .eq("email", user.email)
+        .maybeSingle()
+        .then(({ data }) => setMyProfile(data))
     })
   }, [])
 
-  useEffect(() => {
-    if (!params?.userId) { setActiveChat(null); return }
-    supabase.from("allowed_users").select("*").eq("id", params.userId).maybeSingle()
-      .then(({ data }) => { if (data) setActiveChat(data) })
-  }, [params?.userId])
-
-  useEffect(() => {
-    if (!currentUserId || !params?.userId) { setUnread(false); return }
-    const ids = [currentUserId, params.userId as string].sort()
-    supabase.from("conversations").select("id")
-      .eq("user1_id", ids[0]).eq("user2_id", ids[1]).maybeSingle()
-      .then(async ({ data: convo }) => {
-        if (!convo) { setUnread(false); return }
-        const { count } = await supabase
-          .from("messages")
-          .select("id", { count: "exact", head: true })
-          .eq("conversation_id", convo.id)
-          .eq("read", false)
-          .neq("sender_id", currentUserId)
-        setUnread((count ?? 0) > 0)
-      })
-  }, [currentUserId, params?.userId])
-
-  useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-    const q = search.trim()
-    if (q.length < 1) { setResults([]); return }
-
-    timerRef.current = setTimeout(async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (!authUser?.email) return
-      const { data } = await supabase
-        .from("allowed_users")
-        .select("*")
-        .neq("email", authUser.email)
-        .or(`name.ilike.%${q}%,username.ilike.%${q}%`)
-        .order("name")
-      setResults(data ?? [])
-    }, 200)
-  }, [search])
+  useEffect(() => { load() }, [params?.userId])
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or username..."
-            className="pl-8 h-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+      <div className="flex items-center gap-2 px-4 h-14 border-b flex-shrink-0">
+        <button onClick={() => { onNav?.(); myProfile && router.push(`/profile/${myProfile.id}`) }} className="shrink-0">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={myProfile?.avatar_url ?? undefined} />
+            <AvatarFallback className="text-xs">{myProfile?.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
+          </Avatar>
+        </button>
+        <h1 className="font-bold text-lg flex-1">Chitput</h1>
+        <AddUserDialog />
       </div>
       <div className="flex-1 overflow-y-auto">
-        {activeChat && (
-          <>
-            <div className="px-4 pt-3 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Active Chat
-            </div>
+        {loading ? (
+          <p className="text-sm text-muted-foreground p-4">Loading...</p>
+        ) : conversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
+            <MessageCircle className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">No conversations yet</p>
+            <p className="text-xs text-muted-foreground">Click + to find someone and start chatting</p>
+          </div>
+        ) : (
+          conversations.map((convo) => (
             <button
-              onClick={() => router.push(`/chat/${activeChat.id}`)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left bg-accent/50"
+              key={convo.id}
+              onClick={() => { onNav?.(); convo.otherUser && router.push(`/chat/${convo.otherUser.id}`) }}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left",
+                params?.userId === convo.otherUser?.id && "bg-accent"
+              )}
             >
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={activeChat.avatar_url ?? undefined} />
-                <AvatarFallback>{activeChat.name[0]?.toUpperCase()}</AvatarFallback>
+              <Avatar className="h-9 w-9 shrink-0">
+                <AvatarImage src={convo.otherUser?.avatar_url ?? undefined} />
+                <AvatarFallback>{convo.otherUser?.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium truncate flex items-center gap-2">
-                  {activeChat.name}
-                  {unread && <span className="h-2 w-2 rounded-full bg-primary shrink-0" title="Unread messages" />}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium truncate">
+                    {convo.otherUser?.name ?? "Unknown"}
+                  </span>
+                  {convo.unreadCount > 0 && (
+                    <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                  )}
                 </div>
-                {activeChat.username && (
-                  <div className="text-xs text-muted-foreground truncate">@{activeChat.username}</div>
+                {convo.lastMessage && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    {convo.lastMessage.isMine && "You: "}
+                    {convo.lastMessage.content}
+                  </p>
                 )}
               </div>
-              <MessageCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+              {convo.unreadCount > 0 && (
+                <span className="shrink-0 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
+                  {convo.unreadCount > 99 ? "99+" : convo.unreadCount}
+                </span>
+              )}
             </button>
-          </>
-        )}
-
-        {search.length > 0 && (
-          <>
-            {activeChat && <div className="border-t my-1" />}
-            <div className="px-4 pt-3 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Search Results
-            </div>
-            {results.length === 0 ? (
-              <p className="text-sm text-muted-foreground p-4">No users found</p>
-            ) : (
-              results.map((user) => (
-                <button
-                  key={user.id}
-                  onClick={() => router.push(`/chat/${user.id}`)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left",
-                    params?.userId === user.id && "bg-accent"
-                  )}
-                >
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={user.avatar_url ?? undefined} />
-                    <AvatarFallback>{user.name[0]?.toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate">{user.name}</div>
-                    {user.username && (
-                      <div className="text-xs text-muted-foreground truncate">@{user.username}</div>
-                    )}
-                  </div>
-                  <span
-                    onClick={(e) => { e.stopPropagation(); router.push(`/profile/${user.id}`) }}
-                    className="shrink-0 p-1 rounded-md hover:bg-background transition-colors cursor-pointer inline-flex items-center justify-center"
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); router.push(`/profile/${user.id}`) } }}
-                    title="View profile"
-                  >
-                    <Info className="h-4 w-4 text-muted-foreground" />
-                  </span>
-                </button>
-              ))
-            )}
-          </>
-        )}
-
-        {!search && !activeChat && (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-muted-foreground text-center px-4">
-              Search for someone to start chatting
-            </p>
-          </div>
+          ))
         )}
       </div>
     </div>

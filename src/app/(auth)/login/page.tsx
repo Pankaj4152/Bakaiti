@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -161,7 +162,7 @@ export default function LoginPage() {
               <p className="text-sm text-red-500">{error}</p>
             )}
             <Button className="w-full" type="submit" disabled={loading}>
-              {loading ? "Please wait..." : mode === "signin" ? "Sign In" : "Create Account"}
+              {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Please wait...</> : mode === "signin" ? "Sign In" : "Create Account"}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">

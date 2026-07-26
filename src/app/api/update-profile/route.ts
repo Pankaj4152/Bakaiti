@@ -22,16 +22,34 @@ export async function POST(request: Request) {
   }
   log.info("UPDATE-PROFILE", "Row to upsert:", row)
 
-  log.info("UPDATE-PROFILE", "Checking if user exists in allowed_users")
+  // Check if user exists by email
   const { error: existingError, data: existing } = await adminDb
     .from("allowed_users")
-    .select("id")
+    .select("id, username")
     .eq("email", cleanEmail)
     .maybeSingle()
 
   if (existingError) {
-    log.error("UPDATE-PROFILE", "Lookup failed:", existingError.message)
+    log.error("UPDATE-PROFILE", "Email lookup failed:", existingError.message)
     return NextResponse.json({ error: existingError.message }, { status: 500 })
+  }
+
+  // Check username uniqueness (exclude own row if updating)
+  if (row.username) {
+    const usernameQuery = adminDb
+      .from("allowed_users")
+      .select("id")
+      .eq("username", row.username)
+
+    if (existing) {
+      usernameQuery.neq("id", existing.id)
+    }
+
+    const { data: usernameTaken } = await usernameQuery.maybeSingle()
+    if (usernameTaken) {
+      log.warn("UPDATE-PROFILE", "Username taken:", row.username)
+      return NextResponse.json({ error: "Username already taken" }, { status: 409 })
+    }
   }
 
   log.info("UPDATE-PROFILE", existing ? "User exists, updating" : "User not found, inserting")

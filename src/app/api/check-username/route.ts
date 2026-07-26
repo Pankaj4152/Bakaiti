@@ -3,21 +3,26 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
-  const { username } = await request.json()
+  const { username, excludeEmail } = await request.json()
 
   if (!username || typeof username !== "string") {
     return NextResponse.json({ available: false }, { status: 400 })
   }
 
   const clean = username.toLowerCase().trim()
-  log.info("CHECK-USERNAME", "Checking:", clean)
+  log.info("CHECK-USERNAME", "Checking:", clean, excludeEmail ? `(exclude: ${excludeEmail})` : "")
 
   const adminDb = createAdminClient()
-  const { data, error } = await adminDb
+  let query = adminDb
     .from("allowed_users")
     .select("id")
     .eq("username", clean)
-    .maybeSingle()
+
+  if (excludeEmail) {
+    query = query.neq("email", excludeEmail.toLowerCase().trim())
+  }
+
+  const { data, error } = await query.maybeSingle()
 
   if (error) log.error("CHECK-USERNAME", "DB error:", error.message)
 

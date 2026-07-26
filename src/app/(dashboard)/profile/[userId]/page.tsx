@@ -3,7 +3,9 @@ import { redirect } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { computeUserStats, getAchievements, getFunLabels } from "@/lib/stats"
+import { ProfileBackButton } from "./profile-header"
 
 export default async function ProfilePage({
   params,
@@ -31,6 +33,10 @@ export default async function ProfilePage({
 
   return (
     <div className="flex-1 overflow-y-auto">
+      <div className="flex items-center gap-3 px-4 h-14 border-b">
+        <ProfileBackButton />
+        <span className="font-semibold">{profile.name}</span>
+      </div>
       <div className="max-w-lg mx-auto p-6 space-y-6">
         <Card>
           <CardContent className="pt-6 flex flex-col items-center text-center gap-3">
@@ -46,6 +52,13 @@ export default async function ProfilePage({
                 <p className="text-sm text-muted-foreground">@{profile.username}</p>
               )}
             </div>
+            {isOwn && (
+              <EditProfileDialog
+                email={profile.email}
+                currentName={profile.name}
+                currentUsername={profile.username}
+              />
+            )}
             {labels.length > 0 && (
               <div className="flex flex-wrap gap-1.5 justify-center">
                 {labels.map((l) => (
@@ -113,13 +126,17 @@ export default async function ProfilePage({
           </Card>
         )}
 
-        {!isOwn && (
-          <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-xs text-muted-foreground">
+          {isOwn ? (
+            <a href="/chat" className="underline hover:text-foreground">
+              Back to chat
+            </a>
+          ) : (
             <a href={`/chat/${userId}`} className="underline hover:text-foreground">
               Send a message
             </a>
-          </p>
-        )}
+          )}
+        </p>
       </div>
     </div>
   )
