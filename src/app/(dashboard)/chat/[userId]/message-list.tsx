@@ -20,6 +20,16 @@ export function MessageList({
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
   const { refreshConversations } = useSidebar()
+  const senderCache = useRef<Record<string, any>>({})
+
+  useEffect(() => {
+    if (!initialMessages[0]) return
+    const cache: Record<string, any> = {}
+    for (const msg of initialMessages) {
+      if (msg.sender && !cache[msg.sender_id]) cache[msg.sender_id] = msg.sender
+    }
+    senderCache.current = cache
+  }, [initialMessages])
 
   useEffect(() => {
     const channel = supabase
@@ -34,13 +44,17 @@ export function MessageList({
         },
         async (payload) => {
           const newMsg = payload.new as Message
-          if (!newMsg.sender) {
+          const cached = senderCache.current[newMsg.sender_id]
+          if (cached) {
+            newMsg.sender = cached
+          } else if (!newMsg.sender) {
             const { data: sender } = await supabase
               .from("allowed_users")
               .select("*")
               .eq("id", newMsg.sender_id)
               .maybeSingle()
             newMsg.sender = sender ?? undefined
+            if (sender) senderCache.current[newMsg.sender_id] = sender
           }
 
           if (newMsg.sender_id !== currentUserId) {
@@ -63,7 +77,7 @@ export function MessageList({
   }, [conversationId, currentUserId])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    bottomRef.current?.scrollIntoView({ behavior: "auto" })
   }, [display])
 
   useEffect(() => {

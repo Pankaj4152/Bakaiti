@@ -1,3 +1,4 @@
+import { cache } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -5,6 +6,43 @@ import { ChatInput } from "./chat-input"
 import { MessageList } from "./message-list"
 import { MarkRead } from "./mark-read"
 import { MobileMenuButton } from "./chat-header"
+
+const getCurrentUser = cache(async (email: string) => {
+  const supabase = await createClient()
+  return supabase.from("allowed_users").select("id").eq("email", email).maybeSingle()
+})
+
+const getOtherUser = cache(async (userId: string) => {
+  const supabase = await createClient()
+  return supabase.from("allowed_users").select("*").eq("id", userId).maybeSingle()
+})
+
+const getOrCreateConversation = cache(async (user1: string, user2: string) => {
+  const supabase = await createClient()
+  const [user1Id, user2Id] = [user1, user2].sort()
+  const { data: existing } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("user1_id", user1Id)
+    .eq("user2_id", user2Id)
+    .maybeSingle()
+  if (existing) return existing.id
+  const { data: created } = await supabase
+    .from("conversations")
+    .insert({ user1_id: user1Id, user2_id: user2Id })
+    .select("id")
+    .single()
+  return created!.id
+})
+
+const getMessages = cache(async (conversationId: string) => {
+  const supabase = await createClient()
+  return supabase
+    .from("messages")
+    .select("*, sender:allowed_users(*)")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true })
+})
 
 export default async function ConversationPage({
   params,
@@ -16,47 +54,16 @@ export default async function ConversationPage({
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser?.email) redirect("/login")
 
-  const { data: currentUser } = await supabase
-    .from("allowed_users")
-    .select("id")
-    .eq("email", authUser.email)
-    .maybeSingle()
+  const [{ data: currentUser }, { data: otherUser }] = await Promise.all([
+    getCurrentUser(authUser.email),
+    getOtherUser(userId),
+  ])
 
   if (!currentUser) redirect("/login")
-
-  const { data: otherUser } = await supabase
-    .from("allowed_users")
-    .select("*")
-    .eq("id", userId)
-    .maybeSingle()
-
   if (!otherUser) redirect("/chat")
 
-  const [user1Id, user2Id] = [currentUser.id, userId].sort()
-  const { data: existingConvo } = await supabase
-    .from("conversations")
-    .select("id")
-    .eq("user1_id", user1Id)
-    .eq("user2_id", user2Id)
-    .maybeSingle()
-
-  let conversationId: string
-  if (existingConvo) {
-    conversationId = existingConvo.id
-  } else {
-    const { data: newConvo } = await supabase
-      .from("conversations")
-      .insert({ user1_id: user1Id, user2_id: user2Id })
-      .select("id")
-      .single()
-    conversationId = newConvo!.id
-  }
-
-  const { data: messages } = await supabase
-    .from("messages")
-    .select("*, sender:allowed_users(*)")
-    .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true })
+  const conversationId = await getOrCreateConversation(currentUser.id, userId)
+  const { data: messages } = await getMessages(conversationId)
 
   return (
     <>

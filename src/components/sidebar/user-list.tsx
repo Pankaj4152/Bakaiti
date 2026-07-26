@@ -49,7 +49,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
     })
   }, [])
 
-  useEffect(() => { load() }, [params?.userId, refreshKey])
+  useEffect(() => { load() }, [refreshKey])
 
   return (
     <div className="flex flex-col h-full">

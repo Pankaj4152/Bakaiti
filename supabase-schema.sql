@@ -113,9 +113,17 @@ create index if not exists idx_memories_target on memories(target_user_id);
 create index if not exists idx_legendary_quotes_user on legendary_quotes(user_id);
 create index if not exists idx_daily_summaries_date on daily_summaries(date);
 
--- Enable Realtime for messages and reactions
-alter publication supabase_realtime add table messages;
-alter publication supabase_realtime add table reactions;
+-- Enable Realtime for messages and reactions (idempotent)
+do $$
+  begin
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages') then
+      alter publication supabase_realtime add table messages;
+    end if;
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'reactions') then
+      alter publication supabase_realtime add table reactions;
+    end if;
+  end;
+$$;
 
 -- Function to count late night messages (midnight to 5am)
 create or replace function count_late_night_messages(user_id uuid)
@@ -126,30 +134,78 @@ returns int as $$
     and extract(hour from created_at) < 5;
 $$ language sql;
 
+-- Function to get conversation list with user info, last message, and unread count
+create or replace function get_conversation_list(my_user_id uuid)
+returns json as $$
+  select coalesce(json_agg(json_build_object(
+    'id', c.id,
+    'otherUser', json_build_object(
+      'id', u.id,
+      'name', u.name,
+      'username', u.username,
+      'avatar_url', u.avatar_url
+    ),
+    'lastMessage', case when lm.content is not null then json_build_object(
+      'content', lm.content,
+      'created_at', lm.created_at,
+      'isMine', lm.sender_id = my_user_id
+    ) else null end,
+    'unreadCount', coalesce(uc.unread_count, 0)
+  ) order by c.last_message_at desc), '[]'::json)
+  from conversations c
+  left join allowed_users u on u.id = case when c.user1_id = my_user_id then c.user2_id else c.user1_id end
+  left join lateral (
+    select content, created_at, sender_id
+    from messages
+    where conversation_id = c.id
+    order by created_at desc
+    limit 1
+  ) lm on true
+  left join lateral (
+    select count(*)::int as unread_count
+    from messages
+    where conversation_id = c.id
+      and read = false
+      and sender_id != my_user_id
+  ) uc on true
+  where c.user1_id = my_user_id or c.user2_id = my_user_id;
+$$ language sql;
+
 -- RLS: allow authenticated users to read/insert on all app tables
 alter table allowed_users enable row level security;
 alter table conversations enable row level security;
 alter table messages enable row level security;
 alter table reactions enable row level security;
 
-create policy "authenticated can read allowed_users"
-  on allowed_users for select to authenticated using (true);
-create policy "authenticated can insert own"
-  on allowed_users for insert to authenticated with check (true);
-create policy "authenticated can update own"
-  on allowed_users for update to authenticated using (true);
-
-create policy "authenticated can read conversations"
-  on conversations for select to authenticated using (true);
-create policy "authenticated can insert conversations"
-  on conversations for insert to authenticated with check (true);
-
-create policy "authenticated can read messages"
-  on messages for select to authenticated using (true);
-create policy "authenticated can insert messages"
-  on messages for insert to authenticated with check (true);
-
-create policy "authenticated can read reactions"
-  on reactions for select to authenticated using (true);
-create policy "authenticated can insert reactions"
-  on reactions for insert to authenticated with check (true);
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can read allowed_users') then
+    create policy "authenticated can read allowed_users" on allowed_users for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can insert own') then
+    create policy "authenticated can insert own" on allowed_users for insert to authenticated with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can update own') then
+    create policy "authenticated can update own" on allowed_users for update to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can read conversations') then
+    create policy "authenticated can read conversations" on conversations for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can insert conversations') then
+    create policy "authenticated can insert conversations" on conversations for insert to authenticated with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can read messages') then
+    create policy "authenticated can read messages" on messages for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can insert messages') then
+    create policy "authenticated can insert messages" on messages for insert to authenticated with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can update messages') then
+    create policy "authenticated can update messages" on messages for update to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can read reactions') then
+    create policy "authenticated can read reactions" on reactions for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can insert reactions') then
+    create policy "authenticated can insert reactions" on reactions for insert to authenticated with check (true);
+  end if;
+end; $$;
