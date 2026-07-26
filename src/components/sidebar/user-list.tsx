@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { MessageCircle } from "lucide-react"
 import { AddUserDialog } from "./add-user-dialog"
+import { useSidebar } from "./sidebar-context"
 
 interface ConversationItem {
   id: string
@@ -22,6 +23,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
+  const { refreshKey } = useSidebar()
   const hasLoaded = useRef(false)
 
   const load = () => {
@@ -47,7 +49,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
     })
   }, [])
 
-  useEffect(() => { load() }, [params?.userId])
+  useEffect(() => { load() }, [params?.userId, refreshKey])
 
   return (
     <div className="flex flex-col h-full">

@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Plus } from "lucide-react"
+import { useSidebar } from "./sidebar-context"
 
 export function AddUserDialog() {
   const [username, setUsername] = useState("")
@@ -23,6 +24,7 @@ export function AddUserDialog() {
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const { refreshConversations } = useSidebar()
 
   const search = async () => {
     const q = username.toLowerCase().trim()
@@ -54,6 +56,7 @@ export function AddUserDialog() {
     setOpen(false)
     setUsername("")
     setFoundUser(null)
+    refreshConversations()
     router.push(`/chat/${foundUser.id}`)
   }
 

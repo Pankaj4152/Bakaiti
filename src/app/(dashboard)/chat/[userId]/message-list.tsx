@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import type { Message } from "@/types"
+import { useSidebar } from "@/components/sidebar/sidebar-context"
 
 export function MessageList({
   messages: initialMessages,
@@ -18,6 +19,7 @@ export function MessageList({
   const [display, setDisplay] = useState<Message[]>(initialMessages)
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+  const { refreshConversations } = useSidebar()
 
   useEffect(() => {
     const channel = supabase
@@ -48,6 +50,7 @@ export function MessageList({
               body: JSON.stringify({ conversationId }),
             })
             newMsg.read = true
+            refreshConversations()
           }
 
           messages.current = [...messages.current, newMsg]
