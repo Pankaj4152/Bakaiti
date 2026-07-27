@@ -19,9 +19,9 @@ export const COMMANDS: Command[] = [
   { command: "/fortune", label: "Fortune", description: "Bakait tells your fortune" },
   { command: "/simps", label: "Simps", description: "Who replies fastest to whom" },
   { command: "/mood", label: "Mood Meter", description: "Analyze the chat mood" },
-  { command: "/confetti", label: "Confetti", description: "Send a message with confetti effect" },
-  { command: "/fireworks", label: "Fireworks", description: "Send a message with fireworks effect" },
-  { command: "/rain", label: "Rain", description: "Send a message with rain effect" },
+  { command: "/confetti", label: "Confetti", description: "Rain confetti (add emoji for custom: /confetti 🚀)", hasForm: true },
+  { command: "/fireworks", label: "Fireworks", description: "Fireworks effect (add emoji for custom: /fireworks 🎉)", hasForm: true },
+  { command: "/rain", label: "Rain", description: "Rain effect (add emoji for custom: /rain 🌈)", hasForm: true },
   { command: "/spam", label: "Spam", description: "Spam a message N times", hasForm: true },
   { command: "/stfu", label: "STFU", description: "Stop the irritate bot" },
 ]

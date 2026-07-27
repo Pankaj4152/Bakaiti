@@ -33,9 +33,9 @@ Type `/` in the chat input to see a popup with all available commands. Pick one 
 | `/rps` | Play Rock Paper Scissors with AI |
 | `/simps` | Leaderboard of who replies fastest |
 | `/ghost-meter` | Who leaves on read the most |
-| `/confetti` | Send a confetti effect message |
-| `/fireworks` | Send a fireworks effect message |
-| `/rain` | Send a rain effect message |
+| `/confetti <emoji>` | Rain confetti (optional custom emoji: `/confetti 🚀`) |
+| `/fireworks <emoji>` | Fireworks effect (optional custom emoji: `/fireworks 🎉`) |
+| `/rain <emoji>` | Rain effect (optional custom emoji: `/rain 🌈`) |
 
 ## Voice Messages
 

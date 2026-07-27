@@ -106,7 +106,6 @@ export function ChatInput({
           conversation_id: conversationId,
           sender_id: senderId,
           content: command.slice(1),
-          is_ai: false,
         })
       } else if (command === "/stfu") {
         setText("")
@@ -333,11 +332,11 @@ export function ChatInput({
             }
           }
         } else if (EFFECTS.includes(known.command)) {
-          const effect = known.command.slice(1)
+          const rest = content.slice(known.command.length).trim()
           await supabase.from("messages").insert({
             conversation_id: conversationId,
             sender_id: senderId,
-            content: effect,
+            content: `${known.command.slice(1)} ${rest}`.trim(),
           })
         } else if (known.command === "/stfu") {
           await supabase.from("messages").insert({

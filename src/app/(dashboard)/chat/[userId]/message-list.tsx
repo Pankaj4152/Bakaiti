@@ -195,13 +195,15 @@ export function MessageList({
 
   const EFFECT_MESSAGES = ["confetti", "fireworks", "rain"]
 
-  // Trigger effect when an effect message is in the list
   useEffect(() => {
     const lastMsg = display[display.length - 1]
-    if (lastMsg?.content && EFFECT_MESSAGES.includes(lastMsg.content.toLowerCase())) {
-      setActiveEffect(lastMsg.content.toLowerCase())
-      const timer = setTimeout(() => setActiveEffect(null), 4500)
-      return () => clearTimeout(timer)
+    if (lastMsg?.content) {
+      const [effectName, ...rest] = lastMsg.content.toLowerCase().split(" ")
+      if (EFFECT_MESSAGES.includes(effectName)) {
+        setActiveEffect(lastMsg.content)
+        const timer = setTimeout(() => setActiveEffect(null), 4500)
+        return () => clearTimeout(timer)
+      }
     }
   }, [display])
 
@@ -214,7 +216,10 @@ export function MessageList({
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
-      {activeEffect && <MessageEffect effect={activeEffect} />}
+      {activeEffect && (() => {
+        const [name, ...rest] = activeEffect.split(" ")
+        return <MessageEffect effect={name} customEmoji={rest.join(" ")} />
+      })()}
       {display.map((msg, i) => {
         const isMine = msg.sender_id === currentUserId
         const showUnreadSeparator = i === firstUnreadIndex
@@ -269,8 +274,8 @@ export function MessageList({
                     <ImageMessage url={msg.image_url} />
                   ) : msg.audio_url ? (
                     <AudioMessage url={msg.audio_url} />
-                  ) : msg.content && EFFECT_MESSAGES.includes(msg.content.toLowerCase()) ? (
-                    <span className="text-lg">{msg.content === "confetti" ? "🎉" : msg.content === "fireworks" ? "🎆" : "🌧️"}</span>
+                    ) : msg.content && EFFECT_MESSAGES.includes(msg.content.toLowerCase().split(" ")[0]) ? (
+                    <span className="text-lg">{msg.content.match(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu)?.[0] ?? (msg.content.startsWith("confetti") ? "🎉" : msg.content.startsWith("fireworks") ? "🎆" : "🌧️")}</span>
                   ) : (
                     msg.content
                   )}
