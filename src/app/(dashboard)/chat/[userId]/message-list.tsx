@@ -7,6 +7,7 @@ import type { Message, Reaction } from "@/types"
 import { useSidebar } from "@/components/sidebar/sidebar-context"
 import { AudioMessage } from "@/components/chat/audio-message"
 import { ImageMessage } from "@/components/chat/image-message"
+import { MessageEffect } from "@/components/chat/message-effects"
 import { PollCard } from "@/components/chat/poll-card"
 
 const EMOJI_LIST = ["😂", "🔥", "💀", "❤️", "😭", "🥹"]
@@ -190,6 +191,20 @@ export function MessageList({
     setDisplay(initialMessages)
   }, [initialMessages])
 
+  const [activeEffect, setActiveEffect] = useState<string | null>(null)
+
+  const EFFECT_MESSAGES = ["confetti", "fireworks", "rain"]
+
+  // Trigger effect when an effect message is in the list
+  useEffect(() => {
+    const lastMsg = display[display.length - 1]
+    if (lastMsg?.content && EFFECT_MESSAGES.includes(lastMsg.content.toLowerCase())) {
+      setActiveEffect(lastMsg.content.toLowerCase())
+      const timer = setTimeout(() => setActiveEffect(null), 4500)
+      return () => clearTimeout(timer)
+    }
+  }, [display])
+
   const firstUnreadIndex = display.findIndex(
     (m) => !m.read && m.sender_id !== currentUserId
   )
@@ -199,6 +214,7 @@ export function MessageList({
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+      {activeEffect && <MessageEffect effect={activeEffect} />}
       {display.map((msg, i) => {
         const isMine = msg.sender_id === currentUserId
         const showUnreadSeparator = i === firstUnreadIndex
@@ -253,6 +269,8 @@ export function MessageList({
                     <ImageMessage url={msg.image_url} />
                   ) : msg.audio_url ? (
                     <AudioMessage url={msg.audio_url} />
+                  ) : msg.content && EFFECT_MESSAGES.includes(msg.content.toLowerCase()) ? (
+                    <span className="text-lg">{msg.content === "confetti" ? "🎉" : msg.content === "fireworks" ? "🎆" : "🌧️"}</span>
                   ) : (
                     msg.content
                   )}

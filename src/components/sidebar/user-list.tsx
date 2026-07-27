@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { MessageCircle, Archive } from "lucide-react"
+import { MessageCircle, Archive, LogOut } from "lucide-react"
 import { AddUserDialog } from "./add-user-dialog"
 import { CreateGroupDialog } from "./create-group-dialog"
 import { useSidebar } from "./sidebar-context"
@@ -147,6 +147,19 @@ export function UserList({ onNav }: { onNav?: () => void }) {
             )
           })
         )}
+      </div>
+      <div className="border-t p-2">
+        <button
+          onClick={async () => {
+            await supabase.auth.signOut()
+            router.push("/login")
+            router.refresh()
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </button>
       </div>
     </div>
   )

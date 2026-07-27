@@ -30,90 +30,108 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!userId) return
     if (!("Notification" in window)) return
 
-    if (Notification.permission === "default") Notification.requestPermission()
+    let isSubscribed = true
+    let channel: ReturnType<typeof supabase.channel> | null = null
 
-    supabase
-      .from("allowed_users")
-      .select("id")
-      .eq("id", userId)
-      .maybeSingle()
-      .then(async ({ data: profile }) => {
-        if (!profile) return
+    const initNotifications = async () => {
+      let permission = Notification.permission
+      if (permission === "default") {
+        permission = await Notification.requestPermission()
+      }
 
-        let channel: ReturnType<typeof supabase.channel> | null = null
+      if (permission !== "granted") return
 
-        // Push API (works when app is closed)
-        if ("serviceWorker" in navigator && Notification.permission === "granted") {
-          try {
-            const reg = await navigator.serviceWorker.register("/sw.js")
-            await navigator.serviceWorker.ready
-            const pkRes = await fetch("/api/push/subscribe")
-            const { publicKey } = await pkRes.json()
-            if (publicKey) {
-              const existing = await reg.pushManager.getSubscription()
-              if (!existing) {
-                const sub = await reg.pushManager.subscribe({
-                  userVisibleOnly: true,
-                  applicationServerKey: urlBase64ToArrayBuffer(publicKey),
-                })
-                await fetch("/api/push/subscribe", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(sub.toJSON()),
-                }).catch(() => {})
-              }
+      const { data: profile } = await supabase
+        .from("allowed_users")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle()
+
+      if (!profile || !isSubscribed) return
+
+      // Web Push API (works when app is closed / in background)
+      if ("serviceWorker" in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.register("/sw.js")
+          await navigator.serviceWorker.ready
+
+          const pkRes = await fetch("/api/push/subscribe")
+          const { publicKey } = await pkRes.json()
+
+          if (publicKey) {
+            let sub = await reg.pushManager.getSubscription()
+            if (!sub) {
+              sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToArrayBuffer(publicKey),
+              })
             }
-          } catch {}
+            if (sub) {
+              await fetch("/api/push/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(sub.toJSON()),
+              }).catch(() => {})
+            }
+          }
+        } catch (err) {
+          console.error("Push notification registration failed:", err)
         }
+      }
 
-        // Fallback browser notifications via Realtime (works when page is in background)
-        if (Notification.permission === "granted") {
-          channel = supabase
-            .channel("notifications-fallback")
-            .on(
-              "postgres_changes",
-              { event: "INSERT", schema: "public", table: "messages" },
-              async (payload) => {
-                const msg = payload.new as any
-                if (msg.sender_id === profile.id) return
-                if (document.visibilityState === "visible") return
+      // Fallback browser notifications via Realtime (for open background tabs)
+      channel = supabase
+        .channel(`notifications-fallback-${profile.id}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages" },
+          async (payload) => {
+            const msg = payload.new as any
+            if (msg.sender_id === profile.id) return
+            if (document.visibilityState === "visible") return
 
-                let name = names.current[msg.sender_id]
-                if (!name) {
-                  const { data: sender } = await supabase
-                    .from("allowed_users")
-                    .select("name")
-                    .eq("id", msg.sender_id)
-                    .maybeSingle()
-                  name = sender?.name ?? "Someone"
-                  names.current[msg.sender_id] = name
-                }
+            let name = names.current[msg.sender_id]
+            if (!name) {
+              const { data: sender } = await supabase
+                .from("allowed_users")
+                .select("name")
+                .eq("id", msg.sender_id)
+                .maybeSingle()
+              name = sender?.name ?? "Someone"
+              names.current[msg.sender_id] = name
+            }
 
-                const notif = new Notification(name, {
-                  body: msg.content || "🎤 Voice message",
+            const notif = new Notification(name, {
+              body: msg.content || "🎤 Voice message",
+              icon: "/android-chrome-192x192.png",
+            })
+            notif.onclick = () => {
+              window.focus()
+              supabase
+                .from("conversations")
+                .select("user1_id, user2_id")
+                .eq("id", msg.conversation_id)
+                .maybeSingle()
+                .then(({ data: convo }) => {
+                  if (convo) {
+                    const otherId = convo.user1_id === profile.id ? convo.user2_id : convo.user1_id
+                    window.location.href = `/chat/${otherId}`
+                  }
                 })
-                notif.onclick = () => {
-                  window.focus()
-                  supabase
-                    .from("conversations")
-                    .select("user1_id, user2_id")
-                    .eq("id", msg.conversation_id)
-                    .maybeSingle()
-                    .then(({ data: convo }) => {
-                      if (convo) {
-                        const otherId = convo.user1_id === profile.id ? convo.user2_id : convo.user1_id
-                        window.location.href = `/chat/${otherId}`
-                      }
-                    })
-                }
-              }
-            )
-            .subscribe()
-        }
+            }
+          }
+        )
+        .subscribe()
+    }
 
-        return () => { if (channel) supabase.removeChannel(channel) }
-      })
+    initNotifications()
+
+    return () => {
+      isSubscribed = false
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [userId])
 
   return <>{children}</>
 }
+
