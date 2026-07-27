@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(request: Request) {
@@ -7,12 +8,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing conversationId or username" }, { status: 400 })
   }
 
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+
   const admin = createAdminClient()
 
   const { data: targetUser } = await admin
     .from("allowed_users")
     .select("id, name")
-    .eq("username", username.toLowerCase().replace("@", ""))
+    .eq("username", username.toLowerCase().replace("@", "").trim())
     .maybeSingle()
 
   if (!targetUser) {

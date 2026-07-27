@@ -2,8 +2,11 @@ export interface User {
   id: string
   email: string
   name: string
-  username: string | null
+  username: string
   avatar_url: string | null
+  last_seen: string
+  theme: string
+  status: string
   created_at: string
 }
 
@@ -22,9 +25,29 @@ export interface Message {
   sender_id: string
   content: string | null
   audio_url: string | null
+  image_url: string | null
+  poll_id: string | null
+  sticker_url: string | null
+  is_ai: boolean
   read: boolean
   created_at: string
   sender?: User
+}
+
+export interface Poll {
+  id: string
+  conversation_id: string
+  question: string
+  created_by: string
+  created_at: string
+  options: PollOption[]
+}
+
+export interface PollOption {
+  id: string
+  poll_id: string
+  text: string
+  votes: { user_id: string }[]
 }
 
 export interface Reaction {

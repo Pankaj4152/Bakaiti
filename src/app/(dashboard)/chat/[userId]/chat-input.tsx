@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Send } from "lucide-react"
+import { Send, Image } from "lucide-react"
 import { AudioRecorder } from "@/components/chat/audio-recorder"
+import { StickerPicker } from "@/components/chat/stickers/sticker-picker"
 export function ChatInput({
   conversationId,
   senderId,
@@ -17,7 +18,45 @@ export function ChatInput({
   const [sending, setSending] = useState(false)
   const [recordingActive, setRecordingActive] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
+  const typingChannel = useRef<ReturnType<typeof supabase.channel>>(undefined)
+  const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  useEffect(() => {
+    const channel = supabase.channel(`typing:${conversationId}`)
+    channel.subscribe()
+    typingChannel.current = channel
+    return () => { supabase.removeChannel(channel) }
+  }, [conversationId])
+
+  const broadcastTyping = useCallback(() => {
+    if (!typingChannel.current) return
+    if (typingTimer.current) return
+    typingChannel.current.send({ type: "broadcast", event: "typing", payload: { userId: senderId } })
+    typingTimer.current = setTimeout(() => { typingTimer.current = undefined }, 2500)
+  }, [senderId])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setText(e.target.value)
+    broadcastTyping()
+  }
+
+  const uploadFile = async (file: File) => {
+    setSending(true)
+    const ext = file.name.split(".").pop() ?? "png"
+    const fileName = `${conversationId}/${Date.now()}_${senderId}.${ext}`
+    const { error } = await supabase.storage.from("images").upload(fileName, file)
+    if (error) { setSending(false); return }
+    const { data: { publicUrl } } = supabase.storage.from("images").getPublicUrl(fileName)
+    await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      content: null,
+      image_url: publicUrl,
+    })
+    setSending(false)
+  }
 
   const send = async () => {
     const content = text.trim()
@@ -110,7 +149,8 @@ export function ChatInput({
           await supabase.from("messages").insert({
             conversation_id: conversationId,
             sender_id: senderId,
-            content: `🤖 Bakait: ${data.reply}`,
+            content: data.reply,
+            is_ai: true,
           })
         }
       } catch {}
@@ -118,26 +158,73 @@ export function ChatInput({
       return
     }
 
-    if (content.startsWith("/roast") || content.startsWith("/chaos")) {
+    if (content.startsWith("/poll")) {
+      setText("")
+      setSending(true)
+      const match = content.match(/"([^"]+)"/g)
+      if (match && match.length >= 3) {
+        const question = match[0].replace(/"/g, "")
+        const options = match.slice(1).map((m) => m.replace(/"/g, ""))
+        try {
+          await fetch("/api/poll/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ conversationId, question, options }),
+          })
+        } catch {}
+      }
+      setSending(false)
+      return
+    }
+
+    if (content.startsWith("/roast")) {
+      const userMsg = content.slice(6).trim()
       setText("")
       setSending(true)
       try {
-        const isChaos = content.startsWith("/chaos")
-        const res = await fetch(`/api/${isChaos ? "chaos" : "roast"}`, {
+        if (userMsg) {
+          await supabase.from("messages").insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: userMsg,
+          })
+        }
+        const res = await fetch("/api/roast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId, triggerUserId: senderId, userText: userMsg || undefined }),
+        })
+        const data = await res.json()
+        if (res.ok && data.roast) {
+          await supabase.from("messages").insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: data.roast,
+            is_ai: true,
+          })
+        }
+      } catch {}
+      setSending(false)
+      return
+    }
+
+    if (content.startsWith("/chaos")) {
+      setText("")
+      setSending(true)
+      try {
+        const res = await fetch("/api/chaos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ conversationId }),
         })
         const data = await res.json()
-        if (res.ok) {
-          const text = isChaos ? data.chaos : data.roast
-          if (text) {
-            await supabase.from("messages").insert({
-              conversation_id: conversationId,
-              sender_id: senderId,
-              content: isChaos ? `📰 Bakait News: ${text}` : `🔥 Bakait: ${text}`,
-            })
-          }
+        if (res.ok && data.chaos) {
+          await supabase.from("messages").insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: data.chaos,
+            is_ai: true,
+          })
         }
       } catch {}
       setSending(false)
@@ -163,13 +250,27 @@ export function ChatInput({
     inputRef.current?.focus()
   }
 
+  const handleStickerSelect = async (url: string) => {
+    await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      sticker_url: url,
+    })
+
+    fetch("/api/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId, senderId, content: "sent a sticker" }),
+    }).catch(() => {})
+  }
+
   return (
     <div className="flex items-center gap-2 p-4 border-t">
       <Input
         ref={inputRef}
         placeholder="Type a message..."
         value={text}
-        onChange={(e) => setText(e.target.value)}
+          onChange={handleInputChange}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
@@ -178,6 +279,20 @@ export function ChatInput({
         }}
         className="flex-1"
       />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) { uploadFile(file); e.target.value = "" }
+        }}
+      />
+      <Button size="icon" variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={sending}>
+        <Image className="h-4 w-4" />
+      </Button>
+      <StickerPicker onSelect={handleStickerSelect} />
       <AudioRecorder
         conversationId={conversationId}
         senderId={senderId}

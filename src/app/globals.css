@@ -99,3 +99,72 @@ body {
   color: hsl(var(--foreground));
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* --- Theme Packs --- */
+.theme-orange {
+  --theme-hue: 25;
+  --theme-primary: var(--theme-hue) 90% 55%;
+  --theme-primary-foreground: 0 0% 100%;
+  --theme-accent: var(--theme-hue) 80% 45%;
+  --theme-gradient: linear-gradient(135deg, #ff8a00, #e52e71);
+}
+.theme-orange .bg-primary {
+  background: linear-gradient(135deg, #ff8a00, #e52e71);
+}
+
+.theme-cyberpunk {
+  --theme-hue: 280;
+  --theme-primary: var(--theme-hue) 80% 55%;
+  --theme-primary-foreground: 0 0% 100%;
+  --theme-accent: 150 100% 50%;
+  --theme-gradient: linear-gradient(135deg, #f0f, #0ff);
+}
+.theme-cyberpunk .bg-primary {
+  background: linear-gradient(135deg, #f0f, #0ff);
+}
+
+.theme-whatsapp {
+  --theme-hue: 142;
+  --theme-primary: var(--theme-hue) 70% 45%;
+  --theme-primary-foreground: 0 0% 100%;
+  --theme-accent: var(--theme-hue) 80% 35%;
+  --theme-gradient: linear-gradient(135deg, #25D366, #128C7E);
+}
+.theme-whatsapp .bg-primary {
+  background: #075e54;
+}
+
+.theme-discord {
+  --theme-hue: 227;
+  --theme-primary: var(--theme-hue) 60% 50%;
+  --theme-primary-foreground: 0 0% 100%;
+  --theme-accent: var(--theme-hue) 70% 40%;
+  --theme-gradient: linear-gradient(135deg, #5865F2, #4752C4);
+}
+.theme-discord .bg-primary {
+  background: #5865F2;
+}
+
+.theme-terminal {
+  --background: 120 100% 5%;
+  --foreground: 120 100% 70%;
+  --card: 120 100% 8%;
+  --card-foreground: 120 100% 70%;
+  --popover: 120 100% 8%;
+  --popover-foreground: 120 100% 70%;
+  --muted: 120 100% 10%;
+  --muted-foreground: 120 100% 50%;
+  --primary: 120 100% 70%;
+  --primary-foreground: 120 100% 5%;
+  --border: 120 100% 15%;
+  --input: 120 100% 15%;
+  --ring: 120 100% 50%;
+}
+.theme-terminal .bg-primary {
+  background: #00ff41;
+  color: #000;
+}
+.theme-terminal .bg-muted {
+  background: #0a1a0a;
+  color: #00ff41;
+}

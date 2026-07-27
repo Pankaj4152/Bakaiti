@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import type { Message, Reaction } from "@/types"
 import { useSidebar } from "@/components/sidebar/sidebar-context"
 import { AudioMessage } from "@/components/chat/audio-message"
+import { ImageMessage } from "@/components/chat/image-message"
+import { PollCard } from "@/components/chat/poll-card"
 
 const EMOJI_LIST = ["😂", "🔥", "💀", "❤️", "😭", "🥹"]
 
@@ -170,6 +172,16 @@ export function MessageList({
   }, [conversationId])
 
   useEffect(() => {
+    if (!pickingEmojiFor) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest("[data-emoji-picker]")) setPickingEmojiFor(null)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [pickingEmojiFor])
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto" })
   }, [display])
 
@@ -220,12 +232,26 @@ export function MessageList({
               <div className="flex flex-col items-end gap-0.5 max-w-[75%]">
                 <div
                   className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words ${
-                    isMine
-                      ? "bg-primary text-primary-foreground rounded-[18px] rounded-br-[6px]"
-                      : "bg-muted rounded-[18px] rounded-bl-[6px]"
+                    msg.is_ai
+                      ? "bg-gradient-to-r from-purple-600/90 to-pink-600/90 text-white rounded-[18px] rounded-br-[6px]"
+                      : isMine
+                        ? "bg-primary text-primary-foreground rounded-[18px] rounded-br-[6px]"
+                        : "bg-muted rounded-[18px] rounded-bl-[6px]"
                   } ${grouped ? (isMine ? "rounded-br-[18px]" : "rounded-bl-[18px]") : ""}`}
                 >
-                  {msg.audio_url ? (
+                  {msg.is_ai && (
+                    <span className="text-[10px] opacity-70 mr-1.5">🤖</span>
+                  )}
+                  {msg.sticker_url ? (
+                    <img src={msg.sticker_url} alt="" className="max-w-[180px] max-h-[180px] object-contain" />
+                  ) : msg.poll_id ? (
+                    <div>
+                      <p className="text-sm mb-2">{msg.content}</p>
+                      <PollCard pollId={msg.poll_id} currentUserId={currentUserId} />
+                    </div>
+                  ) : msg.image_url ? (
+                    <ImageMessage url={msg.image_url} />
+                  ) : msg.audio_url ? (
                     <AudioMessage url={msg.audio_url} />
                   ) : (
                     msg.content
@@ -251,7 +277,7 @@ export function MessageList({
                     </button>
                   ))}
                   {pickingEmojiFor === msg.id ? (
-                    <div className="flex items-center gap-0.5 bg-popover border rounded-full px-1.5 py-0.5 shadow-sm">
+                    <div data-emoji-picker className="flex items-center gap-0.5 bg-popover border rounded-full px-1.5 py-0.5 shadow-sm">
                       {EMOJI_LIST.map((emoji) => (
                         <button
                           key={emoji}

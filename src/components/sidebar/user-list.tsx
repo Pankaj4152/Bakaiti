@@ -7,13 +7,26 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { MessageCircle, Archive } from "lucide-react"
 import { AddUserDialog } from "./add-user-dialog"
+import { CreateGroupDialog } from "./create-group-dialog"
 import { useSidebar } from "./sidebar-context"
+
+interface Participant {
+  id: string; name: string; avatar_url: string | null
+}
 
 interface ConversationItem {
   id: string
-  otherUser: { id: string; name: string; username: string; avatar_url: string | null } | null
-  lastMessage: { content: string; created_at: string; isMine: boolean } | null
+  type: string
+  name: string | null
+  otherUser: { id: string; name: string; username: string; avatar_url: string | null; last_seen: string | null } | null
+  participants: Participant[] | null
+  lastMessage: { content: string; created_at: string; isMine: boolean; senderName?: string | null; audio_url?: string; image_url?: string; sticker_url?: string } | null
   unreadCount: number
+}
+
+const isOnline = (lastSeen: string | null | undefined) => {
+  if (!lastSeen) return false
+  return Date.now() - new Date(lastSeen).getTime() < 120000
 }
 
 export function UserList({ onNav }: { onNav?: () => void }) {
@@ -61,6 +74,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
           </Avatar>
         </button>
         <h1 className="font-bold text-lg flex-1">Bakaiti</h1>
+        <CreateGroupDialog />
         <button onClick={() => { onNav?.(); router.push("/vault") }} className="shrink-0 h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors" title="The Vault">
           <Archive className="h-4 w-4" />
         </button>
@@ -76,23 +90,42 @@ export function UserList({ onNav }: { onNav?: () => void }) {
             <p className="text-xs text-muted-foreground">Click + to find someone and start chatting</p>
           </div>
         ) : (
-          conversations.map((convo) => (
+          conversations.map((convo) => {
+            const isGroup = convo.type === "group"
+            const href = isGroup ? `/chat/group/${convo.id}` : `/chat/${convo.otherUser?.id}`
+            const active = isGroup ? params?.conversationId === convo.id : params?.userId === convo.otherUser?.id
+            const groupInitials = convo.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) ?? "G"
+
+            return (
             <button
               key={convo.id}
-              onClick={() => { onNav?.(); convo.otherUser && router.push(`/chat/${convo.otherUser.id}`) }}
+              onClick={() => { onNav?.(); router.push(href) }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left",
-                params?.userId === convo.otherUser?.id && "bg-accent"
+                active && "bg-accent"
               )}
             >
-              <Avatar className="h-9 w-9 shrink-0">
-                <AvatarImage src={convo.otherUser?.avatar_url ?? undefined} />
-                <AvatarFallback>{convo.otherUser?.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
-              </Avatar>
+              <div className="relative shrink-0">
+                {isGroup ? (
+                  <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
+                    {groupInitials}
+                  </div>
+                ) : (
+                  <>
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={convo.otherUser?.avatar_url ?? undefined} />
+                      <AvatarFallback>{convo.otherUser?.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
+                    </Avatar>
+                    {isOnline(convo.otherUser?.last_seen) && (
+                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
+                    )}
+                  </>
+                )}
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium truncate">
-                    {convo.otherUser?.name ?? "Unknown"}
+                    {isGroup ? (convo.name ?? "Group") : (convo.otherUser?.name ?? "Unknown")}
                   </span>
                   {convo.unreadCount > 0 && (
                     <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
@@ -100,8 +133,8 @@ export function UserList({ onNav }: { onNav?: () => void }) {
                 </div>
                 {convo.lastMessage && (
                   <p className="text-xs text-muted-foreground truncate">
-                    {convo.lastMessage.isMine && "You: "}
-                    {convo.lastMessage.content || "🎤 Voice message"}
+                    {convo.lastMessage.isMine ? "You: " : isGroup && convo.lastMessage.senderName ? `${convo.lastMessage.senderName}: ` : ""}
+                    {convo.lastMessage.sticker_url ? "sent a sticker" : convo.lastMessage.image_url ? "sent a photo" : convo.lastMessage.audio_url ? "🎤 Voice message" : (convo.lastMessage.content ?? "")}
                   </p>
                 )}
               </div>
@@ -111,7 +144,8 @@ export function UserList({ onNav }: { onNav?: () => void }) {
                 </span>
               )}
             </button>
-          ))
+            )
+          })
         )}
       </div>
     </div>

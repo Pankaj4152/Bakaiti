@@ -7,10 +7,12 @@ import { ChatInput } from "./chat-input"
 import { MessageList } from "./message-list"
 import { MarkRead } from "./mark-read"
 import { MobileMenuButton } from "./chat-header"
+import { TypingIndicator } from "@/components/chat/typing-indicator"
+import { MediaButton } from "./media-button"
 
 const getCurrentUser = cache(async (email: string) => {
   const supabase = await createClient()
-  return supabase.from("allowed_users").select("id").eq("email", email).maybeSingle()
+  return supabase.from("allowed_users").select("id, theme").eq("email", email).maybeSingle()
 })
 
 const getOtherUser = cache(async (userId: string) => {
@@ -66,8 +68,10 @@ export default async function ConversationPage({
   const conversationId = await getOrCreateConversation(currentUser.id, userId)
   const { data: messages } = await getMessages(conversationId)
 
+  const themeClass = currentUser.theme && currentUser.theme !== "default" ? `theme-${currentUser.theme}` : ""
+
   return (
-    <>
+    <div className={`flex flex-col h-full ${themeClass}`}>
       <MarkRead conversationId={conversationId} />
       <div className="flex items-center gap-1 px-2 h-14 border-b flex-shrink-0">
         <MobileMenuButton />
@@ -75,12 +79,19 @@ export default async function ConversationPage({
           href={`/profile/${userId}`}
           className="flex items-center gap-3 px-2 h-full flex-1 hover:bg-accent transition-colors rounded"
         >
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={otherUser.avatar_url ?? undefined} />
-            <AvatarFallback>{otherUser.name[0]?.toUpperCase()}</AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={otherUser.avatar_url ?? undefined} />
+              <AvatarFallback>{otherUser.name[0]?.toUpperCase()}</AvatarFallback>
+            </Avatar>
+            {otherUser.last_seen && Date.now() - new Date(otherUser.last_seen).getTime() < 120000 && (
+              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border-2 border-background" />
+            )}
+          </div>
           <span className="font-semibold">{otherUser.name}</span>
+          <TypingIndicator conversationId={conversationId} otherUserId={userId} />
         </Link>
+        <MediaButton conversationId={conversationId} />
       </div>
       <MessageList
         messages={messages ?? []}
@@ -91,6 +102,6 @@ export default async function ConversationPage({
         conversationId={conversationId}
         senderId={currentUser.id}
       />
-    </>
+    </div>
   )
 }

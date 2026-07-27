@@ -14,16 +14,27 @@ import {
 } from "@/components/ui/dialog"
 import { createClient } from "@/lib/supabase/client"
 
+const THEMES = [
+  { value: "default", label: "Default", class: "" },
+  { value: "orange", label: "Orange", class: "bg-gradient-to-r from-orange-500 to-pink-500" },
+  { value: "cyberpunk", label: "Cyberpunk", class: "bg-gradient-to-r from-fuchsia-500 to-cyan-500" },
+  { value: "discord", label: "Discord", class: "bg-[#5865F2]" },
+  { value: "whatsapp", label: "WhatsApp", class: "bg-[#075e54]" },
+  { value: "terminal", label: "Terminal", class: "bg-[#00ff41] text-black" },
+]
+
 export function EditProfileDialog({
   email,
   currentName,
   currentUsername,
   currentAvatarUrl,
+  currentTheme = "default",
 }: {
   email: string
   currentName: string
   currentUsername: string | null
   currentAvatarUrl: string | null
+  currentTheme?: string
 }) {
   const [name, setName] = useState(currentName)
   const [username, setUsername] = useState(currentUsername ?? "")
@@ -34,6 +45,7 @@ export function EditProfileDialog({
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [theme, setTheme] = useState(currentTheme)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const supabase = createClient()
@@ -55,11 +67,11 @@ export function EditProfileDialog({
     setLoading(true)
     setError("")
 
-    let avatarUrl = null
+    let avatarUrl: string | undefined
     if (avatarFile) {
       setUploadingAvatar(true)
       const ext = avatarFile.name.split(".").pop() ?? "png"
-      const fileName = `${Date.now()}.${ext}`
+      const fileName = `${email.replace(/[^a-z0-9]/gi, "_")}_${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(fileName, avatarFile)
@@ -76,23 +88,31 @@ export function EditProfileDialog({
       setUploadingAvatar(false)
     }
 
+    const body: Record<string, any> = {
+      email,
+      name: name.trim(),
+      username: username.trim(),
+    }
+    if (avatarUrl) body.avatar_url = avatarUrl
+
     const res = await fetch("/api/update-profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        name: name.trim(),
-        username: username.trim(),
-        avatar_url: avatarUrl,
-      }),
+      body: JSON.stringify(body),
     })
 
-    const body = await res.json()
+    const data = await res.json()
     if (!res.ok) {
-      setError(body.error || "Failed to save")
+      setError(data.error || "Failed to save")
       setLoading(false)
       return
     }
+
+    await fetch("/api/theme", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ theme }),
+    })
 
     setOpen(false)
     router.refresh()
@@ -150,6 +170,24 @@ export function EditProfileDialog({
             {usernameError && (
               <p className="text-xs text-red-500 mt-1">{usernameError}</p>
             )}
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Chat Theme</label>
+            <div className="grid grid-cols-3 gap-2">
+              {THEMES.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setTheme(t.value)}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all ${
+                    theme === t.value ? "ring-2 ring-primary border-primary" : "hover:bg-accent"
+                  }`}
+                >
+                  <span className={`w-6 h-6 rounded-full ${t.class}`} />
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <Button className="w-full" onClick={handleSave} disabled={loading || !!usernameError}>

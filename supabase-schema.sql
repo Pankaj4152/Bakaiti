@@ -11,14 +11,33 @@ create table if not exists allowed_users (
   created_at timestamptz default now()
 );
 
--- 2. Conversations (DMs between two users)
+-- 2. Conversations (DMs between two users or groups)
 create table if not exists conversations (
   id uuid primary key default gen_random_uuid(),
   user1_id uuid not null references allowed_users(id) on delete cascade,
-  user2_id uuid not null references allowed_users(id) on delete cascade,
+  user2_id uuid references allowed_users(id) on delete cascade,
+  name text,
+  type text default 'dm',
   created_at timestamptz default now(),
-  last_message_at timestamptz default now(),
-  unique(user1_id, user2_id)
+  last_message_at timestamptz default now()
+);
+
+-- Migration: add type and name columns to conversations
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name = 'conversations' and column_name = 'type') then
+    alter table conversations add column type text default 'dm';
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name = 'conversations' and column_name = 'name') then
+    alter table conversations add column name text;
+  end if;
+end; $$;
+
+-- 2b. Conversation participants (for group chats)
+create table if not exists conversation_participants (
+  conversation_id uuid not null references conversations(id) on delete cascade,
+  user_id uuid not null references allowed_users(id) on delete cascade,
+  joined_at timestamptz default now(),
+  primary key (conversation_id, user_id)
 );
 
 -- 3. Messages
@@ -116,6 +135,64 @@ create table if not exists push_subscriptions (
   unique(endpoint)
 );
 
+-- 11. Polls
+create table if not exists polls (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references conversations(id) on delete cascade,
+  question text not null,
+  created_by uuid not null references allowed_users(id),
+  created_at timestamptz default now()
+);
+
+create table if not exists poll_options (
+  id uuid primary key default gen_random_uuid(),
+  poll_id uuid not null references polls(id) on delete cascade,
+  text text not null
+);
+
+create table if not exists poll_votes (
+  id uuid primary key default gen_random_uuid(),
+  option_id uuid not null references poll_options(id) on delete cascade,
+  user_id uuid not null references allowed_users(id) on delete cascade,
+  created_at timestamptz default now(),
+  unique(option_id, user_id)
+);
+
+alter table polls enable row level security;
+alter table poll_options enable row level security;
+alter table poll_votes enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'polls read') then
+    create policy "polls read" on polls for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'polls insert') then
+    create policy "polls insert" on polls for insert to authenticated with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'poll_options read') then
+    create policy "poll_options read" on poll_options for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'poll_options insert') then
+    create policy "poll_options insert" on poll_options for insert to authenticated with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'poll_votes read') then
+    create policy "poll_votes read" on poll_votes for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'poll_votes insert') then
+    create policy "poll_votes insert" on poll_votes for insert to authenticated with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'poll_votes delete') then
+    create policy "poll_votes delete" on poll_votes for delete to authenticated using (user_id = (select id from allowed_users where email = auth.email()));
+  end if;
+end; $$;
+
+-- Enable Realtime for polls
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'poll_votes') then
+    alter publication supabase_realtime add table poll_votes;
+  end if;
+end; $$;
+
 -- Indexes for performance
 create index if not exists idx_conversations_users on conversations(user1_id, user2_id);
 create index if not exists idx_messages_conversation on messages(conversation_id, created_at);
@@ -147,29 +224,53 @@ returns int as $$
     and extract(hour from created_at) < 5;
 $$ language sql;
 
+-- Ensure all columns used by get_conversation_list exist
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'image_url') then
+    alter table messages add column image_url text;
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'sticker_url') then
+    alter table messages add column sticker_url text;
+  end if;
+end; $$;
+
 -- Function to get conversation list with user info, last message, and unread count
 create or replace function get_conversation_list(my_user_id uuid)
 returns json as $$
   select coalesce(json_agg(json_build_object(
     'id', c.id,
-    'otherUser', json_build_object(
+    'type', c.type,
+    'name', c.name,
+    'otherUser', case when c.type = 'group' then null else json_build_object(
       'id', u.id,
       'name', u.name,
       'username', u.username,
       'avatar_url', u.avatar_url
-    ),
-    'lastMessage', case when lm.content is not null or lm.audio_url is not null then json_build_object(
+    ) end,
+    'participants', case when c.type = 'group' then (
+      select coalesce(json_agg(json_build_object(
+        'id', p.id,
+        'name', p.name,
+        'avatar_url', p.avatar_url
+      )), '[]'::json)
+      from conversation_participants cp
+      join allowed_users p on p.id = cp.user_id
+      where cp.conversation_id = c.id
+    ) else null end,
+    'lastMessage', case when lm.content is not null or lm.audio_url is not null or lm.image_url is not null or lm.sticker_url is not null then json_build_object(
       'content', lm.content,
       'audio_url', lm.audio_url,
+      'image_url', lm.image_url,
+      'sticker_url', lm.sticker_url,
       'created_at', lm.created_at,
       'isMine', lm.sender_id = my_user_id
     ) else null end,
     'unreadCount', coalesce(uc.unread_count, 0)
   ) order by c.last_message_at desc), '[]'::json)
   from conversations c
-  left join allowed_users u on u.id = case when c.user1_id = my_user_id then c.user2_id else c.user1_id end
+  left join allowed_users u on u.id = case when c.type = 'group' then null else case when c.user1_id = my_user_id then c.user2_id else c.user1_id end end
   left join lateral (
-    select content, audio_url, created_at, sender_id
+    select content, audio_url, image_url, sticker_url, created_at, sender_id
     from messages
     where conversation_id = c.id
     order by created_at desc
@@ -182,7 +283,9 @@ returns json as $$
       and read = false
       and sender_id != my_user_id
   ) uc on true
-  where c.user1_id = my_user_id or c.user2_id = my_user_id;
+  where c.user1_id = my_user_id or c.user2_id = my_user_id or exists (
+    select 1 from conversation_participants where conversation_id = c.id and user_id = my_user_id
+  );
 $$ language sql;
 
 -- RLS: allow authenticated users to read/insert on all app tables
@@ -251,6 +354,42 @@ do $$ begin
   end if;
 end; $$;
 
+-- Online status / last seen
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name = 'allowed_users' and column_name = 'last_seen') then
+    alter table allowed_users add column last_seen timestamptz default now();
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name = 'allowed_users' and column_name = 'theme') then
+    alter table allowed_users add column theme text default 'default';
+  end if;
+end; $$;
+
+-- Image/video message support
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'image_url') then
+    alter table messages add column image_url text;
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'poll_id') then
+    alter table messages add column poll_id uuid references polls(id) on delete set null;
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'is_ai') then
+    alter table messages add column is_ai boolean default false;
+  end if;
+end; $$;
+
+-- Storage bucket for images
+insert into storage.buckets (id, name, public) values ('images', 'images', true)
+on conflict (id) do nothing;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'images read') then
+    create policy "images read" on storage.objects for select to authenticated using (bucket_id = 'images');
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'images insert') then
+    create policy "images insert" on storage.objects for insert to authenticated with check (bucket_id = 'images');
+  end if;
+end; $$;
+
 -- Storage bucket for avatars
 insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true)
 on conflict (id) do nothing;
@@ -261,6 +400,79 @@ do $$ begin
   end if;
   if not exists (select 1 from pg_policies where policyname = 'avatars insert') then
     create policy "avatars insert" on storage.objects for insert to authenticated with check (bucket_id = 'avatars');
+  end if;
+end; $$;
+
+-- Conversation participants RLS
+alter table conversation_participants enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'participants select') then
+    create policy "participants select" on conversation_participants for select
+      to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'participants insert') then
+    create policy "participants insert" on conversation_participants for insert
+      to authenticated with check (true);
+  end if;
+end; $$;
+
+-- Sticker packs
+create table if not exists sticker_packs (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  creator_id uuid references allowed_users(id) on delete cascade,
+  is_public boolean default false,
+  created_at timestamptz default now()
+);
+
+create table if not exists stickers (
+  id uuid primary key default gen_random_uuid(),
+  pack_id uuid references sticker_packs(id) on delete cascade not null,
+  image_url text not null,
+  created_at timestamptz default now()
+);
+
+alter table sticker_packs enable row level security;
+alter table stickers enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'sticker_packs select') then
+    create policy "sticker_packs select" on sticker_packs for select
+      to authenticated using (is_public = true or creator_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'sticker_packs insert') then
+    create policy "sticker_packs insert" on sticker_packs for insert
+      to authenticated with check (creator_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'stickers select') then
+    create policy "stickers select" on stickers for select
+      to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'stickers insert') then
+    create policy "stickers insert" on stickers for insert
+      to authenticated with check (exists (select 1 from sticker_packs where id = pack_id and creator_id = auth.uid()));
+  end if;
+end; $$;
+
+-- Add sticker_url to messages
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'sticker_url') then
+    alter table messages add column sticker_url text;
+  end if;
+end; $$;
+
+-- Stickers bucket + policies
+insert into storage.buckets (id, name, public)
+values ('stickers', 'stickers', true)
+on conflict (id) do nothing;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'stickers read') then
+    create policy "stickers read" on storage.objects for select to authenticated using (bucket_id = 'stickers');
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'stickers insert') then
+    create policy "stickers insert" on storage.objects for insert to authenticated with check (bucket_id = 'stickers');
   end if;
 end; $$;
 

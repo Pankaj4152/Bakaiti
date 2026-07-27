@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateRoast } from "@/lib/gemini"
 
 export async function POST(request: Request) {
-  const { conversationId } = await request.json()
+  const { conversationId, triggerUserId, userText } = await request.json()
   if (!conversationId) return NextResponse.json({ error: "Missing conversationId" }, { status: 400 })
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
 
   const admin = createAdminClient()
 
@@ -23,6 +28,8 @@ export async function POST(request: Request) {
     userIdToName[u.id] = u.name
     userNames.push(u.name)
   }
+
+  const triggerName = triggerUserId ? userIdToName[triggerUserId] : null
 
   const { data: summaries } = await admin
     .from("daily_summaries")
@@ -48,7 +55,7 @@ export async function POST(request: Request) {
     created_at: m.created_at,
   }))
 
-  const roast = await generateRoast(summaries ?? [], recentMessages, userNames)
+  const roast = await generateRoast(summaries ?? [], recentMessages, userNames, triggerName ?? userNames[0], userText)
 
   if (!roast) {
     return NextResponse.json({ error: "Failed to generate roast" }, { status: 500 })

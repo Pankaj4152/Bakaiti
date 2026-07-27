@@ -120,9 +120,13 @@ Rewrite this conversation as an overdramatic BREAKING NEWS article. Use dramatic
 export async function generateRoast(
   summaries: { date: string; content: string }[],
   recentMessages: MessageInput[],
-  userNames: string[]
+  userNames: string[],
+  triggerUserName: string,
+  userText?: string
 ): Promise<string | null> {
   if (!API_KEY) return null
+
+  const targetName = userNames.find((n) => n !== triggerUserName) ?? userNames[0] ?? "them"
 
   const summaryBlock = summaries
     .map((s) => `--- ${s.date} ---\n${typeof s.content === "string" ? s.content : JSON.stringify(s.content)}`)
@@ -132,15 +136,15 @@ export async function generateRoast(
     .map((m) => `[${m.sender_name}]: ${m.content ?? "🎤 Voice message"}`)
     .join("\n")
 
-  const prompt = `You are a funny AI assistant named Bakait roasting the chat between ${userNames.join(" and ")}.
+  const extraText = userText ? `\n${triggerUserName} specifically calls out: "${userText}"` : ""
 
-Here's what they've been talking about lately (daily summaries):
-${summaryBlock}
+  const prompt = `You are a funny AI assistant named Bakait. ${triggerUserName} asked you to roast ${targetName}.
 
-And here are their recent messages:
+Here's the recent conversation context:
 ${chatLog}
+${extraText}
 
-Generate a VERY SHORT, playful roast about their conversations. Maximum 2 lines. Reference specific things they talked about. Make it punchy and funny, like a friend teasing. Return ONLY the roast text, no explanations or markdown.`
+Generate a VERY SHORT playful roast about ${targetName}. Maximum 2 lines. Reference specific things they said or did. Make it punchy and funny, like a friend teasing them. Don't roast ${triggerUserName}, only roast ${targetName}. Return ONLY the roast text, no explanations or markdown.`
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,

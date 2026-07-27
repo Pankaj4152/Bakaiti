@@ -21,7 +21,8 @@ export async function GET() {
   const { data: rows, error } = await admin.rpc("get_conversation_list", { my_user_id: myId })
 
   if (!error && rows) {
-    return NextResponse.json({ data: rows })
+    const enriched = await enrichWithSenderNames(rows)
+    return NextResponse.json({ data: enriched })
   }
 
   // Fallback: direct queries if the RPC function hasn't been created yet
@@ -37,7 +38,7 @@ export async function GET() {
   const convoIds = conversations.map((c) => c.id)
 
   const [{ data: otherUsers }, ...results] = await Promise.all([
-    supabase.from("allowed_users").select("id, name, username, avatar_url").in("id", otherIds),
+    supabase.from("allowed_users").select("id, name, username, avatar_url, last_seen").in("id", otherIds),
     ...convoIds.flatMap((cid) => [
       supabase
         .from("messages")
@@ -81,4 +82,28 @@ export async function GET() {
   })
 
   return NextResponse.json({ data: list })
+}
+
+async function enrichWithSenderNames(rows: any[]): Promise<any[]> {
+  const admin = createAdminClient()
+  const senderIds = new Set<string>()
+  for (const r of rows) {
+    if (r.lastMessage && r.lastMessage.sender_id) senderIds.add(r.lastMessage.sender_id)
+  }
+  if (senderIds.size === 0) return rows
+
+  const { data: senders } = await admin
+    .from("allowed_users")
+    .select("id, name")
+    .in("id", [...senderIds])
+
+  const senderMap: Record<string, string> = {}
+  if (senders) for (const s of senders) senderMap[s.id] = s.name
+
+  return rows.map((r) => ({
+    ...r,
+    lastMessage: r.lastMessage
+      ? { ...r.lastMessage, senderName: r.lastMessage.sender_id ? senderMap[r.lastMessage.sender_id] ?? null : null }
+      : null,
+  }))
 }
