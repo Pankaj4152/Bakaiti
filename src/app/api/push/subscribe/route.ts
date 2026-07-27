@@ -4,30 +4,46 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getVapidPublicKey } from "@/lib/web-push"
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user?.email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  let body: any = {}
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
 
-  const admin = createAdminClient()
-
-  const { data: profile } = await admin
-    .from("allowed_users")
-    .select("id")
-    .eq("email", user.email)
-    .maybeSingle()
-
-  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 })
-
-  const body = await request.json()
-  const { endpoint, keys } = body
-
+  const { endpoint, keys, userId: bodyUserId } = body
   if (!endpoint || !keys?.p256dh || !keys?.auth) {
     return NextResponse.json({ error: "Missing endpoint or keys" }, { status: 400 })
   }
 
+  let targetUserId: string | null = null
+
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user?.email) {
+      const admin = createAdminClient()
+      const { data: profile } = await admin
+        .from("allowed_users")
+        .select("id")
+        .eq("email", user.email)
+        .maybeSingle()
+      targetUserId = profile?.id ?? null
+    }
+  } catch {}
+
+  if (!targetUserId && bodyUserId) {
+    targetUserId = bodyUserId
+  }
+
+  if (!targetUserId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  }
+
+  const admin = createAdminClient()
   const { error: upsertError } = await admin.from("push_subscriptions").upsert(
     {
-      user_id: profile.id,
+      user_id: targetUserId,
       endpoint,
       p256dh: keys.p256dh,
       auth: keys.auth,
@@ -46,3 +62,4 @@ export async function POST(request: Request) {
 export async function GET() {
   return NextResponse.json({ publicKey: getVapidPublicKey() })
 }
+
