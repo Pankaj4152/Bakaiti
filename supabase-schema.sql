@@ -585,4 +585,18 @@ do $$ begin
   end if;
 end; $$;
 
+-- 12. Performance Indexes for Scale
+create index if not exists idx_messages_conversation_created on messages(conversation_id, created_at desc);
+create index if not exists idx_messages_sender on messages(sender_id);
+create index if not exists idx_conversations_user1 on conversations(user1_id);
+create index if not exists idx_conversations_user2 on conversations(user2_id);
+create index if not exists idx_conversations_last_message on conversations(last_message_at desc);
+create index if not exists idx_conv_part_user on conversation_participants(user_id, conversation_id);
+create index if not exists idx_reactions_message on reactions(message_id);
+create index if not exists idx_push_subs_user on push_subscriptions(user_id);
+create index if not exists idx_memories_target_user on memories(target_user_id);
+create index if not exists idx_memories_conversation on memories(conversation_id);
+create index if not exists idx_legendary_quotes_user on legendary_quotes(user_id);
+
+
 
