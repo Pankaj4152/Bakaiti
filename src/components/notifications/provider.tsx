@@ -16,18 +16,18 @@ function urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
   const names = useRef<Record<string, string>>({})
-  const [userId, setUserId] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id ?? null)
+      setUserEmail(session?.user?.email ?? null)
     })
-    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null))
+    supabase.auth.getUser().then(({ data: { user } }) => setUserEmail(user?.email ?? null))
     return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
-    if (!userId) return
+    if (!userEmail) return
     if (!("Notification" in window)) return
 
     let isSubscribed = true
@@ -44,7 +44,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const { data: profile } = await supabase
         .from("allowed_users")
         .select("id")
-        .eq("id", userId)
+        .eq("email", userEmail)
         .maybeSingle()
 
       if (!profile || !isSubscribed) return
@@ -148,7 +148,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       isSubscribed = false
       if (channel) supabase.removeChannel(channel)
     }
-  }, [userId])
+  }, [userEmail])
 
   return <>{children}</>
 }
