@@ -32,6 +32,16 @@ do $$ begin
   end if;
 end; $$;
 
+-- Migration: make user2_id nullable (for group conversations)
+do $$ begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'conversations' and column_name = 'user2_id' and is_nullable = 'NO'
+  ) then
+    alter table conversations alter column user2_id drop not null;
+  end if;
+end; $$;
+
 -- 2b. Conversation participants (for group chats)
 create table if not exists conversation_participants (
   conversation_id uuid not null references conversations(id) on delete cascade,
@@ -459,6 +469,105 @@ end; $$;
 do $$ begin
   if not exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'sticker_url') then
     alter table messages add column sticker_url text;
+  end if;
+end; $$;
+
+-- Nicknames
+create table if not exists nicknames (
+  user_id uuid not null references allowed_users(id) on delete cascade,
+  target_user_id uuid not null references allowed_users(id) on delete cascade,
+  nickname text not null,
+  created_at timestamptz default now(),
+  primary key (user_id, target_user_id)
+);
+
+alter table nicknames enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'nicknames select') then
+    create policy "nicknames select" on nicknames for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'nicknames insert') then
+    create policy "nicknames insert" on nicknames for insert to authenticated with check (user_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'nicknames update') then
+    create policy "nicknames update" on nicknames for update to authenticated using (user_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'nicknames delete') then
+    create policy "nicknames delete" on nicknames for delete to authenticated using (user_id = auth.uid());
+  end if;
+end; $$;
+
+-- Pinned messages
+create table if not exists pinned_messages (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references conversations(id) on delete cascade,
+  message_id uuid not null references messages(id) on delete cascade,
+  pinned_by uuid not null references allowed_users(id) on delete cascade,
+  created_at timestamptz default now(),
+  unique(conversation_id, message_id)
+);
+
+alter table pinned_messages enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'pinned select') then
+    create policy "pinned select" on pinned_messages for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'pinned insert') then
+    create policy "pinned insert" on pinned_messages for insert to authenticated with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'pinned delete') then
+    create policy "pinned delete" on pinned_messages for delete to authenticated using (true);
+  end if;
+end; $$;
+
+-- Archived conversations
+create table if not exists archived_conversations (
+  user_id uuid not null references allowed_users(id) on delete cascade,
+  conversation_id uuid not null references conversations(id) on delete cascade,
+  archived_at timestamptz default now(),
+  primary key (user_id, conversation_id)
+);
+
+alter table archived_conversations enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'archived select') then
+    create policy "archived select" on archived_conversations for select to authenticated using (user_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'archived insert') then
+    create policy "archived insert" on archived_conversations for insert to authenticated with check (user_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'archived delete') then
+    create policy "archived delete" on archived_conversations for delete to authenticated using (user_id = auth.uid());
+  end if;
+end; $$;
+
+-- Annoyance sessions
+create table if not exists annoyance_sessions (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references conversations(id) on delete cascade,
+  target_user_id uuid not null references allowed_users(id) on delete cascade,
+  created_by uuid not null references allowed_users(id) on delete cascade,
+  status text default 'active' check (status in ('active', 'stopped', 'replied')),
+  speed text default 'medium' check (speed in ('slow', 'medium', 'aggressive')),
+  style text default 'funny' check (style in ('funny', 'sarcastic', 'desperate', 'dramatic')),
+  msg_type text default 'texts' check (msg_type in ('texts', 'roasts', 'memes')),
+  created_at timestamptz default now()
+);
+
+alter table annoyance_sessions enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'annoyance select') then
+    create policy "annoyance select" on annoyance_sessions for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'annoyance insert') then
+    create policy "annoyance insert" on annoyance_sessions for insert to authenticated with check (created_by = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'annoyance update') then
+    create policy "annoyance update" on annoyance_sessions for update to authenticated using (created_by = auth.uid());
   end if;
 end; $$;
 

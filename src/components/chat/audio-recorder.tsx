@@ -3,40 +3,30 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Mic, Square, Loader2, RotateCcw } from "lucide-react"
+import { Mic, Square, Loader2 } from "lucide-react"
 
 function getSupportedMimeType(): string | undefined {
   const types = [
-    "audio/webm;codecs=opus",
-    "audio/webm",
-    "audio/ogg;codecs=opus",
-    "audio/mp4;codecs=mp4a.40.2",
-    "audio/mp4",
-    "audio/aac",
-    "audio/3gpp",
+    "audio/webm;codecs=opus", "audio/webm",
+    "audio/ogg;codecs=opus", "audio/mp4;codecs=mp4a.40.2",
+    "audio/mp4", "audio/aac", "audio/3gpp",
   ]
   for (const t of types) {
-    try {
-      if (MediaRecorder.isTypeSupported(t)) return t
-    } catch {}
+    try { if (MediaRecorder.isTypeSupported(t)) return t } catch {}
   }
   return undefined
 }
 
 export function AudioRecorder({
-  conversationId,
-  senderId,
-  onDone,
+  conversationId, senderId, onDone,
 }: {
-  conversationId: string
-  senderId: string
-  onDone: () => void
+  conversationId: string; senderId: string; onDone: () => void
 }) {
   const [recording, setRecording] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState("")
-  const [retrying, setRetrying] = useState(false)
+  const [permState, setPermState] = useState<"unknown" | "granted" | "denied" | "prompt">("unknown")
   const mediaRecorder = useRef<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
   const timer = useRef<ReturnType<typeof setInterval>>(undefined)
@@ -46,14 +36,23 @@ export function AudioRecorder({
     return () => { clearInterval(timer.current) }
   }, [])
 
-  const start = useCallback(async () => {
+  // Check permission state on mount
+  useEffect(() => {
+    if (navigator.permissions?.query) {
+      navigator.permissions.query({ name: "microphone" as PermissionName }).then((s) => {
+        setPermState(s.state as any)
+        s.onchange = () => setPermState(s.state as any)
+      }).catch(() => {})
+    }
+  }, [])
+
+  const startRecording = useCallback(async () => {
     setError("")
-    setRetrying(false)
     chunks.current = []
     setDuration(0)
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("आपका ब्राउज़र रिकॉर्डिंग सपोर्ट नहीं करता")
+      setError("Recording not supported on this browser")
       return
     }
 
@@ -63,28 +62,32 @@ export function AudioRecorder({
     } catch (e: any) {
       const name = e?.name ?? ""
       if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-        setError("माइक्रोफ़ोन की अनुमति नहीं दी गई। कृपया ब्राउज़र सेटिंग्स में माइक्रोफ़ोन अनुमति दें और पुनः प्रयास करें।")
+        setPermState("denied")
+        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          setError("Microphone access denied. Go to Settings > Safari > Microphone and enable it, then try again.")
+        } else {
+          setError("Microphone access denied. Check your browser settings and allow microphone access, then tap the mic again.")
+        }
       } else if (name === "NotFoundError") {
-        setError("कोई माइक्रोफ़ोन नहीं मिला")
+        setError("No microphone found on this device")
       } else {
-        setError("माइक्रोफ़ोन एक्सेस नहीं हो सका। कृपया अनुमति दें और पुनः प्रयास करें।")
+        setError("Could not access microphone. Tap again to retry.")
       }
       return
     }
 
+    setPermState("granted")
+
     let mimeType = getSupportedMimeType()
     if (!mimeType) {
-      try {
-        if (MediaRecorder.isTypeSupported("video/mp4")) mimeType = "video/mp4"
-      } catch {}
+      try { if (MediaRecorder.isTypeSupported("video/mp4")) mimeType = "video/mp4" } catch {}
     }
 
     let recorder: MediaRecorder
     try {
       if (mimeType?.startsWith("video/")) {
         const canvas = document.createElement("canvas")
-        canvas.width = 2
-        canvas.height = 2
+        canvas.width = 2; canvas.height = 2
         const videoStream = canvas.captureStream(1)
         const audioTrack = stream.getAudioTracks()[0]
         const combined = new MediaStream([videoStream.getVideoTracks()[0], audioTrack])
@@ -98,9 +101,10 @@ export function AudioRecorder({
       }
     } catch (e) {
       stream.getTracks().forEach((t) => t.stop())
-      setError("यह डिवाइस रिकॉर्डिंग सपोर्ट नहीं करता")
+      setError("Recording not supported on this device")
       return
     }
+
     mediaRecorder.current = recorder
     const ext = !mimeType || mimeType.includes("mp4") || mimeType.includes("aac") || mimeType.includes("3gpp") ? "mp4" : "webm"
 
@@ -117,32 +121,18 @@ export function AudioRecorder({
 
       setUploading(true)
       const fileName = `${conversationId}/${Date.now()}_${senderId}.${ext}`
-
-      const { error: uploadError } = await supabase.storage
-        .from("audio")
-        .upload(fileName, blob, { contentType: mimeType })
-
-      if (uploadError) {
-        setError("अपलोड विफल"); setUploading(false); onDone(); return
-      }
+      const { error: uploadError } = await supabase.storage.from("audio").upload(fileName, blob, { contentType: mimeType })
+      if (uploadError) { setError("Upload failed"); setUploading(false); onDone(); return }
 
       const { data: { publicUrl } } = supabase.storage.from("audio").getPublicUrl(fileName)
-
-      const { error: insertError } = await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: senderId,
-        content: null,
-        audio_url: publicUrl,
+      await supabase.from("messages").insert({
+        conversation_id: conversationId, sender_id: senderId,
+        content: null, audio_url: publicUrl,
       })
 
-      if (insertError) {
-        setError("भेजना विफल"); setUploading(false); onDone(); return
-      }
-
       fetch("/api/push/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, senderId, content: "🎤 Audio message" }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, senderId, content: "Audio message" }),
       }).catch(() => {})
 
       setUploading(false)
@@ -159,42 +149,14 @@ export function AudioRecorder({
     setRecording(false)
   }, [])
 
-  const retry = useCallback(() => {
-    setRetrying(true)
-    setError("")
-    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-      stream.getTracks().forEach((t) => t.stop())
-      setRetrying(false)
-      start()
-    }).catch((e: any) => {
-      setRetrying(false)
-      if (e?.name === "NotAllowedError") {
-        setError("माइक्रोफ़ोन की अनुमति नहीं दी गई। कृपया ब्राउज़र सेटिंग्स में माइक्रोफ़ोन अनुमति दें और पुनः प्रयास करें।")
-      } else {
-        setError("फिर भी माइक्रोफ़ोन एक्सेस नहीं हो सका")
-      }
-    })
-  }, [start])
-
   if (uploading) {
-    return (
-      <Button size="icon" variant="ghost" disabled>
-        <Loader2 className="h-4 w-4 animate-spin" />
-      </Button>
-    )
+    return <Button size="icon" variant="ghost" disabled><Loader2 className="h-4 w-4 animate-spin" /></Button>
   }
 
   if (recording) {
-    const m = Math.floor(duration / 60)
-    const s = duration % 60
+    const m = Math.floor(duration / 60); const s = duration % 60
     return (
-      <Button
-        size="icon"
-        variant="destructive"
-        className="animate-pulse"
-        onClick={stop}
-        title={`${m}:${s.toString().padStart(2, "0")}`}
-      >
+      <Button size="icon" variant="destructive" className="animate-pulse" onClick={stop} title={`${m}:${s.toString().padStart(2, "0")}`}>
         <Square className="h-4 w-4 fill-current" />
       </Button>
     )
@@ -203,23 +165,13 @@ export function AudioRecorder({
   if (error) {
     return (
       <div className="flex items-center gap-1">
-        <Button size="icon" variant="ghost" className="text-destructive relative" onClick={error.includes("अनुमति") ? retry : start}>
+        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => { setError(""); startRecording() }}>
           <Mic className="h-4 w-4" />
         </Button>
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-xs w-full px-4">
           <div className="bg-destructive text-destructive-foreground text-sm rounded-lg shadow-lg p-3 animate-in fade-in slide-in-from-bottom-2">
             <p className="mb-2">{error}</p>
-            <div className="flex gap-2">
-              <Button size="sm" variant="secondary" onClick={() => setError("")}>
-                ठीक है
-              </Button>
-              {error.includes("अनुमति") && (
-                <Button size="sm" variant="secondary" onClick={retry} disabled={retrying}>
-                  {retrying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RotateCcw className="h-3 w-3 mr-1" />}
-                  पुनः प्रयास
-                </Button>
-              )}
-            </div>
+            <Button size="sm" variant="secondary" onClick={() => setError("")}>OK</Button>
           </div>
         </div>
       </div>
@@ -227,7 +179,7 @@ export function AudioRecorder({
   }
 
   return (
-    <Button size="icon" variant="ghost" onClick={start} title="Record audio">
+    <Button size="icon" variant="ghost" onClick={startRecording} title="Record audio">
       <Mic className="h-4 w-4" />
     </Button>
   )

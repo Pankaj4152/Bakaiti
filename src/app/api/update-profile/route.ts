@@ -19,8 +19,8 @@ export async function POST(request: Request) {
     name: name?.trim() || username?.trim() || cleanEmail.split("@")[0],
     username: username?.toLowerCase().trim() || null,
     avatar_url: avatar_url || null,
-    status: status?.trim() || "pending",
   }
+  if (status?.trim()) row.status = status.trim()
   log.info("UPDATE-PROFILE", "Row to upsert:", row)
 
   // Check if user exists by email

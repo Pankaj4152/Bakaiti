@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Send, Image } from "lucide-react"
 import { AudioRecorder } from "@/components/chat/audio-recorder"
 import { StickerPicker } from "@/components/chat/stickers/sticker-picker"
+import { CommandSuggestions } from "@/components/chat/command-suggestions"
+import { COMMANDS, type Command } from "@/lib/commands"
 export function ChatInput({
   conversationId,
   senderId,
@@ -17,11 +19,33 @@ export function ChatInput({
   const [text, setText] = useState("")
   const [sending, setSending] = useState(false)
   const [recordingActive, setRecordingActive] = useState(false)
+  const [showCommands, setShowCommands] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const typingChannel = useRef<ReturnType<typeof supabase.channel>>(undefined)
   const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const insertAI = async (response: string) => {
+    await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      content: response,
+      is_ai: true,
+    })
+  }
+
+  const callBakaitCommand = async (command: string, extra: Record<string, any> = {}) => {
+    const res = await fetch("/api/bakait/command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ command, conversationId, ...extra }),
+    })
+    const data = await res.json()
+    if (res.ok && data.response) await insertAI(data.response)
+  }
+
+  const EFFECTS = ["/confetti", "/fireworks", "/rain"]
 
   useEffect(() => {
     const channel = supabase.channel(`typing:${conversationId}`)
@@ -38,8 +62,65 @@ export function ChatInput({
   }, [senderId])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setText(e.target.value)
+    const val = e.target.value
+    setText(val)
+    setShowCommands(val.startsWith("/"))
     broadcastTyping()
+  }
+
+  const handleCommandSelect = (cmd: Command) => {
+    setShowCommands(false)
+    if (cmd.command === "/poll") {
+      setText('/poll "Question" "Option 1" "Option 2" ')
+      inputRef.current?.focus()
+      return
+    }
+    if (cmd.command === "/roast") {
+      setText("/roast ")
+      inputRef.current?.focus()
+      return
+    }
+    if (cmd.command === "/spam") {
+      setText("/spam  ")
+      inputRef.current?.focus()
+      return
+    }
+    if (cmd.command === "/irritate") {
+      setText("/irritate ")
+      inputRef.current?.focus()
+      return
+    }
+    if (cmd.command === "/remember") {
+      setText("/remember ")
+      inputRef.current?.focus()
+      return
+    }
+    sendCommand(cmd.command)
+  }
+
+  const sendCommand = async (command: string) => {
+    setSending(true)
+    try {
+      if (EFFECTS.includes(command)) {
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: command.slice(1),
+          is_ai: false,
+        })
+      } else if (command === "/stfu") {
+        setText("")
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: "🛑 STFU — irritate bot stopped",
+          is_ai: true,
+        })
+      } else {
+        await callBakaitCommand(command)
+      }
+    } catch {}
+    setSending(false)
   }
 
   const uploadFile = async (file: File) => {
@@ -225,6 +306,58 @@ export function ChatInput({
             content: data.chaos,
             is_ai: true,
           })
+        }
+      } catch {}
+      setSending(false)
+      return
+    }
+
+    // Handle evil/fun commands
+    const cmd = content.split(" ")[0].toLowerCase()
+    const known = COMMANDS.find((c) => c.command === cmd || c.aliases?.includes(cmd))
+    if (known && !["/remember", "/poll", "/roast", "/chaos"].includes(known.command)) {
+      setText("")
+      setSending(true)
+      try {
+        if (known.command === "/spam") {
+          const parts = content.slice(6).trim().split(" ")
+          const count = parseInt(parts.pop() ?? "3", 10)
+          const msg = parts.join(" ")
+          if (msg) {
+            for (let i = 0; i < Math.min(count, 10); i++) {
+              await supabase.from("messages").insert({
+                conversation_id: conversationId,
+                sender_id: senderId,
+                content: msg,
+              })
+            }
+          }
+        } else if (EFFECTS.includes(known.command)) {
+          const effect = known.command.slice(1)
+          await supabase.from("messages").insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: effect,
+          })
+        } else if (known.command === "/stfu") {
+          await supabase.from("messages").insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: "🛑 STFU — irritate bot stopped",
+            is_ai: true,
+          })
+        } else {
+          const targetUsername = content.split(" ")[1] ?? ""
+          let targetUserId: string | undefined
+          if (targetUsername) {
+            const { data: target } = await supabase
+              .from("allowed_users")
+              .select("id")
+              .eq("username", targetUsername.replace("@", ""))
+              .maybeSingle()
+            if (target) targetUserId = target.id
+          }
+          await callBakaitCommand(known.command, { targetUserId })
         }
       } catch {}
       setSending(false)
