@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -128,13 +129,13 @@ export default async function ProfilePage({
 
         <p className="text-center text-xs text-muted-foreground">
           {isOwn ? (
-            <a href="/chat" className="underline hover:text-foreground">
+            <Link href="/chat" className="underline hover:text-foreground">
               Back to chat
-            </a>
+            </Link>
           ) : (
-            <a href={`/chat/${userId}`} className="underline hover:text-foreground">
+            <Link href={`/chat/${userId}`} className="underline hover:text-foreground">
               Send a message
-            </a>
+            </Link>
           )}
         </p>
       </div>

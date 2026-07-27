@@ -1,6 +1,7 @@
 import { cache } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChatInput } from "./chat-input"
 import { MessageList } from "./message-list"
@@ -70,7 +71,7 @@ export default async function ConversationPage({
       <MarkRead conversationId={conversationId} />
       <div className="flex items-center gap-1 px-2 h-14 border-b flex-shrink-0">
         <MobileMenuButton />
-        <a
+        <Link
           href={`/profile/${userId}`}
           className="flex items-center gap-3 px-2 h-full flex-1 hover:bg-accent transition-colors rounded"
         >
@@ -79,7 +80,7 @@ export default async function ConversationPage({
             <AvatarFallback>{otherUser.name[0]?.toUpperCase()}</AvatarFallback>
           </Avatar>
           <span className="font-semibold">{otherUser.name}</span>
-        </a>
+        </Link>
       </div>
       <MessageList
         messages={messages ?? []}
