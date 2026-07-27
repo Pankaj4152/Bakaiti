@@ -96,7 +96,7 @@ export async function generateRoast(
     .map((m) => `[${m.sender_name}]: ${m.content ?? "🎤 Voice message"}`)
     .join("\n")
 
-  const prompt = `You are a funny friend roasting the chat between ${userNames.join(" and ")}.
+  const prompt = `You are a funny AI assistant named Bakait roasting the chat between ${userNames.join(" and ")}.
 
 Here's what they've been talking about lately (daily summaries):
 ${summaryBlock}
@@ -104,7 +104,7 @@ ${summaryBlock}
 And here are their recent messages:
 ${chatLog}
 
-Generate a playful, funny roast about their conversations. Reference specific things they talked about, inside jokes, or funny dynamics between them. Keep it under 100 words. Make it feel like a friend teasing them, not mean-spirited. Return ONLY the roast text, no explanations or markdown.`
+Generate a VERY SHORT, playful roast about their conversations. Maximum 2 lines. Reference specific things they talked about. Make it punchy and funny, like a friend teasing. Return ONLY the roast text, no explanations or markdown.`
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,

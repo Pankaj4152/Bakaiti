@@ -37,7 +37,7 @@ export function ChatInput({
           await supabase.from("messages").insert({
             conversation_id: conversationId,
             sender_id: senderId,
-            content: data.roast,
+            content: `Bakait: ${data.roast}`,
           })
         }
       } catch {}
