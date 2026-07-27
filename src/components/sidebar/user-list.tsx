@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { MessageCircle } from "lucide-react"
+import { MessageCircle, Archive } from "lucide-react"
 import { AddUserDialog } from "./add-user-dialog"
 import { useSidebar } from "./sidebar-context"
 
@@ -60,7 +60,10 @@ export function UserList({ onNav }: { onNav?: () => void }) {
             <AvatarFallback className="text-xs">{myProfile?.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
           </Avatar>
         </button>
-        <h1 className="font-bold text-lg flex-1">Chitput</h1>
+        <h1 className="font-bold text-lg flex-1">Bakaiti</h1>
+        <button onClick={() => { onNav?.(); router.push("/vault") }} className="shrink-0 h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors" title="The Vault">
+          <Archive className="h-4 w-4" />
+        </button>
         <AddUserDialog />
       </div>
       <div className="flex-1 overflow-y-auto">

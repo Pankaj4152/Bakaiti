@@ -1,0 +1,132 @@
+const API_KEY = process.env.GEMINI_API_KEY
+const MODEL = "gemini-2.0-flash"
+
+interface MessageInput {
+  sender_name: string
+  content: string | null
+  created_at: string
+}
+
+interface AnalysisResult {
+  summary: {
+    winner: string
+    most_active: string
+    funniest_quote: string
+    embarrassing_moment: string
+    biggest_argument: string
+    best_comeback: string
+    weirdest_conversation: string
+  } | null
+  memories: {
+    type: "PROMISE" | "EXCUSE" | "LIE" | "EMBARRASSING" | "FUNNY" | "CONTRADICTION"
+    target_user: string
+    target_user_id: string | null
+    content: string
+    context: string
+    confidence: number
+  }[]
+  legendary_quotes: {
+    user: string
+    user_id: string | null
+    quote: string
+    context: string
+  }[]
+}
+
+function buildPrompt(messages: MessageInput[], date: string, allUsers: string[]): string {
+  const userList = allUsers.join(", ")
+  const chatLog = messages
+    .map((m) => `[${m.sender_name}]: ${m.content ?? "🎤 Voice message"}`)
+    .join("\n")
+
+  return `You are analyzing a private group chat between these people: ${userList}
+
+Below is the chat conversation from ${date}. Analyze it and return ONLY valid JSON (no markdown, no code fences) with this exact structure:
+
+{
+  "summary": {
+    "winner": "who had the best comebacks/roasts today?",
+    "most_active": "who sent the most messages?",
+    "funniest_quote": "the funniest line said today",
+    "embarrassing_moment": "most embarrassing moment for someone",
+    "biggest_argument": "what was the main argument about?",
+    "best_comeback": "best roast or comeback",
+    "weirdest_conversation": "weirdest topic discussed"
+  },
+  "memories": [
+    {
+      "type": "PROMISE|EXCUSE|LIE|EMBARRASSING|FUNNY|CONTRADICTION",
+      "target_user": "person's name",
+      "content": "what was said",
+      "context": "brief context around it",
+      "confidence": 0.0-1.0
+    }
+  ],
+  "legendary_quotes": [
+    {
+      "user": "who said it",
+      "quote": "the exact quote",
+      "context": "what prompted it"
+    }
+  ]
+}
+
+Rules:
+- If nothing notable happened, set summary fields to empty strings and return empty arrays
+- For memories: only include clear examples with confidence > 0.7
+- For legendary_quotes: only include truly hilarious or iconic lines
+- target_user/user must match exactly one of: ${userList}
+
+Chat:
+${chatLog}`
+}
+
+export async function analyzeDay(
+  messages: MessageInput[],
+  date: string,
+  userNames: string[],
+  userNameToId: Record<string, string>
+): Promise<AnalysisResult> {
+  if (!API_KEY) return { summary: null, memories: [], legendary_quotes: [] }
+  if (messages.length < 3) return { summary: null, memories: [], legendary_quotes: [] }
+
+  const prompt = buildPrompt(messages, date, userNames)
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+      }),
+    }
+  )
+
+  if (!res.ok) return { summary: null, memories: [], legendary_quotes: [] }
+
+  const data = await res.json()
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) return { summary: null, memories: [], legendary_quotes: [] }
+
+  let parsed: any
+  try {
+    const cleaned = text.replace(/```json?/g, "").replace(/```/g, "").trim()
+    parsed = JSON.parse(cleaned)
+  } catch {
+    return { summary: null, memories: [], legendary_quotes: [] }
+  }
+
+  return {
+    summary: parsed.summary?.winner ? parsed.summary : null,
+    memories: (parsed.memories ?? []).map((m: any) => ({
+      ...m,
+      target_user_id: userNameToId[m.target_user] ?? null,
+    })),
+    legendary_quotes: (parsed.legendary_quotes ?? []).map((q: any) => ({
+      ...q,
+      user_id: userNameToId[q.user] ?? null,
+    })),
+  }
+}
