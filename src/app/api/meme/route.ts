@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { generateMemeImage } from "@/lib/gemini"
+import { generateMeme } from "@/lib/gemini"
+import { renderMemeSVG } from "@/lib/meme-templates"
 
 export async function POST(request: Request) {
   const { conversationId, senderId, userPrompt } = await request.json()
@@ -46,17 +47,17 @@ export async function POST(request: Request) {
     created_at: m.created_at,
   }))
 
-  const result = await generateMemeImage(recentMessages, userNames, userPrompt)
-  if (!result) {
+  const memeText = await generateMeme(recentMessages, userNames, userPrompt)
+  if (!memeText) {
     return NextResponse.json({ error: "Failed to generate meme" }, { status: 500 })
   }
 
-  const ext = result.mimeType === "image/png" ? "png" : result.mimeType === "image/jpeg" ? "jpg" : "webp"
-  const fileName = `memes/${conversationId}/${Date.now()}.${ext}`
-  const buffer = Buffer.from(result.imageData, "base64")
+  const svg = await renderMemeSVG(memeText.topText, memeText.bottomText)
+  const svgBuffer = Buffer.from(svg, "utf-8")
+  const fileName = `memes/${conversationId}/${Date.now()}.svg`
 
-  const { error: uploadError } = await admin.storage.from("images").upload(fileName, buffer, {
-    contentType: result.mimeType,
+  const { error: uploadError } = await admin.storage.from("images").upload(fileName, svgBuffer, {
+    contentType: "image/svg+xml",
     upsert: false,
   })
 
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
   await admin.from("messages").insert({
     conversation_id: conversationId,
     sender_id: senderId,
-    content: result.caption,
+    content: `${memeText.topText} | ${memeText.bottomText}`,
     image_url: publicUrl,
     is_ai: true,
   })
