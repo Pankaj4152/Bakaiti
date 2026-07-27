@@ -1,3 +1,9 @@
+self.addEventListener("install", () => self.skipWaiting())
+
+self.addEventListener("activate", (event) => event.waitUntil(clients.claim()))
+
+self.addEventListener("fetch", () => {})
+
 self.addEventListener("push", (event) => {
   let data = { title: "Chitput", body: "New message", url: "/chat" }
   try {
