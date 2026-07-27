@@ -335,11 +335,12 @@ export function ChatInput({
           body: JSON.stringify({ conversationId, userPrompt }),
         })
         const data = await res.json()
-        if (res.ok && data.caption) {
+        if (res.ok && data.imageUrl) {
           await supabase.from("messages").insert({
             conversation_id: conversationId,
             sender_id: senderId,
             content: data.caption,
+            image_url: data.imageUrl,
             is_ai: true,
           })
         }

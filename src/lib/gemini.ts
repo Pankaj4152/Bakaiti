@@ -211,7 +211,7 @@ export async function generateMeme(
   recentMessages: MessageInput[],
   userNames: string[],
   userPrompt?: string
-): Promise<string | null> {
+): Promise<{ topText: string; bottomText: string } | null> {
   if (!API_KEY) return null
 
   const chatLog = recentMessages
@@ -222,14 +222,16 @@ export async function generateMeme(
 
 Here are their recent messages:
 ${chatLog}
-${userPrompt ? `\nThe user also wants it to be about this topic: "${userPrompt}" — blend it with what's happening in chat, don't ignore the chat context.` : ""}
+${userPrompt ? `\nThe user also wants it to be about this topic: "${userPrompt}" — blend it with what's happening in chat.` : ""}
 
-Generate a funny meme caption. Follow these rules:
-- The caption should sound like a classic meme format (e.g., "Nobody: ...", "This is fine", "They had us in the first half")
-- Keep it SHORT — 1-2 lines max
-- Reference specific things from the chat${userPrompt ? " AND the user's topic" : ""}
-- Make it relatable and funny
-- Return ONLY the meme caption text, no explanations or markdown`
+Generate a meme with TOP text and BOTTOM text (classic meme format).
+- Both parts should be SHORT — 1-3 words each
+- Make it specific to the chat context${userPrompt ? " and the user's topic" : ""}
+- Funny and punchy
+
+Return ONLY in this exact format:
+TOP: <top text>
+BOTTOM: <bottom text>`
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
@@ -246,8 +248,14 @@ Generate a funny meme caption. Follow these rules:
   if (!res.ok) return null
 
   const data = await res.json()
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
-  return text?.trim() ?? null
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+  if (!text) return null
+
+  const topMatch = text.match(/TOP:\s*(.+)/i)
+  const bottomMatch = text.match(/BOTTOM:\s*(.+)/i)
+  if (!topMatch || !bottomMatch) return null
+
+  return { topText: topMatch[1].trim(), bottomText: bottomMatch[1].trim() }
 }
 
 export async function analyzeDay(

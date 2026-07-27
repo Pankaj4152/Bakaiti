@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateMeme } from "@/lib/gemini"
+import { renderMemeSVG } from "@/lib/meme-templates"
 
 export async function POST(request: Request) {
   const { conversationId, userPrompt } = await request.json()
@@ -46,11 +47,28 @@ export async function POST(request: Request) {
     created_at: m.created_at,
   }))
 
-  const caption = await generateMeme(recentMessages, userNames, userPrompt)
-
-  if (!caption) {
+  const memeText = await generateMeme(recentMessages, userNames, userPrompt)
+  if (!memeText) {
     return NextResponse.json({ error: "Failed to generate meme" }, { status: 500 })
   }
 
-  return NextResponse.json({ caption })
+  const svg = await renderMemeSVG(memeText.topText, memeText.bottomText)
+  const svgBuffer = Buffer.from(svg, "utf-8")
+  const fileName = `memes/${conversationId}/${Date.now()}.svg`
+
+  const { error: uploadError } = await admin.storage.from("images").upload(fileName, svgBuffer, {
+    contentType: "image/svg+xml",
+    upsert: false,
+  })
+
+  if (uploadError) {
+    return NextResponse.json({ error: "Failed to upload meme image" }, { status: 500 })
+  }
+
+  const { data: { publicUrl } } = admin.storage.from("images").getPublicUrl(fileName)
+
+  return NextResponse.json({
+    caption: `${memeText.topText} | ${memeText.bottomText}`,
+    imageUrl: publicUrl,
+  })
 }
