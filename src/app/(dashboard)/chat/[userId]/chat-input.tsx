@@ -90,6 +90,11 @@ export function ChatInput({
       inputRef.current?.focus()
       return
     }
+    if (cmd.command === "/meme") {
+      setText("/meme ")
+      inputRef.current?.focus()
+      return
+    }
     if (cmd.command === "/remember") {
       setText("/remember ")
       inputRef.current?.focus()
@@ -319,10 +324,34 @@ export function ChatInput({
       return
     }
 
+    if (content.startsWith("/meme")) {
+      const userPrompt = content.slice(5).trim() || undefined
+      setText("")
+      setSending(true)
+      try {
+        const res = await fetch("/api/meme", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId, userPrompt }),
+        })
+        const data = await res.json()
+        if (res.ok && data.caption) {
+          await supabase.from("messages").insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: data.caption,
+            is_ai: true,
+          })
+        }
+      } catch {}
+      setSending(false)
+      return
+    }
+
     // Handle evil/fun commands
     const cmd = content.split(" ")[0].toLowerCase()
     const known = COMMANDS.find((c) => c.command === cmd || c.aliases?.includes(cmd))
-    if (known && !["/remember", "/poll", "/roast", "/chaos"].includes(known.command)) {
+    if (known && !["/remember", "/poll", "/roast", "/chaos", "/meme"].includes(known.command)) {
       setText("")
       setSending(true)
       try {

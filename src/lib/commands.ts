@@ -18,6 +18,7 @@ export const COMMANDS: Command[] = [
   { command: "/fireworks", label: "Fireworks", description: "Fireworks effect (add emojis: /fireworks 🎉❤️)", aliases: ["/blast"] },
   { command: "/rain", label: "Rain", description: "Rain effect (add emojis: /rain 🌈💧)", aliases: ["/pour"] },
   { command: "/spam", label: "Spam", description: "Repeat a message N times" },
+  { command: "/meme", label: "Meme", description: "Generate a meme caption from chat (add text for prompt)", aliases: ["/caption"] },
 ]
 
 export function findCommands(input: string): Command[] {

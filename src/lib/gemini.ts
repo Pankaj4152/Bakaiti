@@ -207,6 +207,49 @@ Respond as Bakait — be funny, playful, and engaging. Keep it under 2 sentences
   return text?.trim() ?? null
 }
 
+export async function generateMeme(
+  recentMessages: MessageInput[],
+  userNames: string[],
+  userPrompt?: string
+): Promise<string | null> {
+  if (!API_KEY) return null
+
+  const chatLog = recentMessages
+    .map((m) => `[${m.sender_name}]: ${m.content ?? "🎤 Voice message"}`)
+    .join("\n")
+
+  const prompt = `You are a meme caption generator for a chat between ${userNames.join(" and ")}. Match the language and tone of the chat messages exactly.
+
+Here are their recent messages:
+${chatLog}
+${userPrompt ? `\nThe user also wants it to be about this topic: "${userPrompt}" — blend it with what's happening in chat, don't ignore the chat context.` : ""}
+
+Generate a funny meme caption. Follow these rules:
+- The caption should sound like a classic meme format (e.g., "Nobody: ...", "This is fine", "They had us in the first half")
+- Keep it SHORT — 1-2 lines max
+- Reference specific things from the chat${userPrompt ? " AND the user's topic" : ""}
+- Make it relatable and funny
+- Return ONLY the meme caption text, no explanations or markdown`
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.9, maxOutputTokens: 128 },
+      }),
+    }
+  )
+
+  if (!res.ok) return null
+
+  const data = await res.json()
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  return text?.trim() ?? null
+}
+
 export async function analyzeDay(
   messages: MessageInput[],
   date: string,
