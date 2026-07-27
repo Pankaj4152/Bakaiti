@@ -31,6 +31,12 @@ export function ChatInput({
       content,
     })
 
+    fetch("/api/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId, senderId, content }),
+    }).catch(() => {})
+
     setSending(false)
     inputRef.current?.focus()
   }

@@ -104,11 +104,23 @@ create table if not exists user_stats (
   unique(user_id)
 );
 
+-- 10. Push notification subscriptions
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references allowed_users(id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz default now(),
+  unique(endpoint)
+);
+
 -- Indexes for performance
 create index if not exists idx_conversations_users on conversations(user1_id, user2_id);
 create index if not exists idx_messages_conversation on messages(conversation_id, created_at);
 create index if not exists idx_messages_sender on messages(sender_id);
 create index if not exists idx_reactions_message on reactions(message_id);
+create index if not exists idx_push_subscriptions_user on push_subscriptions(user_id);
 create index if not exists idx_memories_target on memories(target_user_id);
 create index if not exists idx_legendary_quotes_user on legendary_quotes(user_id);
 create index if not exists idx_daily_summaries_date on daily_summaries(date);
