@@ -12,7 +12,7 @@ export function EmptyChatState() {
         <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setOpen(true)}>
           <Menu className="h-5 w-5" />
         </Button>
-        <span className="font-semibold">Chitput</span>
+        <span className="font-semibold">Bakaiti</span>
       </div>
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">

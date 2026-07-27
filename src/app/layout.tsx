@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Chitput",
+  title: "Bakaiti",
   description: "Private chat for the squad",
 }
 
@@ -37,7 +37,9 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          {children}
+          <NotificationProvider>
+            {children}
+          </NotificationProvider>
         </ThemeProvider>
       </body>
     </html>

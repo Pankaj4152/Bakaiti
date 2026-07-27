@@ -1,4 +1,4 @@
-export const APP_NAME = "Chitput"
+export const APP_NAME = "Bakaiti"
 
 export const ROUTES = {
   login: "/login",

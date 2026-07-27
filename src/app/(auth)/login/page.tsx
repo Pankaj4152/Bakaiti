@@ -118,7 +118,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Chitput</CardTitle>
+          <CardTitle className="text-2xl">Bakaiti</CardTitle>
           <CardDescription>Private chat for the squad</CardDescription>
         </CardHeader>
         <CardContent>
