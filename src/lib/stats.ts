@@ -13,23 +13,36 @@ export interface ComputedStats {
 export async function computeUserStats(userId: string): Promise<ComputedStats> {
   const db = createAdminClient()
 
-  const [msgCount, reactionCount, startupCount, lateNightRes, emojis, convoAsU1, convoAsU2, groupPart, messages] =
-    await Promise.all([
-      db.from("messages").select("id", { count: "exact", head: true }).eq("sender_id", userId),
-      db.from("reactions").select("id", { count: "exact", head: true }).eq("user_id", userId),
-      db.from("messages").select("id", { count: "exact", head: true }).eq("sender_id", userId).ilike("content", "%startup%"),
-      db.rpc("count_late_night_messages", { user_id: userId }),
-      db.from("reactions").select("emoji").eq("user_id", userId),
-      db.from("conversations").select("id", { count: "exact", head: true }).eq("user1_id", userId),
-      db.from("conversations").select("id", { count: "exact", head: true }).eq("user2_id", userId).not("user2_id", "is", null),
-      db.from("conversation_participants").select("conversation_id", { count: "exact", head: true }).eq("user_id", userId),
-      db.from("messages").select("content").eq("sender_id", userId),
-    ])
+  const results = await Promise.allSettled([
+    db.from("messages").select("id", { count: "exact", head: true }).eq("sender_id", userId),
+    db.from("reactions").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    db.from("messages").select("id", { count: "exact", head: true }).eq("sender_id", userId).ilike("content", "%startup%"),
+    db.rpc("count_late_night_messages", { user_id: userId }),
+    db.from("reactions").select("emoji").eq("user_id", userId),
+    db.from("conversations").select("id", { count: "exact", head: true }).eq("user1_id", userId),
+    db.from("conversations").select("id", { count: "exact", head: true }).eq("user2_id", userId).not("user2_id", "is", null),
+    db.from("conversation_participants").select("conversation_id", { count: "exact", head: true }).eq("user_id", userId),
+    db.from("messages").select("content").eq("sender_id", userId),
+  ])
 
-  const convoCount = (convoAsU1.count ?? 0) + (convoAsU2.count ?? 0) + (groupPart.count ?? 0)
+  const getCount = (r: PromiseSettledResult<any>, alt = 0) => r.status === "fulfilled" ? (r.value.count ?? alt) : alt
+  const getData = (r: PromiseSettledResult<any>, alt = []) => r.status === "fulfilled" ? (r.value.data ?? alt) : alt
 
+  const msgCount = results[0]
+  const reactionCount = results[1]
+  const startupCount = results[2]
+  const lateNightRes = results[3]
+  const emojis = results[4]
+  const convoAsU1 = results[5]
+  const convoAsU2 = results[6]
+  const groupPart = results[7]
+  const messages = results[8]
+
+  const convoCount = getCount(convoAsU1) + getCount(convoAsU2) + getCount(groupPart)
+
+  const emojiData = getData(emojis) as { emoji: string }[]
   const emojiCounts: Record<string, number> = {}
-  ;(emojis.data ?? []).forEach((r: { emoji: string }) => {
+  emojiData.forEach((r: { emoji: string }) => {
     emojiCounts[r.emoji] = (emojiCounts[r.emoji] || 0) + 1
   })
   const topEmojis = Object.entries(emojiCounts)
@@ -37,16 +50,17 @@ export async function computeUserStats(userId: string): Promise<ComputedStats> {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
 
-  const contents = (messages.data ?? []).map((m: { content: string }) => m.content)
+  const msgData = getData(messages, []) as { content: string }[]
+  const contents = msgData.map((m: { content: string }) => m.content)
   const avgLength = contents.length > 0
     ? Math.round(contents.reduce((sum, c) => sum + c.length, 0) / contents.length)
     : 0
 
   return {
-    messages_sent: msgCount.count ?? 0,
-    emoji_reactions_given: reactionCount.count ?? 0,
-    startup_mentions: startupCount.count ?? 0,
-    late_night_count: (lateNightRes.data as number) ?? 0,
+    messages_sent: getCount(msgCount),
+    emoji_reactions_given: getCount(reactionCount),
+    startup_mentions: getCount(startupCount),
+    late_night_count: lateNightRes.status === "fulfilled" ? ((lateNightRes.value.data as number) ?? 0) : 0,
     top_emojis: topEmojis,
     conversations_count: convoCount,
     average_message_length: avgLength,
