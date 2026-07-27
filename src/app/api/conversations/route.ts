@@ -41,7 +41,7 @@ export async function GET() {
     ...convoIds.flatMap((cid) => [
       supabase
         .from("messages")
-        .select("content, created_at, sender_id")
+        .select("content, audio_url, created_at, sender_id")
         .eq("conversation_id", cid)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -74,7 +74,7 @@ export async function GET() {
       id: convo.id,
       otherUser: otherUserMap[otherId] ?? null,
       lastMessage: lastMsg
-        ? { content: lastMsg.content, created_at: lastMsg.created_at, isMine: lastMsg.sender_id === myId }
+        ? { content: lastMsg.content, audio_url: lastMsg.audio_url, created_at: lastMsg.created_at, isMine: lastMsg.sender_id === myId }
         : null,
       unreadCount: unreadMap[convo.id] ?? 0,
     }

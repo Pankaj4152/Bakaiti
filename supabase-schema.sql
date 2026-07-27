@@ -158,8 +158,9 @@ returns json as $$
       'username', u.username,
       'avatar_url', u.avatar_url
     ),
-    'lastMessage', case when lm.content is not null then json_build_object(
+    'lastMessage', case when lm.content is not null or lm.audio_url is not null then json_build_object(
       'content', lm.content,
+      'audio_url', lm.audio_url,
       'created_at', lm.created_at,
       'isMine', lm.sender_id = my_user_id
     ) else null end,
@@ -168,7 +169,7 @@ returns json as $$
   from conversations c
   left join allowed_users u on u.id = case when c.user1_id = my_user_id then c.user2_id else c.user1_id end
   left join lateral (
-    select content, created_at, sender_id
+    select content, audio_url, created_at, sender_id
     from messages
     where conversation_id = c.id
     order by created_at desc
@@ -227,6 +228,10 @@ end; $$;
 do $$ begin
   if not exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'audio_url') then
     alter table messages add column audio_url text;
+  end if;
+  -- Make content nullable for audio-only messages
+  if exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'content' and is_nullable = 'NO') then
+    alter table messages alter column content drop not null;
   end if;
 end; $$;
 

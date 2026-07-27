@@ -98,7 +98,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
                 {convo.lastMessage && (
                   <p className="text-xs text-muted-foreground truncate">
                     {convo.lastMessage.isMine && "You: "}
-                    {convo.lastMessage.content}
+                    {convo.lastMessage.content || "🎤 Voice message"}
                   </p>
                 )}
               </div>
