@@ -71,6 +71,30 @@ export function MessageList({
           setDisplay([...messages.current])
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          const updated = payload.new as Message
+          let changed = false
+          messages.current = messages.current.map((m) => {
+            if (m.id === updated.id && m.read !== updated.read) {
+              changed = true
+              return { ...m, read: updated.read }
+            }
+            return m
+          })
+          if (changed) {
+            setDisplay([...messages.current])
+            refreshConversations()
+          }
+        }
+      )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
