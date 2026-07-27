@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import type { Message } from "@/types"
+import type { Message, Reaction } from "@/types"
 import { useSidebar } from "@/components/sidebar/sidebar-context"
 import { AudioMessage } from "@/components/chat/audio-message"
+
+const EMOJI_LIST = ["😂", "🔥", "💀", "❤️", "😭", "🥹"]
 
 export function MessageList({
   messages: initialMessages,
@@ -22,6 +24,8 @@ export function MessageList({
   const supabase = createClient()
   const { refreshConversations } = useSidebar()
   const senderCache = useRef<Record<string, any>>({})
+  const [reactions, setReactions] = useState<Record<string, Reaction[]>>({})
+  const [pickingEmojiFor, setPickingEmojiFor] = useState<string | null>(null)
 
   useEffect(() => {
     if (!initialMessages[0]) return
@@ -101,6 +105,70 @@ export function MessageList({
     return () => { supabase.removeChannel(channel) }
   }, [conversationId, currentUserId])
 
+  const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
+    const existing = (reactions[messageId] ?? []).find((r) => r.user_id === currentUserId && r.emoji === emoji)
+    if (existing) {
+      await supabase.from("reactions").delete().eq("id", existing.id)
+    } else {
+      await supabase.from("reactions").insert({ message_id: messageId, user_id: currentUserId, emoji })
+    }
+  }, [reactions, currentUserId])
+
+  const groupReactions = (messageId: string) => {
+    const msgReactions = reactions[messageId] ?? []
+    const grouped: Record<string, { emoji: string; count: number; mine: boolean }> = {}
+    for (const r of msgReactions) {
+      if (!grouped[r.emoji]) grouped[r.emoji] = { emoji: r.emoji, count: 0, mine: false }
+      grouped[r.emoji].count++
+      if (r.user_id === currentUserId) grouped[r.emoji].mine = true
+    }
+    return Object.values(grouped).sort((a, b) => b.count - a.count)
+  }
+
+  useEffect(() => {
+    const messageIds = messages.current.map((m) => m.id)
+    if (messageIds.length === 0) return
+    supabase
+      .from("reactions")
+      .select("*")
+      .in("message_id", messageIds)
+      .then(({ data }) => {
+        if (data) {
+          const grouped: Record<string, Reaction[]> = {}
+          for (const r of data) {
+            if (!grouped[r.message_id]) grouped[r.message_id] = []
+            grouped[r.message_id].push(r)
+          }
+          setReactions(grouped)
+        }
+      })
+
+    const channel = supabase
+      .channel(`reactions:${conversationId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reactions" },
+        (payload) => {
+          setReactions((prev) => {
+            const next = { ...prev }
+            const msgId = (payload.new as Reaction)?.message_id ?? (payload.old as Reaction)?.message_id
+            if (!msgId) return prev
+            if (payload.eventType === "INSERT") {
+              const r = payload.new as Reaction
+              next[msgId] = [...(next[msgId] ?? []), r]
+            } else if (payload.eventType === "DELETE") {
+              const r = payload.old as Reaction
+              next[msgId] = (next[msgId] ?? []).filter((x) => x.id !== r.id)
+            }
+            return next
+          })
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [conversationId])
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto" })
   }, [display])
@@ -134,7 +202,7 @@ export function MessageList({
                 <div className="flex-1 h-px bg-border" />
               </div>
             )}
-            <div className={`flex gap-2 ${isMine ? "flex-row-reverse" : ""} ${grouped ? "mt-0.5" : "mt-2"}`}>
+            <div className={`flex gap-2 group/message ${isMine ? "flex-row-reverse" : ""} ${grouped ? "mt-0.5" : "mt-2"}`}>
               {!isMine && (
                 <div className="w-7 flex-shrink-0">
                   {isLastInGroup ? (
@@ -168,6 +236,41 @@ export function MessageList({
                     {msg.read ? "✓✓" : "✓"}
                   </span>
                 )}
+                <div className="flex items-center gap-0.5 mt-0.5 flex-wrap">
+                  {groupReactions(msg.id).map((g) => (
+                    <button
+                      key={g.emoji}
+                      onClick={() => toggleReaction(msg.id, g.emoji)}
+                      className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
+                        g.mine
+                          ? "bg-primary/20 border-primary/40 text-primary"
+                          : "bg-muted/50 border-border hover:bg-muted"
+                      }`}
+                    >
+                      {g.emoji} {g.count > 1 ? g.count : ""}
+                    </button>
+                  ))}
+                  {pickingEmojiFor === msg.id ? (
+                    <div className="flex items-center gap-0.5 bg-popover border rounded-full px-1.5 py-0.5 shadow-sm">
+                      {EMOJI_LIST.map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => { toggleReaction(msg.id, emoji); setPickingEmojiFor(null) }}
+                          className="text-sm hover:scale-125 transition-transform"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setPickingEmojiFor(msg.id)}
+                      className="text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover/message:opacity-100 transition-opacity"
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

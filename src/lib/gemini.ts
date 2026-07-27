@@ -81,6 +81,42 @@ Chat:
 ${chatLog}`
 }
 
+export async function generateChaos(
+  recentMessages: MessageInput[],
+  userNames: string[]
+): Promise<string | null> {
+  if (!API_KEY) return null
+
+  const chatLog = recentMessages
+    .map((m) => `[${m.sender_name}]: ${m.content ?? "🎤 Voice message"}`)
+    .join("\n")
+
+  const prompt = `You are a dramatic news anchor reporting on the chat conversation between ${userNames.join(" and ")}.
+
+Here are their recent messages:
+${chatLog}
+
+Rewrite this conversation as an overdramatic BREAKING NEWS article. Use dramatic headlines like "BREAKING NEWS", "Sources confirm", "In a shocking turn of events", "Reports are flooding in". Make it sound like a serious news broadcast about their mundane chat. Maximum 3-4 sentences. Return ONLY the article text, no explanations or markdown.`
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.9, maxOutputTokens: 256 },
+      }),
+    }
+  )
+
+  if (!res.ok) return null
+
+  const data = await res.json()
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  return text?.trim() ?? null
+}
+
 export async function generateRoast(
   summaries: { date: string; content: string }[],
   recentMessages: MessageInput[],
@@ -114,6 +150,45 @@ Generate a VERY SHORT, playful roast about their conversations. Maximum 2 lines.
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.9, maxOutputTokens: 256 },
+      }),
+    }
+  )
+
+  if (!res.ok) return null
+
+  const data = await res.json()
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  return text?.trim() ?? null
+}
+
+export async function chatAsBakait(
+  userMessage: string,
+  recentMessages: { sender_name: string; content: string | null }[],
+  userNames: string[]
+): Promise<string | null> {
+  if (!API_KEY) return null
+
+  const chatLog = recentMessages
+    .map((m) => `[${m.sender_name}]: ${m.content ?? "🎤 Voice message"}`)
+    .join("\n")
+
+  const prompt = `You are Bakait, a witty and playful AI friend in a private chat between ${userNames.join(" and ")}.
+
+Here's the recent conversation context:
+${chatLog}
+
+${userNames[0]} says: "${userMessage}"
+
+Respond as Bakait — be funny, playful, and engaging. Keep it under 2 sentences. Reference inside jokes or recent topics if relevant. Return ONLY your response text, no explanations.`
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.8, maxOutputTokens: 256 },
       }),
     }
   )

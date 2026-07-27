@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
-  const { email, name, username, status } = await request.json()
+  const { email, name, username, avatar_url, status } = await request.json()
   log.info("UPDATE-PROFILE", "Received:", { email, name, username, status })
 
   if (!email) {
@@ -14,10 +14,11 @@ export async function POST(request: Request) {
   const adminDb = createAdminClient()
   const cleanEmail = email.toLowerCase().trim()
 
-  const row = {
+  const row: Record<string, string | null> = {
     email: cleanEmail,
     name: name?.trim() || username?.trim() || cleanEmail.split("@")[0],
     username: username?.toLowerCase().trim() || null,
+    avatar_url: avatar_url || null,
     status: status?.trim() || "pending",
   }
   log.info("UPDATE-PROFILE", "Row to upsert:", row)

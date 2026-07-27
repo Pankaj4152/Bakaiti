@@ -58,6 +58,7 @@ export default async function ProfilePage({
                 email={profile.email}
                 currentName={profile.name}
                 currentUsername={profile.username}
+                currentAvatarUrl={profile.avatar_url}
               />
             )}
             {labels.length > 0 && (

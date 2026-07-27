@@ -222,6 +222,9 @@ do $$ begin
   if not exists (select 1 from pg_policies where policyname = 'authenticated can insert reactions') then
     create policy "authenticated can insert reactions" on reactions for insert to authenticated with check (true);
   end if;
+  if not exists (select 1 from pg_policies where policyname = 'authenticated can delete reactions') then
+    create policy "authenticated can delete reactions" on reactions for delete to authenticated using (user_id = (select id from allowed_users where email = auth.email()));
+  end if;
 end; $$;
 
 -- Audio message support (idempotent migration)
@@ -245,6 +248,19 @@ do $$ begin
   end if;
   if not exists (select 1 from pg_policies where policyname = 'audio insert') then
     create policy "audio insert" on storage.objects for insert to authenticated with check (bucket_id = 'audio');
+  end if;
+end; $$;
+
+-- Storage bucket for avatars
+insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'avatars read') then
+    create policy "avatars read" on storage.objects for select to authenticated using (bucket_id = 'avatars');
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'avatars insert') then
+    create policy "avatars insert" on storage.objects for insert to authenticated with check (bucket_id = 'avatars');
   end if;
 end; $$;
 
