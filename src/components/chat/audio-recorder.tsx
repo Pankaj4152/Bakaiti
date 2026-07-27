@@ -51,35 +51,56 @@ export function AudioRecorder({
     setDuration(0)
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Recording not supported on this browser")
+      const msg = "Recording not supported on this browser"
+      console.error("AudioRecorder:", msg)
+      setError(msg)
       return
     }
 
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    } catch {
-      setError("Microphone access denied")
+    } catch (e) {
+      const msg = "Microphone access denied"
+      console.error("AudioRecorder:", msg, e)
+      setError(msg)
       return
     }
 
-    const mimeType = getSupportedMimeType()
+    let mimeType = getSupportedMimeType()
     if (!mimeType) {
-      stream.getTracks().forEach((t) => t.stop())
-      setError("Audio recording not supported")
-      return
+      try {
+        if (MediaRecorder.isTypeSupported("video/mp4")) mimeType = "video/mp4"
+      } catch {}
     }
 
     let recorder: MediaRecorder
     try {
-      recorder = new MediaRecorder(stream, { mimeType })
-    } catch {
+      if (mimeType?.startsWith("video/")) {
+        const canvas = document.createElement("canvas")
+        canvas.width = 2
+        canvas.height = 2
+        const videoStream = canvas.captureStream(1)
+        const audioTrack = stream.getAudioTracks()[0]
+        const combined = new MediaStream([videoStream.getVideoTracks()[0], audioTrack])
+        recorder = new MediaRecorder(combined, { mimeType })
+        stream = combined
+      } else if (mimeType) {
+        recorder = new MediaRecorder(stream, { mimeType })
+      } else {
+        recorder = new MediaRecorder(stream)
+        mimeType = recorder.mimeType
+      }
+    } catch (e) {
       stream.getTracks().forEach((t) => t.stop())
+      const msg = `MediaRecorder error: ${e instanceof Error ? e.message : e}`
+      console.error("AudioRecorder:", msg)
       setError("Recording not supported on this device")
       return
     }
     mediaRecorder.current = recorder
-    const ext = mimeType.includes("mp4") || mimeType.includes("aac") || mimeType.includes("3gpp") ? "mp4" : "webm"
+    console.log("AudioRecorder: using", mimeType)
+    const ext = !mimeType || mimeType.includes("mp4") || mimeType.includes("aac") || mimeType.includes("3gpp") ? "mp4" : "webm"
 
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunks.current.push(e.data)
@@ -99,7 +120,10 @@ export function AudioRecorder({
         .from("audio")
         .upload(fileName, blob, { contentType: mimeType })
 
-      if (uploadError) { setError("Upload failed"); setUploading(false); onDone(); return }
+      if (uploadError) {
+        console.error("AudioRecorder: upload failed", uploadError)
+        setError("Upload failed"); setUploading(false); onDone(); return
+      }
 
       const { data: { publicUrl } } = supabase.storage.from("audio").getPublicUrl(fileName)
 
@@ -110,7 +134,10 @@ export function AudioRecorder({
         audio_url: publicUrl,
       })
 
-      if (insertError) { setError("Send failed"); setUploading(false); onDone(); return }
+      if (insertError) {
+        console.error("AudioRecorder: insert failed", insertError)
+        setError("Send failed"); setUploading(false); onDone(); return
+      }
 
       fetch("/api/push/send", {
         method: "POST",
@@ -134,11 +161,11 @@ export function AudioRecorder({
 
   if (error) {
     return (
-      <div className="relative group">
+      <div className="relative group" title={error}>
         <Button size="icon" variant="ghost" className="text-destructive">
           <Mic className="h-4 w-4" />
         </Button>
-        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-destructive text-destructive-foreground text-sm rounded-lg shadow-lg whitespace-nowrap animate-in fade-in slide-in-from-bottom-2">
           {error}
         </div>
       </div>
