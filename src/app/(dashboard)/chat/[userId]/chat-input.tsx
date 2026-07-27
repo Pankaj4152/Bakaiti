@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Send } from "lucide-react"
+import { AudioRecorder } from "@/components/chat/audio-recorder"
 
 export function ChatInput({
   conversationId,
@@ -15,6 +16,7 @@ export function ChatInput({
 }) {
   const [text, setText] = useState("")
   const [sending, setSending] = useState(false)
+  const [recordingActive, setRecordingActive] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
@@ -55,6 +57,11 @@ export function ChatInput({
           }
         }}
         className="flex-1"
+      />
+      <AudioRecorder
+        conversationId={conversationId}
+        senderId={senderId}
+        onDone={() => setRecordingActive(false)}
       />
       <Button size="icon" onClick={send} disabled={!text.trim() || sending}>
         <Send className="h-4 w-4" />

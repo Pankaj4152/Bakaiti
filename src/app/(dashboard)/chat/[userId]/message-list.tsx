@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import type { Message } from "@/types"
 import { useSidebar } from "@/components/sidebar/sidebar-context"
+import { AudioMessage } from "@/components/chat/audio-message"
 
 export function MessageList({
   messages: initialMessages,
@@ -156,7 +157,11 @@ export function MessageList({
                       : "bg-muted rounded-[18px] rounded-bl-[6px]"
                   } ${grouped ? (isMine ? "rounded-br-[18px]" : "rounded-bl-[18px]") : ""}`}
                 >
-                  {msg.content}
+                  {msg.audio_url ? (
+                    <AudioMessage url={msg.audio_url} />
+                  ) : (
+                    msg.content
+                  )}
                 </div>
                 {isMine && (
                   <span className={`text-[10px] px-1 leading-none ${msg.read ? "text-blue-400" : "text-muted-foreground"}`}>

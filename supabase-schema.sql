@@ -26,7 +26,8 @@ create table if not exists messages (
   id uuid primary key default gen_random_uuid(),
   conversation_id uuid not null references conversations(id) on delete cascade,
   sender_id uuid not null references allowed_users(id) on delete cascade,
-  content text not null,
+  content text,
+  audio_url text,
   read boolean not null default false,
   created_at timestamptz default now()
 );
@@ -221,3 +222,25 @@ do $$ begin
     create policy "authenticated can insert reactions" on reactions for insert to authenticated with check (true);
   end if;
 end; $$;
+
+-- Audio message support (idempotent migration)
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name = 'messages' and column_name = 'audio_url') then
+    alter table messages add column audio_url text;
+  end if;
+end; $$;
+
+-- Storage bucket for audio messages
+insert into storage.buckets (id, name, public) values ('audio', 'audio', true)
+on conflict (id) do nothing;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'audio read') then
+    create policy "audio read" on storage.objects for select to authenticated using (bucket_id = 'audio');
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'audio insert') then
+    create policy "audio insert" on storage.objects for insert to authenticated with check (bucket_id = 'audio');
+  end if;
+end; $$;
+
+

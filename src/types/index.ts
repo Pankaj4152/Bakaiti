@@ -20,7 +20,8 @@ export interface Message {
   id: string
   conversation_id: string
   sender_id: string
-  content: string
+  content: string | null
+  audio_url: string | null
   read: boolean
   created_at: string
   sender?: User
