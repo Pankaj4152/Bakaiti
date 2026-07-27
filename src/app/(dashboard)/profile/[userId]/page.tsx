@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
-import { TestNotificationButton } from "@/components/notifications/test-notification-button"
 import { computeUserStats, getAchievements, getFunLabels, type ComputedStats } from "@/lib/stats"
 import { ProfileBackButton } from "./profile-header"
 
@@ -60,16 +59,13 @@ export default async function ProfilePage({
               )}
             </div>
             {isOwn && (
-              <div className="w-full space-y-2">
-                <EditProfileDialog
-                  email={profile.email}
-                  currentName={profile.name}
-                  currentUsername={profile.username}
-                  currentAvatarUrl={profile.avatar_url}
-                  currentTheme={profile.theme}
-                />
-                <TestNotificationButton />
-              </div>
+              <EditProfileDialog
+                email={profile.email}
+                currentName={profile.name}
+                currentUsername={profile.username}
+                currentAvatarUrl={profile.avatar_url}
+                currentTheme={profile.theme}
+              />
             )}
             {labels.length > 0 && (
               <div className="flex flex-wrap gap-1.5 justify-center">
