@@ -81,6 +81,50 @@ Chat:
 ${chatLog}`
 }
 
+export async function generateRoast(
+  summaries: { date: string; content: string }[],
+  recentMessages: MessageInput[],
+  userNames: string[]
+): Promise<string | null> {
+  if (!API_KEY) return null
+
+  const summaryBlock = summaries
+    .map((s) => `--- ${s.date} ---\n${typeof s.content === "string" ? s.content : JSON.stringify(s.content)}`)
+    .join("\n\n")
+
+  const chatLog = recentMessages
+    .map((m) => `[${m.sender_name}]: ${m.content ?? "🎤 Voice message"}`)
+    .join("\n")
+
+  const prompt = `You are a funny friend roasting the chat between ${userNames.join(" and ")}.
+
+Here's what they've been talking about lately (daily summaries):
+${summaryBlock}
+
+And here are their recent messages:
+${chatLog}
+
+Generate a playful, funny roast about their conversations. Reference specific things they talked about, inside jokes, or funny dynamics between them. Keep it under 100 words. Make it feel like a friend teasing them, not mean-spirited. Return ONLY the roast text, no explanations or markdown.`
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.9, maxOutputTokens: 256 },
+      }),
+    }
+  )
+
+  if (!res.ok) return null
+
+  const data = await res.json()
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  return text?.trim() ?? null
+}
+
 export async function analyzeDay(
   messages: MessageInput[],
   date: string,
