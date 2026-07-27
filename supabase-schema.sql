@@ -145,6 +145,23 @@ create table if not exists push_subscriptions (
   unique(endpoint)
 );
 
+alter table push_subscriptions enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'push_subs_select') then
+    create policy "push_subs_select" on push_subscriptions for select to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'push_subs_insert') then
+    create policy "push_subs_insert" on push_subscriptions for insert to authenticated with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'push_subs_update') then
+    create policy "push_subs_update" on push_subscriptions for update to authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'push_subs_delete') then
+    create policy "push_subs_delete" on push_subscriptions for delete to authenticated using (true);
+  end if;
+end; $$;
+
 -- 11. Polls
 create table if not exists polls (
   id uuid primary key default gen_random_uuid(),

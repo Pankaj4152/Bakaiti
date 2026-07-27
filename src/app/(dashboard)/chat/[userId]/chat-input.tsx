@@ -327,25 +327,11 @@ export function ChatInput({
     if (content.startsWith("/meme")) {
       const userPrompt = content.slice(5).trim() || undefined
       setText("")
-      setSending(true)
-      try {
-        const res = await fetch("/api/meme", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conversationId, userPrompt }),
-        })
-        const data = await res.json()
-        if (res.ok && data.imageUrl) {
-          await supabase.from("messages").insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: data.caption,
-            image_url: data.imageUrl,
-            is_ai: true,
-          })
-        }
-      } catch {}
-      setSending(false)
+      fetch("/api/meme", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, senderId, userPrompt }),
+      }).catch(() => {})
       return
     }
 

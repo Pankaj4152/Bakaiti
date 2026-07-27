@@ -4,8 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { generateMemeImage } from "@/lib/gemini"
 
 export async function POST(request: Request) {
-  const { conversationId, userPrompt } = await request.json()
-  if (!conversationId) return NextResponse.json({ error: "Missing conversationId" }, { status: 400 })
+  const { conversationId, senderId, userPrompt } = await request.json()
+  if (!conversationId || !senderId) return NextResponse.json({ error: "Missing fields" }, { status: 400 })
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -66,8 +66,13 @@ export async function POST(request: Request) {
 
   const { data: { publicUrl } } = admin.storage.from("images").getPublicUrl(fileName)
 
-  return NextResponse.json({
-    caption: result.caption,
-    imageUrl: publicUrl,
+  await admin.from("messages").insert({
+    conversation_id: conversationId,
+    sender_id: senderId,
+    content: result.caption,
+    image_url: publicUrl,
+    is_ai: true,
   })
+
+  return NextResponse.json({ success: true })
 }
