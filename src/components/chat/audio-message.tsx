@@ -18,8 +18,7 @@ export function AudioMessage({ url }: { url: string }) {
       el.pause()
       setPlaying(false)
     } else {
-      el.play()
-      setPlaying(true)
+      el.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
     }
   }
 

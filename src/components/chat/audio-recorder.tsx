@@ -6,9 +6,19 @@ import { Button } from "@/components/ui/button"
 import { Mic, Square, Loader2 } from "lucide-react"
 
 function getSupportedMimeType(): string | undefined {
-  const types = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"]
+  const types = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/mp4;codecs=mp4a.40.2",
+    "audio/mp4",
+    "audio/aac",
+    "audio/3gpp",
+  ]
   for (const t of types) {
-    if (MediaRecorder.isTypeSupported(t)) return t
+    try {
+      if (MediaRecorder.isTypeSupported(t)) return t
+    } catch {}
   }
   return undefined
 }
@@ -60,9 +70,16 @@ export function AudioRecorder({
       return
     }
 
-    const recorder = new MediaRecorder(stream, { mimeType })
+    let recorder: MediaRecorder
+    try {
+      recorder = new MediaRecorder(stream, { mimeType })
+    } catch {
+      stream.getTracks().forEach((t) => t.stop())
+      setError("Recording not supported on this device")
+      return
+    }
     mediaRecorder.current = recorder
-    const ext = mimeType.includes("mp4") ? "mp4" : "webm"
+    const ext = mimeType.includes("mp4") || mimeType.includes("aac") || mimeType.includes("3gpp") ? "mp4" : "webm"
 
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunks.current.push(e.data)

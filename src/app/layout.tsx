@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { NotificationProvider } from "@/components/notifications/provider"
+import { RegisterSW } from "@/components/register-sw"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -51,6 +52,7 @@ export default function RootLayout({
           <NotificationProvider>
             {children}
           </NotificationProvider>
+          <RegisterSW />
         </ThemeProvider>
       </body>
     </html>
