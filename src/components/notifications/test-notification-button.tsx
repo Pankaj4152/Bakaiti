@@ -31,24 +31,41 @@ export function TestNotificationButton() {
 
     if (permission === "granted") {
       try {
-        // 1. Direct browser test notification
-        const notif = new Notification("Chitput Test", {
-          body: "🎉 Desktop notifications are working on this device!",
-          icon: "/android-chrome-192x192.png",
-        })
+        let sent = false
 
-        // 2. Service Worker test notification
+        // 1. Try ServiceWorkerRegistration.showNotification (Required for Mobile Android/iOS)
         if ("serviceWorker" in navigator) {
-          const reg = await navigator.serviceWorker.ready
-          if (reg) {
-            reg.showNotification("Chitput ServiceWorker Test", {
-              body: "🚀 Web Push Service Worker is active and ready!",
+          try {
+            const reg = await navigator.serviceWorker.ready
+            if (reg && reg.showNotification) {
+              await reg.showNotification("Chitput Test", {
+                body: "🚀 Web Push & Service Worker notifications are active on this device!",
+                icon: "/android-chrome-192x192.png",
+                badge: "/favicon-32x32.png",
+              })
+              sent = true
+            }
+          } catch {}
+        }
+
+        // 2. Fallback to desktop Notification constructor if Service Worker wasn't ready
+        if (!sent) {
+          try {
+            new Notification("Chitput Test", {
+              body: "🎉 Desktop notifications are working on this device!",
               icon: "/android-chrome-192x192.png",
             })
+            sent = true
+          } catch (e: any) {
+            console.warn("Desktop Notification constructor error:", e)
           }
         }
 
-        setStatus("success: Notification sent! If you did not see a popup, check Windows/Mac 'Do Not Disturb' or Focus Assist settings.")
+        if (sent) {
+          setStatus("success: Notification sent! If you did not see a popup, check device 'Do Not Disturb' or Focus Assist settings.")
+        } else {
+          setStatus("error: Could not trigger notification on this browser.")
+        }
       } catch (err: any) {
         setStatus(`error: Failed to trigger notification: ${err.message}`)
       }

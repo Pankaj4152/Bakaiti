@@ -101,23 +101,41 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               names.current[msg.sender_id] = name
             }
 
-            const notif = new Notification(name, {
+            const notifOptions = {
               body: msg.content || "🎤 Voice message",
               icon: "/android-chrome-192x192.png",
-            })
-            notif.onclick = () => {
-              window.focus()
-              supabase
-                .from("conversations")
-                .select("user1_id, user2_id")
-                .eq("id", msg.conversation_id)
-                .maybeSingle()
-                .then(({ data: convo }) => {
-                  if (convo) {
-                    const otherId = convo.user1_id === profile.id ? convo.user2_id : convo.user1_id
-                    window.location.href = `/chat/${otherId}`
-                  }
-                })
+              badge: "/favicon-32x32.png",
+              data: { url: `/chat/${msg.sender_id}` },
+            }
+
+            if ("serviceWorker" in navigator) {
+              try {
+                const reg = await navigator.serviceWorker.ready
+                if (reg && reg.showNotification) {
+                  await reg.showNotification(name, notifOptions)
+                  return
+                }
+              } catch {}
+            }
+
+            try {
+              const notif = new Notification(name, notifOptions)
+              notif.onclick = () => {
+                window.focus()
+                supabase
+                  .from("conversations")
+                  .select("user1_id, user2_id")
+                  .eq("id", msg.conversation_id)
+                  .maybeSingle()
+                  .then(({ data: convo }) => {
+                    if (convo) {
+                      const otherId = convo.user1_id === profile.id ? convo.user2_id : convo.user1_id
+                      window.location.href = `/chat/${otherId}`
+                    }
+                  })
+              }
+            } catch (e) {
+              console.warn("Desktop notification fallback ignored:", e)
             }
           }
         )
