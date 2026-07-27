@@ -20,11 +20,7 @@ const FUN_RESPONSES: Record<string, (targetName?: string, userNames?: string[]) 
     return fortunes[Math.floor(Math.random() * fortunes.length)]
   },
 
-  "/rps": () => {
-    const choices = ["🪨 Rock", "📄 Paper", "✂️ Scissors"]
-    const ai = choices[Math.floor(Math.random() * 3)]
-    return `I chose... ${ai}! Your turn to pick, let's see who wins 😎`
-  },
+
 }
 
 const AI_PROMPTS: Record<string, string> = {

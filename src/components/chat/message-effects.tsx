@@ -35,16 +35,16 @@ function Particle({ emoji }: { emoji: string }) {
   )
 }
 
-function getEmojiFromString(s: string): string | null {
+function getEmojisFromString(s: string): string[] {
   const match = s.match(/(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu)
-  return match?.[0] ?? null
+  return match ?? []
 }
 
 export function MessageEffect({ effect, customEmoji }: { effect: string; customEmoji?: string }) {
   const [show, setShow] = useState(true)
-  const emoji = customEmoji && getEmojiFromString(customEmoji)
-  const particles = emoji
-    ? [emoji]
+  const customEmojis = customEmoji ? getEmojisFromString(customEmoji) : []
+  const particles = customEmojis.length > 0
+    ? customEmojis
     : (DEFAULT_PARTICLES[effect] ?? DEFAULT_PARTICLES.confetti)
   const count = effect === "rain" ? 30 : 20
 

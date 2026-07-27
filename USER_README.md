@@ -21,21 +21,18 @@ Type `/` in the chat input to see a popup with all available commands. Pick one 
 | Command | What it does |
 |---------|-------------|
 | `/roast` or `/roast <msg>` | AI roasts the chat (add text to send context first) |
-| `/chaos` | AI turns recent messages into a dramatic news article |
+| `/chaos` or `/chaos <msg>` | AI turns chat into dramatic news (add text to send context first) |
 | `/remember @user` | AI digs up past memories and legendary quotes |
 | `@Bakait <message>` | Chat directly with the AI |
 | `/poll "Q" "A" "B"` | Create a poll (quote each option) |
-| `/irritate @user` | Set speed/style/type, bot messages target until they reply |
-| `/stfu` | Stop the irritate bot |
 | `/spam <msg> <N>` | Repeat a message N times (max 10) |
 | `/mood` | AI analyzes the chat mood |
 | `/fortune` | Bakait tells your fortune |
-| `/rps` | Play Rock Paper Scissors with AI |
-| `/simps` | Leaderboard of who replies fastest |
+| `/simps` | Who replies fastest to whom |
 | `/ghost-meter` | Who leaves on read the most |
-| `/confetti <emoji>` | Rain confetti (optional custom emoji: `/confetti 🚀`) |
-| `/fireworks <emoji>` | Fireworks effect (optional custom emoji: `/fireworks 🎉`) |
-| `/rain <emoji>` | Rain effect (optional custom emoji: `/rain 🌈`) |
+| `/confetti <emojis>` | Rain confetti (add emojis: `/confetti 🚀💀🎉`) |
+| `/fireworks <emojis>` | Fireworks effect (add emojis: `/fireworks ❤️🔥`) |
+| `/rain <emojis>` | Rain effect (add emojis: `/rain 🌈💧🌊`) |
 
 ## Voice Messages
 

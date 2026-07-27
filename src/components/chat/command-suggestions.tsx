@@ -73,7 +73,7 @@ export function CommandSuggestions({
             <div className="min-w-0 flex-1">
               <span className="text-xs text-muted-foreground truncate block">{cmd.description}</span>
             </div>
-            {cmd.hasForm && <span className="text-[10px] text-muted-foreground shrink-0">UI</span>}
+            {cmd.command === "/poll" || cmd.command === "/spam" ? <span className="text-[10px] text-muted-foreground shrink-0">UI</span> : null}
           </button>
         ))}
       </div>

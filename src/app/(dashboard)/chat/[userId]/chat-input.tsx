@@ -85,8 +85,8 @@ export function ChatInput({
       inputRef.current?.focus()
       return
     }
-    if (cmd.command === "/irritate") {
-      setText("/irritate ")
+    if (cmd.command === "/chaos") {
+      setText("/chaos ")
       inputRef.current?.focus()
       return
     }
@@ -289,9 +289,17 @@ export function ChatInput({
     }
 
     if (content.startsWith("/chaos")) {
+      const userMsg = content.slice(6).trim()
       setText("")
       setSending(true)
       try {
+        if (userMsg) {
+          await supabase.from("messages").insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: userMsg,
+          })
+        }
         const res = await fetch("/api/chaos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -337,13 +345,6 @@ export function ChatInput({
             conversation_id: conversationId,
             sender_id: senderId,
             content: `${known.command.slice(1)} ${rest}`.trim(),
-          })
-        } else if (known.command === "/stfu") {
-          await supabase.from("messages").insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: "🛑 STFU — irritate bot stopped",
-            is_ai: true,
           })
         } else {
           const targetUsername = content.split(" ")[1] ?? ""

@@ -252,7 +252,8 @@ export function MessageList({
               )}
               <div className="flex flex-col items-end gap-0.5 max-w-[75%]">
                 <div
-                  className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words ${
+                  onClick={() => setPickingEmojiFor(pickingEmojiFor === msg.id ? null : msg.id)}
+                  className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words cursor-pointer ${
                     msg.is_ai
                       ? "bg-zinc-900 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px]"
                       : isMine
@@ -314,7 +315,7 @@ export function MessageList({
                   ) : (
                     <button
                       onClick={() => setPickingEmojiFor(msg.id)}
-                      className="text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover/message:opacity-100 transition-opacity"
+                      className="text-xs text-muted-foreground hover:text-foreground"
                     >
                       +
                     </button>
