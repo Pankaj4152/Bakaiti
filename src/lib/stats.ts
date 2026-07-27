@@ -13,16 +13,20 @@ export interface ComputedStats {
 export async function computeUserStats(userId: string): Promise<ComputedStats> {
   const db = createAdminClient()
 
-  const [msgCount, reactionCount, startupCount, lateNightRes, emojis, convoCount, messages] =
+  const [msgCount, reactionCount, startupCount, lateNightRes, emojis, convoAsU1, convoAsU2, groupPart, messages] =
     await Promise.all([
       db.from("messages").select("id", { count: "exact", head: true }).eq("sender_id", userId),
       db.from("reactions").select("id", { count: "exact", head: true }).eq("user_id", userId),
       db.from("messages").select("id", { count: "exact", head: true }).eq("sender_id", userId).ilike("content", "%startup%"),
       db.rpc("count_late_night_messages", { user_id: userId }),
       db.from("reactions").select("emoji").eq("user_id", userId),
-      db.from("conversations").select("id", { count: "exact", head: true }).or(`user1_id.eq.${userId},user2_id.eq.${userId}`),
+      db.from("conversations").select("id", { count: "exact", head: true }).eq("user1_id", userId),
+      db.from("conversations").select("id", { count: "exact", head: true }).eq("user2_id", userId).not("user2_id", "is", null),
+      db.from("conversation_participants").select("conversation_id", { count: "exact", head: true }).eq("user_id", userId),
       db.from("messages").select("content").eq("sender_id", userId),
     ])
+
+  const convoCount = (convoAsU1.count ?? 0) + (convoAsU2.count ?? 0) + (groupPart.count ?? 0)
 
   const emojiCounts: Record<string, number> = {}
   ;(emojis.data ?? []).forEach((r: { emoji: string }) => {
@@ -44,7 +48,7 @@ export async function computeUserStats(userId: string): Promise<ComputedStats> {
     startup_mentions: startupCount.count ?? 0,
     late_night_count: (lateNightRes.data as number) ?? 0,
     top_emojis: topEmojis,
-    conversations_count: convoCount.count ?? 0,
+    conversations_count: convoCount,
     average_message_length: avgLength,
   }
 }

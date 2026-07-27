@@ -233,7 +233,7 @@ export function MessageList({
                 <div
                   className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words ${
                     msg.is_ai
-                      ? "bg-gradient-to-r from-purple-600/90 to-pink-600/90 text-white rounded-[18px] rounded-br-[6px]"
+                      ? "bg-zinc-900 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px]"
                       : isMine
                         ? "bg-primary text-primary-foreground rounded-[18px] rounded-br-[6px]"
                         : "bg-muted rounded-[18px] rounded-bl-[6px]"

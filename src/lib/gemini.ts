@@ -91,12 +91,15 @@ export async function generateChaos(
     .map((m) => `[${m.sender_name}]: ${m.content ?? "🎤 Voice message"}`)
     .join("\n")
 
-  const prompt = `You are a dramatic news anchor reporting on the chat conversation between ${userNames.join(" and ")}.
+  const msgCount = recentMessages.length
+  const lengthGuide = msgCount < 10 ? "very short, exactly 1-2 sentences." : msgCount < 30 ? "2-3 sentences." : "3-4 sentences."
+
+  const prompt = `You are a dramatic news anchor reporting on the chat conversation between ${userNames.join(" and ")}. The chat is in ${recentMessages.some(m => /[^\x00-\x7F]/.test(m.content ?? "")) ? "Hindi or Hinglish, match the exact language and tone of the messages" : "English, but throw in some Hindi/Hinglish words for fun"}.
 
 Here are their recent messages:
 ${chatLog}
 
-Rewrite this conversation as an overdramatic BREAKING NEWS article. Use dramatic headlines like "BREAKING NEWS", "Sources confirm", "In a shocking turn of events", "Reports are flooding in". Make it sound like a serious news broadcast about their mundane chat. Maximum 3-4 sentences. Return ONLY the article text, no explanations or markdown.`
+Rewrite this conversation as an overdramatic BREAKING NEWS article. Use dramatic headlines like "BREAKING NEWS", "Sources confirm", "In a shocking turn of events". Match the tone and language of the chat exactly. Keep it ${lengthGuide} Return ONLY the article text, no explanations or markdown.`
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
@@ -138,13 +141,13 @@ export async function generateRoast(
 
   const extraText = userText ? `\n${triggerUserName} specifically calls out: "${userText}"` : ""
 
-  const prompt = `You are a funny AI assistant named Bakait. ${triggerUserName} asked you to roast ${targetName}.
+  const prompt = `You are a funny AI assistant named Bakait. ${triggerUserName} asked you to roast ${targetName}. The chat is in ${recentMessages.some(m => /[^\x00-\x7F]/.test(m.content ?? "")) ? "Hindi or Hinglish, match the exact language of the messages" : "English, but feel free to use Hinglish"}.
 
 Here's the recent conversation context:
 ${chatLog}
 ${extraText}
 
-Generate a VERY SHORT playful roast about ${targetName}. Maximum 2 lines. Reference specific things they said or did. Make it punchy and funny, like a friend teasing them. Don't roast ${triggerUserName}, only roast ${targetName}. Return ONLY the roast text, no explanations or markdown.`
+Generate a VERY SHORT playful roast about ${targetName}. Maximum 2 lines. Reference specific things they said or did. Match the tone and language of the chat. Make it punchy and funny, like a friend teasing them. Don't roast ${triggerUserName}, only roast ${targetName}. Return ONLY the roast text, no explanations or markdown.`
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,

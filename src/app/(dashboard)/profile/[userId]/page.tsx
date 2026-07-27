@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
-import { computeUserStats, getAchievements, getFunLabels } from "@/lib/stats"
+import { computeUserStats, getAchievements, getFunLabels, type ComputedStats } from "@/lib/stats"
 import { ProfileBackButton } from "./profile-header"
 
 export default async function ProfilePage({
@@ -28,7 +28,12 @@ export default async function ProfilePage({
 
   const isOwn = profile.email === user.email
 
-  const stats = await computeUserStats(userId)
+  let stats: ComputedStats
+  try {
+    stats = await computeUserStats(userId)
+  } catch {
+    stats = { messages_sent: 0, emoji_reactions_given: 0, startup_mentions: 0, late_night_count: 0, top_emojis: [], conversations_count: 0, average_message_length: 0 }
+  }
   const achievements = getAchievements(stats)
   const labels = getFunLabels(stats)
 
