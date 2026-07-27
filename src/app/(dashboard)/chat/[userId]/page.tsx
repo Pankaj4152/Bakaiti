@@ -65,7 +65,26 @@ export default async function ConversationPage({
   if (!currentUser) redirect("/login")
   if (!otherUser) redirect("/chat")
 
-  const conversationId = await getOrCreateConversation(currentUser.id, userId)
+  const [user1Id, user2Id] = [currentUser.id, userId].sort()
+
+  const { data: existingConvo } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("user1_id", user1Id)
+    .eq("user2_id", user2Id)
+    .maybeSingle()
+
+  let conversationId = existingConvo?.id
+
+  if (!conversationId) {
+    const { data: created } = await supabase
+      .from("conversations")
+      .insert({ user1_id: user1Id, user2_id: user2Id })
+      .select("id")
+      .single()
+    conversationId = created!.id
+  }
+
   const { data: messages } = await getMessages(conversationId)
 
   const themeClass = currentUser.theme && currentUser.theme !== "default" ? `theme-${currentUser.theme}` : ""
@@ -105,3 +124,4 @@ export default async function ConversationPage({
     </div>
   )
 }
+

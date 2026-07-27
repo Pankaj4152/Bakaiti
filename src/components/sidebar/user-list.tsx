@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -97,53 +98,57 @@ export function UserList({ onNav }: { onNav?: () => void }) {
             const groupInitials = convo.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) ?? "G"
 
             return (
-            <button
-              key={convo.id}
-              onClick={() => { onNav?.(); router.push(href) }}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left",
-                active && "bg-accent"
-              )}
-            >
-              <div className="relative shrink-0">
-                {isGroup ? (
-                  <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
-                    {groupInitials}
-                  </div>
-                ) : (
-                  <>
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={convo.otherUser?.avatar_url ?? undefined} />
-                      <AvatarFallback>{convo.otherUser?.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
-                    </Avatar>
-                    {isOnline(convo.otherUser?.last_seen) && (
-                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
-                    )}
-                  </>
+              <Link
+                key={convo.id}
+                href={href}
+                onClick={() => onNav?.()}
+                prefetch={true}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left block",
+                  active && "bg-accent"
                 )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium truncate">
-                    {isGroup ? (convo.name ?? "Group") : (convo.otherUser?.name ?? "Unknown")}
-                  </span>
+              >
+                <div className="flex items-center gap-3 w-full">
+                  <div className="relative shrink-0">
+                    {isGroup ? (
+                      <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
+                        {groupInitials}
+                      </div>
+                    ) : (
+                      <>
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage src={convo.otherUser?.avatar_url ?? undefined} />
+                          <AvatarFallback>{convo.otherUser?.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
+                        </Avatar>
+                        {isOnline(convo.otherUser?.last_seen) && (
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate">
+                        {isGroup ? (convo.name ?? "Group") : (convo.otherUser?.name ?? "Unknown")}
+                      </span>
+                      {convo.unreadCount > 0 && (
+                        <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                      )}
+                    </div>
+                    {convo.lastMessage && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {convo.lastMessage.isMine ? "You: " : isGroup && convo.lastMessage.senderName ? `${convo.lastMessage.senderName}: ` : ""}
+                        {convo.lastMessage.sticker_url ? "sent a sticker" : convo.lastMessage.image_url ? "sent a photo" : convo.lastMessage.audio_url ? "🎤 Voice message" : (convo.lastMessage.content ?? "")}
+                      </p>
+                    )}
+                  </div>
                   {convo.unreadCount > 0 && (
-                    <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                    <span className="shrink-0 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
+                      {convo.unreadCount > 99 ? "99+" : convo.unreadCount}
+                    </span>
                   )}
                 </div>
-                {convo.lastMessage && (
-                  <p className="text-xs text-muted-foreground truncate">
-                    {convo.lastMessage.isMine ? "You: " : isGroup && convo.lastMessage.senderName ? `${convo.lastMessage.senderName}: ` : ""}
-                    {convo.lastMessage.sticker_url ? "sent a sticker" : convo.lastMessage.image_url ? "sent a photo" : convo.lastMessage.audio_url ? "🎤 Voice message" : (convo.lastMessage.content ?? "")}
-                  </p>
-                )}
-              </div>
-              {convo.unreadCount > 0 && (
-                <span className="shrink-0 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
-                  {convo.unreadCount > 99 ? "99+" : convo.unreadCount}
-                </span>
-              )}
-            </button>
+              </Link>
             )
           })
         )}
