@@ -1,5 +1,5 @@
 const API_KEY = process.env.GEMINI_API_KEY
-const MODEL = "gemini-2.0-flash"
+const MODEL = "gemini-3.1-flash-lite"
 
 interface MessageInput {
   sender_name: string

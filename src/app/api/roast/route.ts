@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     .select("content, audio_url, sender_id, created_at")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
-    .limit(30)
+    .limit(100)
 
   if (!messages || messages.length < 5) {
     return NextResponse.json({ error: "Not enough messages to roast yet" }, { status: 400 })
