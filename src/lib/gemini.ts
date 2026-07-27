@@ -207,40 +207,43 @@ Respond as Bakait — be funny, playful, and engaging. Keep it under 2 sentences
   return text?.trim() ?? null
 }
 
-export async function generateMeme(
+const IMAGE_MODEL = "gemini-3.1-flash-lite-image"
+
+export async function generateMemeImage(
   recentMessages: MessageInput[],
   userNames: string[],
   userPrompt?: string
-): Promise<{ topText: string; bottomText: string } | null> {
+): Promise<{ imageData: string; mimeType: string; caption: string } | null> {
   if (!API_KEY) return null
 
   const chatLog = recentMessages
     .map((m) => `[${m.sender_name}]: ${m.content ?? "🎤 Voice message"}`)
     .join("\n")
 
-  const prompt = `You are a meme caption generator for a chat between ${userNames.join(" and ")}. Match the language and tone of the chat messages exactly.
+  const prompt = `You are a meme generator for a chat between ${userNames.join(" and ")}. Match the language and humor style of the chat messages exactly.
 
-Here are their recent messages:
+Chat context:
 ${chatLog}
-${userPrompt ? `\nThe user also wants it to be about this topic: "${userPrompt}" — blend it with what's happening in chat.` : ""}
+${userPrompt ? `\nAlso reference this topic: "${userPrompt}"` : ""}
 
-Generate a meme with TOP text and BOTTOM text (classic meme format).
-- Both parts should be SHORT — 1-3 words each
+Generate a FUNNY MEME IMAGE. Rules:
+- Pick a popular meme format (Drake, Distracted BF, Two Buttons, etc.) OR create an original funny image
+- Include short meme text overlays (top/bottom or left/right)
 - Make it specific to the chat context${userPrompt ? " and the user's topic" : ""}
-- Funny and punchy
-
-Return ONLY in this exact format:
-TOP: <top text>
-BOTTOM: <bottom text>`
+- The image should look like a real meme — readable text, funny concept
+- Return the image AND a short caption describing it`
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${API_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.9, maxOutputTokens: 128 },
+        generationConfig: {
+          temperature: 0.9,
+          responseModalities: ["Text", "Image"],
+        },
       }),
     }
   )
@@ -248,14 +251,25 @@ BOTTOM: <bottom text>`
   if (!res.ok) return null
 
   const data = await res.json()
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-  if (!text) return null
+  const parts = data?.candidates?.[0]?.content?.parts ?? []
 
-  const topMatch = text.match(/TOP:\s*(.+)/i)
-  const bottomMatch = text.match(/BOTTOM:\s*(.+)/i)
-  if (!topMatch || !bottomMatch) return null
+  let imageData: string | undefined
+  let mimeType = "image/png"
+  let caption = ""
 
-  return { topText: topMatch[1].trim(), bottomText: bottomMatch[1].trim() }
+  for (const part of parts) {
+    if (part.inlineData) {
+      imageData = part.inlineData.data
+      mimeType = part.inlineData.mimeType
+    }
+    if (part.text) {
+      caption += part.text
+    }
+  }
+
+  if (!imageData) return null
+
+  return { imageData, mimeType, caption: caption.trim() }
 }
 
 export async function analyzeDay(

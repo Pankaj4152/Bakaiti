@@ -27,7 +27,7 @@ Type `/` in the chat input to see a popup with all available commands. Pick one 
 | `/poll "Q" "A" "B"` | Create a poll (quote each option) |
 | `/spam <msg> <N>` | Repeat a message N times (max 10) |
 | `/mood` | AI analyzes the chat mood |
-| `/meme` or `/meme <prompt>` | AI generates a meme IMAGE with top/bottom text on a random template |
+| `/meme` or `/meme <prompt>` | AI generates a meme IMAGE from chat context (native image generation) |
 | `/fortune` | Bakait tells your fortune |
 | `/simps` | Who replies fastest to whom |
 | `/ghost-meter` | Who leaves on read the most |
