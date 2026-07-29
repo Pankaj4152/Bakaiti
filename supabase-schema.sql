@@ -615,5 +615,34 @@ create index if not exists idx_memories_target_user on memories(target_user_id);
 create index if not exists idx_memories_conversation on memories(conversation_id);
 create index if not exists idx_legendary_quotes_user on legendary_quotes(user_id);
 
+-- 13. Reminders
+create table if not exists reminders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references allowed_users(id) on delete cascade,
+  created_by uuid not null references allowed_users(id) on delete cascade,
+  text text not null,
+  remind_at timestamptz not null,
+  notified boolean default false,
+  created_at timestamptz default now()
+);
+
+alter table reminders enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'reminders select') then
+    create policy "reminders select" on reminders for select to authenticated using (user_id = (select id from allowed_users where email = auth.email()));
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'reminders insert') then
+    create policy "reminders insert" on reminders for insert to authenticated with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'reminders update') then
+    create policy "reminders update" on reminders for update to authenticated using (user_id = (select id from allowed_users where email = auth.email()));
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'reminders delete') then
+    create policy "reminders delete" on reminders for delete to authenticated using (user_id = (select id from allowed_users where email = auth.email()));
+  end if;
+end; $$;
+
+create index if not exists idx_reminders_user on reminders(user_id, remind_at);
 
 

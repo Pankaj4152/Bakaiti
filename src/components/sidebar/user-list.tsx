@@ -6,7 +6,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { MessageCircle, Archive, LogOut } from "lucide-react"
+import { MessageCircle, Archive, LogOut, Users } from "lucide-react"
 import { AddUserDialog } from "./add-user-dialog"
 import { CreateGroupDialog } from "./create-group-dialog"
 import { useSidebar } from "./sidebar-context"
@@ -28,6 +28,18 @@ interface ConversationItem {
 const isOnline = (lastSeen: string | null | undefined) => {
   if (!lastSeen) return false
   return Date.now() - new Date(lastSeen).getTime() < 120000
+}
+
+const formatLastSeen = (lastSeen: string | null | undefined) => {
+  if (!lastSeen) return ""
+  const diff = Date.now() - new Date(lastSeen).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return "now"
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
 }
 
 export function UserList({ onNav }: { onNav?: () => void }) {
@@ -65,6 +77,12 @@ export function UserList({ onNav }: { onNav?: () => void }) {
 
   useEffect(() => { load() }, [refreshKey])
 
+  const onlineUsers = conversations
+    .filter((c) => c.type !== "group" && c.otherUser && isOnline(c.otherUser.last_seen))
+    .map((c) => c.otherUser!)
+    .filter((u, i, arr) => arr.findIndex((a) => a.id === u.id) === i)
+    .slice(0, 6)
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-4 h-14 border-b flex-shrink-0">
@@ -91,11 +109,42 @@ export function UserList({ onNav }: { onNav?: () => void }) {
             <p className="text-xs text-muted-foreground">Click + to find someone and start chatting</p>
           </div>
         ) : (
-          conversations.map((convo) => {
+          <div>
+            {onlineUsers.length > 0 && (
+              <div className="px-4 py-3 border-b">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Users className="h-3 w-3 text-green-500" />
+                  <span className="text-xs font-semibold text-green-500 uppercase tracking-wider">Online Now</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {onlineUsers.map((u) => (
+                    <Link
+                      key={u.id}
+                      href={`/chat/${u.id}`}
+                      onClick={() => onNav?.()}
+                      className="flex flex-col items-center gap-1 group"
+                    >
+                      <div className="relative">
+                        <Avatar className="h-8 w-8 ring-2 ring-green-500/50 group-hover:ring-green-500 transition-all">
+                          <AvatarImage src={u.avatar_url ?? undefined} />
+                          <AvatarFallback className="text-[10px]">{u.name[0]?.toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border border-background" />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground truncate max-w-[48px] text-center leading-tight">
+                        {u.name.split(" ")[0]}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            {conversations.map((convo) => {
             const isGroup = convo.type === "group"
             const href = isGroup ? `/chat/group/${convo.id}` : `/chat/${convo.otherUser?.id}`
             const active = isGroup ? params?.conversationId === convo.id : params?.userId === convo.otherUser?.id
             const groupInitials = convo.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) ?? "G"
+            const online = !isGroup && isOnline(convo.otherUser?.last_seen)
 
             return (
               <Link
@@ -120,7 +169,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
                           <AvatarImage src={convo.otherUser?.avatar_url ?? undefined} />
                           <AvatarFallback>{convo.otherUser?.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
                         </Avatar>
-                        {isOnline(convo.otherUser?.last_seen) && (
+                        {online && (
                           <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
                         )}
                       </>
@@ -135,12 +184,18 @@ export function UserList({ onNav }: { onNav?: () => void }) {
                         <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
                       )}
                     </div>
-                    {convo.lastMessage && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        {convo.lastMessage.isMine ? "You: " : isGroup && convo.lastMessage.senderName ? `${convo.lastMessage.senderName}: ` : ""}
-                        {convo.lastMessage.sticker_url ? "sent a sticker" : convo.lastMessage.image_url ? "sent a photo" : convo.lastMessage.audio_url ? "🎤 Voice message" : (convo.lastMessage.content ?? "")}
-                      </p>
-                    )}
+                    <p className="text-xs truncate">
+                      {online ? (
+                        <span className="text-green-500">● Online</span>
+                      ) : !isGroup && convo.otherUser?.last_seen ? (
+                        <span className="text-muted-foreground">last seen {formatLastSeen(convo.otherUser.last_seen)}</span>
+                      ) : convo.lastMessage ? (
+                        <span className="text-muted-foreground">
+                          {convo.lastMessage.isMine ? "You: " : isGroup && convo.lastMessage.senderName ? `${convo.lastMessage.senderName}: ` : ""}
+                          {convo.lastMessage.sticker_url ? "sent a sticker" : convo.lastMessage.image_url ? "sent a photo" : convo.lastMessage.audio_url ? "🎤 Voice message" : (convo.lastMessage.content ?? "")}
+                        </span>
+                      ) : null}
+                    </p>
                   </div>
                   {convo.unreadCount > 0 && (
                     <span className="shrink-0 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
@@ -150,7 +205,8 @@ export function UserList({ onNav }: { onNav?: () => void }) {
                 </div>
               </Link>
             )
-          })
+          })}
+          </div>}
         )}
       </div>
       <div className="border-t p-2">

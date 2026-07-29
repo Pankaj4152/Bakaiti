@@ -107,7 +107,25 @@ export default async function ConversationPage({
               <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border-2 border-background" />
             )}
           </div>
-          <span className="font-semibold">{otherUser.name}</span>
+          <div className="flex flex-col">
+            <span className="font-semibold leading-tight">{otherUser.name}</span>
+            <span className="text-[11px] text-muted-foreground leading-tight">
+              {otherUser.last_seen && Date.now() - new Date(otherUser.last_seen).getTime() < 120000
+                ? <span className="text-green-500">● Online</span>
+                : otherUser.last_seen
+                  ? (() => {
+                      const diff = Date.now() - new Date(otherUser.last_seen).getTime()
+                      const mins = Math.floor(diff / 60000)
+                      if (mins < 1) return "last seen now"
+                      if (mins < 60) return `last seen ${mins}m ago`
+                      const hours = Math.floor(mins / 60)
+                      if (hours < 24) return `last seen ${hours}h ago`
+                      const days = Math.floor(hours / 24)
+                      return `last seen ${days}d ago`
+                    })()
+                  : null}
+            </span>
+          </div>
           <TypingIndicator conversationId={conversationId} otherUserId={userId} />
         </Link>
         <MediaButton conversationId={conversationId} />

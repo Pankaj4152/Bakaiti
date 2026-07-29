@@ -19,6 +19,10 @@ export const COMMANDS: Command[] = [
   { command: "/rain", label: "Rain", description: "Rain effect (add emojis: /rain 🌈💧)", aliases: ["/pour"] },
   { command: "/spam", label: "Spam", description: "Repeat a message N times" },
   { command: "/meme", label: "Meme", description: "Generate a meme caption from chat (add text for prompt)", aliases: ["/caption"] },
+  { command: "/expose", label: "Expose", description: "AI digs up the most embarrassing/funny message from a user", aliases: ["/air"] },
+  { command: "/glitch", label: "Glitch", description: "Glitch the chat UI for 10-15 seconds" },
+  { command: "/remind", label: "Remind", description: "Set a reminder (/remind @user|me <text> <time>)" },
+  { command: "/calc", label: "Calc", description: "Calculate a math expression (/calc 450*3 + 120)" },
 ]
 
 export function findCommands(input: string): Command[] {

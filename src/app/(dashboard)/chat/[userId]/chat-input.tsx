@@ -9,6 +9,21 @@ import { AudioRecorder } from "@/components/chat/audio-recorder"
 import { StickerPicker } from "@/components/chat/stickers/sticker-picker"
 import { CommandSuggestions } from "@/components/chat/command-suggestions"
 import { COMMANDS, type Command } from "@/lib/commands"
+import * as chrono from "chrono-node"
+
+function safeEval(expr: string): number | string {
+  const sanitized = expr.replace(/[^0-9+\-*/().%\s]/g, "")
+  try {
+    const result = new Function(`"use strict"; return (${sanitized})`)()
+    if (typeof result === "number" && !Number.isInteger(result)) {
+      return parseFloat(result.toFixed(4))
+    }
+    return result
+  } catch {
+    return "Error"
+  }
+}
+
 export function ChatInput({
   conversationId,
   senderId,
@@ -45,7 +60,7 @@ export function ChatInput({
     if (res.ok && data.response) await insertAI(data.response)
   }
 
-  const EFFECTS = ["/confetti", "/fireworks", "/rain"]
+  const EFFECTS = ["/confetti", "/fireworks", "/rain", "/glitch"]
 
   useEffect(() => {
     const channel = supabase.channel(`typing:${conversationId}`)
@@ -97,6 +112,21 @@ export function ChatInput({
     }
     if (cmd.command === "/remember") {
       setText("/remember ")
+      inputRef.current?.focus()
+      return
+    }
+    if (cmd.command === "/expose") {
+      setText("/expose @")
+      inputRef.current?.focus()
+      return
+    }
+    if (cmd.command === "/calc") {
+      setText("/calc ")
+      inputRef.current?.focus()
+      return
+    }
+    if (cmd.command === "/remind") {
+      setText("/remind me ")
       inputRef.current?.focus()
       return
     }
@@ -185,6 +215,42 @@ export function ChatInput({
             conversation_id: conversationId,
             sender_id: senderId,
             content: lines.join("\n"),
+          })
+        }
+      } catch {}
+      setSending(false)
+      return
+    }
+
+    if (content.startsWith("/expose")) {
+      setText("")
+      setSending(true)
+      const parts = content.split(" ")
+      let targetUsername = parts[1] ?? ""
+      targetUsername = targetUsername.replace("@", "")
+      if (!targetUsername) { setSending(false); return }
+
+      try {
+        const { data: target } = await supabase
+          .from("allowed_users")
+          .select("id")
+          .eq("username", targetUsername)
+          .maybeSingle()
+
+        if (!target) { setSending(false); return }
+
+        const res = await fetch("/api/expose", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId, targetUserId: target.id }),
+        })
+        const data = await res.json()
+        if (res.ok && data.expose) {
+          await supabase.from("messages").insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: `🎭 Exposing @${data.targetName}...\n\n${data.expose}`,
+            is_ai: true,
           })
         }
       } catch {}
@@ -332,6 +398,74 @@ export function ChatInput({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId, senderId, userPrompt }),
       }).catch(() => {})
+      return
+    }
+
+    if (content.startsWith("/calc")) {
+      const expr = content.slice(5).trim()
+      setText("")
+      if (!expr) return
+      const result = safeEval(expr)
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content: `🧮 ${expr} = ${result}`,
+        is_ai: true,
+      })
+      return
+    }
+
+    if (content.startsWith("/remind")) {
+      setText("")
+      setSending(true)
+      const rest = content.slice(8).trim()
+      if (!rest) { setSending(false); return }
+
+      let targetUserId = senderId
+      let reminderText = rest
+
+      if (rest.startsWith("@")) {
+        const spaceIdx = rest.indexOf(" ")
+        if (spaceIdx === -1) { setSending(false); return }
+        const targetUsername = rest.slice(1, spaceIdx)
+        reminderText = rest.slice(spaceIdx + 1).trim()
+        if (!reminderText) { setSending(false); return }
+        const { data: target } = await supabase
+          .from("allowed_users")
+          .select("id")
+          .eq("username", targetUsername)
+          .maybeSingle()
+        if (target) targetUserId = target.id
+      } else if (rest.startsWith("me ")) {
+        reminderText = rest.slice(3).trim()
+      }
+
+      const parsed = chrono.parseDate(reminderText)
+      if (!parsed || parsed.getTime() <= Date.now()) { setSending(false); return }
+
+      const textOnly = reminderText.replace(
+        /\b(today|tomorrow|next|in\s+\d+\s+\w+|at\s+\d+|mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}:\d{2}\s*(am|pm)?)\b/gi,
+        ""
+      ).trim().replace(/\s+/g, " ").trim()
+
+      try {
+        await fetch("/api/remind", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: targetUserId,
+            createdBy: senderId,
+            text: textOnly || "Reminder",
+            remindAt: parsed.toISOString(),
+          }),
+        })
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: `⏰ Reminder set for ${parsed.toLocaleString()}${targetUserId !== senderId ? "" : ""}`,
+        })
+      } catch {}
+      setSending(false)
       return
     }
 

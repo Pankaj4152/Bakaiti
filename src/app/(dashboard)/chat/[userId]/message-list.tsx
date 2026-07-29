@@ -9,6 +9,9 @@ import { AudioMessage } from "@/components/chat/audio-message"
 import { ImageMessage } from "@/components/chat/image-message"
 import { MessageEffect } from "@/components/chat/message-effects"
 import { PollCard } from "@/components/chat/poll-card"
+import { GlitchEffect } from "@/components/chat/glitch-effect"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import { format } from "date-fns"
 
 const EMOJI_LIST = ["😂", "🔥", "💀", "❤️", "😭", "🥹"]
 
@@ -27,8 +30,31 @@ export function MessageList({
   const supabase = createClient()
   const { refreshConversations } = useSidebar()
   const senderCache = useRef<Record<string, any>>({})
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [reactions, setReactions] = useState<Record<string, Reaction[]>>({})
   const [pickingEmojiFor, setPickingEmojiFor] = useState<string | null>(null)
+
+  const formatMessageTime = (createdAt: string) => {
+    const date = new Date(createdAt)
+    const now = new Date()
+    const isToday = date.toDateString() === now.toDateString()
+    if (isToday) return format(date, "h:mm a")
+    const isThisYear = date.getFullYear() === now.getFullYear()
+    return isThisYear ? format(date, "MMM d, h:mm a") : format(date, "MMM d yyyy, h:mm a")
+  }
+
+  const handleLongPressDown = (msgId: string) => {
+    longPressTimer.current = setTimeout(() => {
+      setPickingEmojiFor((prev) => (prev === msgId ? null : msgId))
+    }, 500)
+  }
+
+  const handleLongPressUp = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
 
   useEffect(() => {
     if (!initialMessages[0]) return
@@ -193,7 +219,7 @@ export function MessageList({
 
   const [activeEffect, setActiveEffect] = useState<string | null>(null)
 
-  const EFFECT_MESSAGES = ["confetti", "fireworks", "rain"]
+  const EFFECT_MESSAGES = ["confetti", "fireworks", "rain", "glitch"]
 
   useEffect(() => {
     const lastMsg = display[display.length - 1]
@@ -215,9 +241,11 @@ export function MessageList({
     i > 0 && display[i].sender_id === display[i - 1].sender_id
 
   return (
+    <TooltipProvider>
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
       {activeEffect && (() => {
         const [name, ...rest] = activeEffect.split(" ")
+        if (name === "glitch") return <GlitchEffect />
         return <MessageEffect effect={name} customEmoji={rest.join(" ")} />
       })()}
       {display.map((msg, i) => {
@@ -251,36 +279,47 @@ export function MessageList({
                 </div>
               )}
               <div className="flex flex-col items-end gap-0.5 max-w-[75%]">
-                <div
-                  onClick={() => setPickingEmojiFor(pickingEmojiFor === msg.id ? null : msg.id)}
-                  className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words cursor-pointer ${
-                    msg.is_ai
-                      ? "bg-zinc-900 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px]"
-                      : isMine
-                        ? "bg-primary text-primary-foreground rounded-[18px] rounded-br-[6px]"
-                        : "bg-muted rounded-[18px] rounded-bl-[6px]"
-                  } ${grouped ? (isMine ? "rounded-br-[18px]" : "rounded-bl-[18px]") : ""}`}
-                >
-                  {msg.is_ai && (
-                    <span className="text-[10px] opacity-70 mr-1.5">🤖</span>
-                  )}
-                  {msg.sticker_url ? (
-                    <img src={msg.sticker_url} alt="" className="max-w-[180px] max-h-[180px] object-contain" />
-                  ) : msg.poll_id ? (
-                    <div>
-                      <p className="text-sm mb-2">{msg.content}</p>
-                      <PollCard pollId={msg.poll_id} currentUserId={currentUserId} />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      onMouseDown={() => handleLongPressDown(msg.id)}
+                      onMouseUp={handleLongPressUp}
+                      onMouseLeave={handleLongPressUp}
+                      onTouchStart={() => handleLongPressDown(msg.id)}
+                      onTouchEnd={handleLongPressUp}
+                      className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words cursor-pointer ${
+                        msg.is_ai
+                          ? "bg-zinc-900 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px]"
+                          : isMine
+                            ? "bg-primary text-primary-foreground rounded-[18px] rounded-br-[6px]"
+                            : "bg-muted rounded-[18px] rounded-bl-[6px]"
+                      } ${grouped ? (isMine ? "rounded-br-[18px]" : "rounded-bl-[18px]") : ""}`}
+                    >
+                      {msg.is_ai && (
+                        <span className="text-[10px] opacity-70 mr-1.5">🤖</span>
+                      )}
+                      {msg.sticker_url ? (
+                        <img src={msg.sticker_url} alt="" className="max-w-[180px] max-h-[180px] object-contain" />
+                      ) : msg.poll_id ? (
+                        <div>
+                          <p className="text-sm mb-2">{msg.content}</p>
+                          <PollCard pollId={msg.poll_id} currentUserId={currentUserId} />
+                        </div>
+                      ) : msg.image_url ? (
+                        <ImageMessage url={msg.image_url} />
+                      ) : msg.audio_url ? (
+                        <AudioMessage url={msg.audio_url} />
+                      ) : msg.content && EFFECT_MESSAGES.includes(msg.content.toLowerCase().split(" ")[0]) ? (
+                        <span className="text-lg">{msg.content.match(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu)?.[0] ?? (msg.content.startsWith("confetti") ? "🎉" : msg.content.startsWith("fireworks") ? "🎆" : "🌧️")}</span>
+                      ) : (
+                        msg.content
+                      )}
                     </div>
-                  ) : msg.image_url ? (
-                    <ImageMessage url={msg.image_url} />
-                  ) : msg.audio_url ? (
-                    <AudioMessage url={msg.audio_url} />
-                    ) : msg.content && EFFECT_MESSAGES.includes(msg.content.toLowerCase().split(" ")[0]) ? (
-                    <span className="text-lg">{msg.content.match(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu)?.[0] ?? (msg.content.startsWith("confetti") ? "🎉" : msg.content.startsWith("fireworks") ? "🎆" : "🌧️")}</span>
-                  ) : (
-                    msg.content
-                  )}
-                </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align={isMine ? "end" : "start"}>
+                    {formatMessageTime(msg.created_at)}
+                  </TooltipContent>
+                </Tooltip>
                 {isMine && (
                   <span className={`text-[10px] px-1 leading-none ${msg.read ? "text-blue-400" : "text-muted-foreground"}`}>
                     {msg.read ? "✓✓" : "✓"}
@@ -328,5 +367,6 @@ export function MessageList({
       })}
       <div ref={bottomRef} />
     </div>
+    </TooltipProvider>
   )
 }
