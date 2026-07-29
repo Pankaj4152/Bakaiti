@@ -25,7 +25,30 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  // IMPORTANT: Do NOT remove getUser() call - it refreshes the auth token
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const url = request.nextUrl.clone()
+  const path = url.pathname
+
+  const isAuthRoute =
+    path.startsWith("/login") ||
+    path.startsWith("/pending") ||
+    path.startsWith("/setup") ||
+    path.startsWith("/auth")
+
+  if (!user && !isAuthRoute && !path.startsWith("/api")) {
+    url.pathname = "/login"
+    return NextResponse.redirect(url)
+  }
+
+  if (user && path === "/login") {
+    url.pathname = "/chat"
+    return NextResponse.redirect(url)
+  }
 
   return supabaseResponse
 }
+
