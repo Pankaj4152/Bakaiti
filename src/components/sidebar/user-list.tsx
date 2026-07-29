@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { MessageCircle, Archive, LogOut, Users } from "lucide-react"
 import { AddUserDialog } from "./add-user-dialog"
 import { CreateGroupDialog } from "./create-group-dialog"
+import { HelpDialog } from "./help-dialog"
 import { useSidebar } from "./sidebar-context"
 
 interface Participant {
@@ -97,6 +98,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
         <button onClick={() => { onNav?.(); router.push("/vault") }} className="shrink-0 h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors" title="The Vault">
           <Archive className="h-4 w-4" />
         </button>
+        <HelpDialog />
         <AddUserDialog />
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -206,7 +208,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
               </Link>
             )
           })}
-          </div>}
+          </div>
         )}
       </div>
       <div className="border-t p-2">

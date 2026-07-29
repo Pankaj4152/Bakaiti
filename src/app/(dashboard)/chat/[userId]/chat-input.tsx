@@ -125,6 +125,11 @@ export function ChatInput({
       inputRef.current?.focus()
       return
     }
+    if (cmd.command === "/help") {
+      setText("/help")
+      send()
+      return
+    }
     if (cmd.command === "/remind") {
       setText("/remind me ")
       inputRef.current?.focus()
@@ -411,6 +416,22 @@ export function ChatInput({
         sender_id: senderId,
         content: `🧮 ${expr} = ${result}`,
         is_ai: true,
+      })
+      return
+    }
+
+    if (content.startsWith("/help")) {
+      setText("")
+      const help = [
+        "🤖 AI Fun\n/roast — Roast the chat\n/expose @user — Dig up embarrassing messages\n/chaos — Dramatic breaking news\n/remember @user — Recall memories & quotes\n/fortune — Random fortune\n/mood — Chat mood analysis\n/ghost-meter — Ghosting leaderboard\n/simps — Reply speed leaderboard\n/meme — Generate a meme\n\n",
+        "🎮 Effects\n/confetti, /fireworks, /rain, /glitch — fun animations\n\n",
+        "🔧 Utilities\n/calc <expr> — Calculator\n/remind @user|me <text> <time> — Set reminder\n/poll \"Q\" \"A\" \"B\" — Create poll\n/spam <msg> <N> — Repeat message\n\n",
+        "💡 Tips\n• Long-press a message to react\n• Hover any message to see timestamp\n• Type / to see all commands\n• Mention @Bakait to chat with AI\n• Click + to start a new conversation",
+      ].join("")
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content: help,
       })
       return
     }

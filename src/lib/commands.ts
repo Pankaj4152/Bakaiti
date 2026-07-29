@@ -23,6 +23,7 @@ export const COMMANDS: Command[] = [
   { command: "/glitch", label: "Glitch", description: "Glitch the chat UI for 10-15 seconds" },
   { command: "/remind", label: "Remind", description: "Set a reminder (/remind @user|me <text> <time>)" },
   { command: "/calc", label: "Calc", description: "Calculate a math expression (/calc 450*3 + 120)" },
+  { command: "/help", label: "Help", description: "Show available commands and how to use the app" },
 ]
 
 export function findCommands(input: string): Command[] {
