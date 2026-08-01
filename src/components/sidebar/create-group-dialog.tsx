@@ -24,6 +24,7 @@ interface UserItem {
 export function CreateGroupDialog() {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
+  const [search, setSearch] = useState("")
   const [users, setUsers] = useState<UserItem[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -42,6 +43,17 @@ export function CreateGroupDialog() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
   }
+
+  const query = search.trim().toLowerCase()
+  const filtered = users.filter((u) => {
+    const selectedMatch = selected.includes(u.id)
+    if (selectedMatch) return true
+    if (!query) return false
+    return (
+      u.name.toLowerCase().includes(query) ||
+      u.username.toLowerCase().includes(query)
+    )
+  })
 
   const create = async () => {
     if (!name.trim() || selected.length < 2) return
@@ -80,9 +92,14 @@ export function CreateGroupDialog() {
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
+          <Input
+            placeholder="Search people to add..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
           <div className="space-y-1 max-h-60 overflow-y-auto">
             <p className="text-xs text-muted-foreground">Add members (select at least 2)</p>
-            {users.map((u) => {
+            {filtered.map((u) => {
               const isSelected = selected.includes(u.id)
               return (
                 <button
@@ -112,6 +129,9 @@ export function CreateGroupDialog() {
                 </button>
               )
             })}
+            {filtered.length === 0 && (
+              <p className="text-sm text-muted-foreground py-4 text-center">No matching people</p>
+            )}
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <Button className="w-full" onClick={create} disabled={loading || !name.trim() || selected.length < 2}>
