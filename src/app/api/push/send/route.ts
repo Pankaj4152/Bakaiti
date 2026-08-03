@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getAuthUser, isConversationMember } from "@/lib/auth"
 import { webPush } from "@/lib/web-push"
 
 export async function POST(request: Request) {
@@ -24,6 +25,18 @@ export async function POST(request: Request) {
 
   if (!conversationId || !senderId) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+  }
+
+  // Authenticate the caller and verify they are a participant in the conversation.
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+
+  const isMember = await isConversationMember(user.id, conversationId)
+  if (!isMember) return NextResponse.json({ error: "Not a conversation member" }, { status: 403 })
+
+  // The sender must be the caller (prevents impersonating others via push).
+  if (senderId !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   const admin = createAdminClient()
@@ -106,4 +119,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ sent, cleaned: expiredEndpoints.length })
 }
-

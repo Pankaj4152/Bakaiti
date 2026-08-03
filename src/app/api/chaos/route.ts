@@ -1,10 +1,25 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateChaos } from "@/lib/gemini"
+import { getAuthUser, isConversationMember } from "@/lib/auth"
 
 export async function POST(request: Request) {
-  const { conversationId } = await request.json()
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
+
+  const conversationId = body.conversationId as string | undefined
   if (!conversationId) return NextResponse.json({ error: "Missing conversationId" }, { status: 400 })
+
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+
+  if (!(await isConversationMember(user.id, conversationId))) {
+    return NextResponse.json({ error: "Not a conversation member" }, { status: 403 })
+  }
 
   const admin = createAdminClient()
 

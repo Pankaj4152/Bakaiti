@@ -1,44 +1,29 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getAuthUser } from "@/lib/auth"
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user?.email) {
+  const user = await getAuthUser()
+  if (!user) {
     return NextResponse.json({ reminders: [] })
   }
 
   const admin = createAdminClient()
 
-  const { data: currentUser } = await admin
-    .from("allowed_users")
-    .select("id, name")
-    .eq("email", user.email)
-    .maybeSingle()
-
-  if (!currentUser) {
-    return NextResponse.json({ reminders: [] })
-  }
-
-  const { data: reminders } = await admin
-    .from("reminders")
-    .select("id, text, remind_at, created_by")
-    .eq("user_id", currentUser.id)
-    .eq("notified", false)
-    .lte("remind_at", new Date().toISOString())
-    .limit(10)
-
-  if (!reminders || reminders.length === 0) {
-    return NextResponse.json({ reminders: [] })
-  }
-
-  const reminderIds = reminders.map((r) => r.id)
-
-  await admin
+  // Atomically claim due reminders (UPDATE ... WHERE notified = false RETURNING)
+  // so concurrent polls never deliver the same reminder twice.
+  const { data: reminders, error } = await admin
     .from("reminders")
     .update({ notified: true })
-    .in("id", reminderIds)
+    .eq("user_id", user.id)
+    .eq("notified", false)
+    .lte("remind_at", new Date().toISOString())
+    .select("id, text, remind_at, created_by")
+    .limit(10)
+
+  if (error || !reminders || reminders.length === 0) {
+    return NextResponse.json({ reminders: [] })
+  }
 
   const { data: creatorNames } = await admin
     .from("allowed_users")

@@ -11,39 +11,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  const { endpoint, keys, userId: bodyUserId } = body
+  const { endpoint, keys } = body
   if (!endpoint || !keys?.p256dh || !keys?.auth) {
     return NextResponse.json({ error: "Missing endpoint or keys" }, { status: 400 })
   }
 
-  let targetUserId: string | null = null
-
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user?.email) {
-      const admin = createAdminClient()
-      const { data: profile } = await admin
-        .from("allowed_users")
-        .select("id")
-        .eq("email", user.email)
-        .maybeSingle()
-      targetUserId = profile?.id ?? null
-    }
-  } catch {}
-
-  if (!targetUserId && bodyUserId) {
-    targetUserId = bodyUserId
-  }
-
-  if (!targetUserId) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  }
+  // Resolve the authenticated user's profile — never trust a client-supplied userId.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
 
   const admin = createAdminClient()
+  const { data: profile, error: profileError } = await admin
+    .from("allowed_users")
+    .select("id")
+    .eq("email", user.email.toLowerCase().trim())
+    .maybeSingle()
+
+  if (profileError || !profile) {
+    return NextResponse.json({ error: "Profile not found" }, { status: 404 })
+  }
+
   const { error: upsertError } = await admin.from("push_subscriptions").upsert(
     {
-      user_id: targetUserId,
+      user_id: profile.id,
       endpoint,
       p256dh: keys.p256dh,
       auth: keys.auth,
@@ -53,7 +44,7 @@ export async function POST(request: Request) {
 
   if (upsertError) {
     console.error("Push subscription upsert error:", upsertError)
-    return NextResponse.json({ error: upsertError.message }, { status: 500 })
+    return NextResponse.json({ error: "Internal error" }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })
@@ -62,4 +53,3 @@ export async function POST(request: Request) {
 export async function GET() {
   return NextResponse.json({ publicKey: getVapidPublicKey() })
 }
-

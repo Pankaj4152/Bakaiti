@@ -7,8 +7,17 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user?.email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
 
-  const { theme } = await request.json()
-  if (!theme) return NextResponse.json({ error: "Missing theme" }, { status: 400 })
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
+
+  const theme = body.theme
+  if (typeof theme !== "string" || !theme) {
+    return NextResponse.json({ error: "Missing theme" }, { status: 400 })
+  }
 
   const validThemes = ["default", "orange", "cyberpunk", "discord", "whatsapp", "terminal"]
   if (!validThemes.includes(theme)) {
@@ -21,7 +30,7 @@ export async function POST(request: Request) {
     .update({ theme })
     .eq("email", user.email)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: "Failed to update theme" }, { status: 500 })
 
   return NextResponse.json({ success: true, theme })
 }

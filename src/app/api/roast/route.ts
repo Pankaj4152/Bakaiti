@@ -1,15 +1,27 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateRoast } from "@/lib/gemini"
+import { getAuthUser, isConversationMember } from "@/lib/auth"
 
 export async function POST(request: Request) {
-  const { conversationId, triggerUserId, userText } = await request.json()
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
+
+  const conversationId = body.conversationId as string | undefined
+  const triggerUserId = body.triggerUserId as string | undefined
+  const userText = body.userText as string | undefined
   if (!conversationId) return NextResponse.json({ error: "Missing conversationId" }, { status: 400 })
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user?.email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+
+  if (!(await isConversationMember(user.id, conversationId))) {
+    return NextResponse.json({ error: "Not a conversation member" }, { status: 403 })
+  }
 
   const admin = createAdminClient()
 

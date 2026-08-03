@@ -3,14 +3,26 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateMeme } from "@/lib/gemini"
 import { renderMemeSVG } from "@/lib/meme-templates"
+import { getAuthUser, isConversationMember } from "@/lib/auth"
 
 export async function POST(request: Request) {
-  const { conversationId, senderId, userPrompt } = await request.json()
-  if (!conversationId || !senderId) return NextResponse.json({ error: "Missing fields" }, { status: 400 })
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user?.email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  const conversationId = body.conversationId as string | undefined
+  const userPrompt = body.userPrompt as string | undefined
+  if (!conversationId) return NextResponse.json({ error: "Missing fields" }, { status: 400 })
+
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+
+  if (!(await isConversationMember(user.id, conversationId))) {
+    return NextResponse.json({ error: "Not a conversation member" }, { status: 403 })
+  }
 
   const admin = createAdminClient()
 
@@ -69,7 +81,7 @@ export async function POST(request: Request) {
 
   await admin.from("messages").insert({
     conversation_id: conversationId,
-    sender_id: senderId,
+    sender_id: user.id,
     content: `${memeText.topText} | ${memeText.bottomText}`,
     image_url: publicUrl,
     is_ai: true,

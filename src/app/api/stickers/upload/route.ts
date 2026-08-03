@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getAuthUser } from "@/lib/auth"
+
+const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"])
+const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user?.email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
 
   const formData = await request.formData()
   const file = formData.get("file") as File | null
@@ -13,32 +15,33 @@ export async function POST(request: Request) {
 
   if (!file) return NextResponse.json({ error: "Missing file" }, { status: 400 })
 
+  // Validate MIME type and size server-side.
+  const mime = (file.type || "").toLowerCase()
+  if (!ALLOWED_TYPES.has(mime)) {
+    return NextResponse.json({ error: "Only PNG, JPEG, WebP, GIF, or SVG images allowed" }, { status: 400 })
+  }
+  if (file.size > MAX_SIZE) {
+    return NextResponse.json({ error: "Image must be under 5MB" }, { status: 400 })
+  }
+
   const admin = createAdminClient()
 
-  const { data: profile } = await admin
-    .from("allowed_users")
-    .select("id, name")
-    .eq("email", user.email)
-    .maybeSingle()
+  const ext = mime === "image/png" ? "png" : mime === "image/jpeg" ? "jpg" : mime === "image/webp" ? "webp" : mime === "image/gif" ? "gif" : "svg"
+  const fileName = `${user.id}_${Date.now()}.${ext}`
 
-  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 })
-
-  const ext = file.name.split(".").pop() ?? "png"
-  const fileName = `${profile.id}_${Date.now()}.${ext}`
-
-  const { error: uploadError } = await supabase.storage
+  const { error: uploadError } = await admin.storage
     .from("stickers")
-    .upload(fileName, file)
+    .upload(fileName, file, { contentType: mime })
 
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 })
+  if (uploadError) return NextResponse.json({ error: "Upload failed" }, { status: 500 })
 
-  const { data: { publicUrl } } = supabase.storage.from("stickers").getPublicUrl(fileName)
+  const { data: { publicUrl } } = admin.storage.from("stickers").getPublicUrl(fileName)
 
   const { data: existingPack } = await admin
     .from("sticker_packs")
     .select("id")
     .eq("name", packName)
-    .eq("creator_id", profile.id)
+    .eq("creator_id", user.id)
     .maybeSingle()
 
   let packId: string
@@ -47,7 +50,7 @@ export async function POST(request: Request) {
   } else {
     const { data: newPack } = await admin
       .from("sticker_packs")
-      .insert({ name: packName, creator_id: profile.id, is_public: true })
+      .insert({ name: packName, creator_id: user.id, is_public: true })
       .select("id")
       .single()
     if (!newPack) return NextResponse.json({ error: "Failed to create pack" }, { status: 500 })

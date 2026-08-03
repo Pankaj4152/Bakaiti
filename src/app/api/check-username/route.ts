@@ -3,30 +3,35 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { log } from "@/lib/logger"
 
 export async function POST(request: Request) {
-  const { username, excludeEmail } = await request.json()
-
-  if (!username || typeof username !== "string") {
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
     return NextResponse.json({ available: false }, { status: 400 })
   }
 
-  const clean = username.toLowerCase().trim()
-  log.info("CHECK-USERNAME", "Checking:", clean, excludeEmail ? `(exclude: ${excludeEmail})` : "")
+  const username = body.username
+  if (typeof username !== "string") {
+    return NextResponse.json({ available: false }, { status: 400 })
+  }
+
+  // Normalize: lowercase, strip a leading @, enforce a safe character set.
+  const clean = username.toLowerCase().replace(/^@/, "").trim()
+  if (!/^[a-z0-9_-]{2,30}$/.test(clean)) {
+    return NextResponse.json({ available: false }, { status: 400 })
+  }
 
   const adminDb = createAdminClient()
-  let query = adminDb
+  const { data, error } = await adminDb
     .from("allowed_users")
     .select("id")
     .eq("username", clean)
+    .maybeSingle()
 
-  if (excludeEmail) {
-    query = query.neq("email", excludeEmail.toLowerCase().trim())
+  if (error) {
+    log.error("CHECK-USERNAME", "DB error:", error.message)
+    return NextResponse.json({ available: false }, { status: 500 })
   }
 
-  const { data, error } = await query.maybeSingle()
-
-  if (error) log.error("CHECK-USERNAME", "DB error:", error.message)
-
-  const available = !data
-  log.info("CHECK-USERNAME", clean, available ? "available" : "taken")
-  return NextResponse.json({ available })
+  return NextResponse.json({ available: !data })
 }
