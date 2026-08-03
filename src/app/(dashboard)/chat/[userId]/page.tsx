@@ -7,8 +7,10 @@ import { ChatInput } from "./chat-input"
 import { MessageList } from "./message-list"
 import { MarkRead } from "./mark-read"
 import { MobileMenuButton } from "./chat-header"
+import { ChatDisplayName } from "./chat-display-name"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { MediaButton } from "./media-button"
+import { PresenceDot, PresenceStatus } from "./presence-status"
 
 const getCurrentUser = cache(async (email: string) => {
   const supabase = await createClient()
@@ -44,7 +46,8 @@ const getMessages = cache(async (conversationId: string) => {
     .from("messages")
     .select("*, sender:allowed_users(*)")
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
+    .limit(50)
 })
 
 export default async function ConversationPage({
@@ -85,7 +88,8 @@ export default async function ConversationPage({
     conversationId = created!.id
   }
 
-  const { data: messages } = await getMessages(conversationId)
+  const { data: messagesRaw } = await getMessages(conversationId)
+  const messages = (messagesRaw ?? []).reverse()
 
   const themeClass = currentUser.theme && currentUser.theme !== "default" ? `theme-${currentUser.theme}` : ""
 
@@ -103,27 +107,12 @@ export default async function ConversationPage({
               <AvatarImage src={otherUser.avatar_url ?? undefined} />
               <AvatarFallback>{otherUser.name[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
-            {otherUser.last_seen && Date.now() - new Date(otherUser.last_seen).getTime() < 120000 && (
-              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border-2 border-background" />
-            )}
+            <PresenceDot userId={userId} lastSeen={otherUser.last_seen} />
           </div>
-          <div className="flex flex-col">
-            <span className="font-semibold leading-tight">{otherUser.name}</span>
+          <div className="flex flex-col min-w-0">
+            <ChatDisplayName userId={userId} name={otherUser.name} />
             <span className="text-[11px] text-muted-foreground leading-tight">
-              {otherUser.last_seen && Date.now() - new Date(otherUser.last_seen).getTime() < 120000
-                ? <span className="text-green-500">● Online</span>
-                : otherUser.last_seen
-                  ? (() => {
-                      const diff = Date.now() - new Date(otherUser.last_seen).getTime()
-                      const mins = Math.floor(diff / 60000)
-                      if (mins < 1) return "last seen now"
-                      if (mins < 60) return `last seen ${mins}m ago`
-                      const hours = Math.floor(mins / 60)
-                      if (hours < 24) return `last seen ${hours}h ago`
-                      const days = Math.floor(hours / 24)
-                      return `last seen ${days}d ago`
-                    })()
-                  : null}
+              <PresenceStatus userId={userId} lastSeen={otherUser.last_seen} />
             </span>
           </div>
           <TypingIndicator conversationId={conversationId} otherUserId={userId} />

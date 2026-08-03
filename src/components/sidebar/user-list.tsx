@@ -11,6 +11,8 @@ import { AddUserDialog } from "./add-user-dialog"
 import { CreateGroupDialog } from "./create-group-dialog"
 import { HelpDialog } from "./help-dialog"
 import { useSidebar } from "./sidebar-context"
+import { useNicknames } from "@/components/chat/use-nicknames"
+import { useOnlineUsers } from "@/lib/realtime-presence"
 
 interface Participant {
   id: string; name: string; avatar_url: string | null
@@ -52,6 +54,8 @@ export function UserList({ onNav }: { onNav?: () => void }) {
   const supabase = createClient()
   const { refreshKey } = useSidebar()
   const hasLoaded = useRef(false)
+  const nicknames = useNicknames()
+  const onlineSet = useOnlineUsers()
 
   const load = () => {
     fetch("/api/conversations")
@@ -79,7 +83,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
   useEffect(() => { load() }, [refreshKey])
 
   const onlineUsers = conversations
-    .filter((c) => c.type !== "group" && c.otherUser && isOnline(c.otherUser.last_seen))
+    .filter((c) => c.type !== "group" && c.otherUser && (isOnline(c.otherUser.last_seen) || onlineSet.has(c.otherUser.id)))
     .map((c) => c.otherUser!)
     .filter((u, i, arr) => arr.findIndex((a) => a.id === u.id) === i)
     .slice(0, 6)
@@ -146,7 +150,10 @@ export function UserList({ onNav }: { onNav?: () => void }) {
             const href = isGroup ? `/chat/group/${convo.id}` : `/chat/${convo.otherUser?.id}`
             const active = isGroup ? params?.conversationId === convo.id : params?.userId === convo.otherUser?.id
             const groupInitials = convo.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) ?? "G"
-            const online = !isGroup && isOnline(convo.otherUser?.last_seen)
+            const online = !isGroup && (isOnline(convo.otherUser?.last_seen) || (convo.otherUser ? onlineSet.has(convo.otherUser.id) : false))
+            const displayName = !isGroup && convo.otherUser
+              ? nicknames[convo.otherUser.id] ?? convo.otherUser.name
+              : (convo.name ?? "Group")
 
             return (
               <Link
@@ -180,7 +187,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium truncate">
-                        {isGroup ? (convo.name ?? "Group") : (convo.otherUser?.name ?? "Unknown")}
+                        {displayName}
                       </span>
                       {convo.unreadCount > 0 && (
                         <span className="h-2 w-2 rounded-full bg-primary shrink-0" />

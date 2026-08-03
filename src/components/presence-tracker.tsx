@@ -1,15 +1,20 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useTrackPresence } from "@/lib/realtime-presence"
 
 export function PresenceTracker() {
+  const [userId, setUserId] = useState<string | null>(null)
+  useTrackPresence(userId)
+
   useEffect(() => {
     const supabase = createClient()
     let interval: ReturnType<typeof setInterval>
 
     const ping = async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      if (user?.id) setUserId(user.id)
       if (user?.email) {
         fetch("/api/last-seen", {
           method: "POST",
