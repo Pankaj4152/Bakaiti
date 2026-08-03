@@ -19,10 +19,11 @@ export async function computeUserStats(userId: string): Promise<ComputedStats> {
     db.from("messages").select("id", { count: "exact", head: true }).eq("sender_id", userId).ilike("content", "%startup%"),
     db.rpc("count_late_night_messages", { user_id: userId }),
     db.from("reactions").select("emoji").eq("user_id", userId),
-    db.from("conversations").select("id", { count: "exact", head: true }).eq("user1_id", userId),
-    db.from("conversations").select("id", { count: "exact", head: true }).eq("user2_id", userId).not("user2_id", "is", null),
-    db.from("conversation_participants").select("conversation_id", { count: "exact", head: true }).eq("user_id", userId),
-    db.from("messages").select("content").eq("sender_id", userId),
+    // Distinct conversation count (DMs where the user is user1/user2, plus groups
+    // the user participates in) — avoids double-counting a group creator who is
+    // both user1_id and a participant.
+    db.rpc("count_user_conversations", { p_user_id: userId }),
+    db.from("messages").select("content").eq("sender_id", userId).order("created_at", { ascending: false }).limit(500),
   ])
 
   const getCount = (r: PromiseSettledResult<any>, alt = 0) => r.status === "fulfilled" ? (r.value.count ?? alt) : alt
@@ -33,12 +34,10 @@ export async function computeUserStats(userId: string): Promise<ComputedStats> {
   const startupCount = results[2]
   const lateNightRes = results[3]
   const emojis = results[4]
-  const convoAsU1 = results[5]
-  const convoAsU2 = results[6]
-  const groupPart = results[7]
-  const messages = results[8]
+  const convoRes = results[5]
+  const messages = results[6]
 
-  const convoCount = getCount(convoAsU1) + getCount(convoAsU2) + getCount(groupPart)
+  const convoCount = convoRes.status === "fulfilled" ? ((convoRes.value.data as number) ?? 0) : 0
 
   const emojiData = getData(emojis) as { emoji: string }[]
   const emojiCounts: Record<string, number> = {}

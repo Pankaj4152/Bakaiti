@@ -645,4 +645,154 @@ end; $$;
 
 create index if not exists idx_reminders_user on reminders(user_id, remind_at);
 
+-- ============================================================================
+-- 14. SECURITY & CORRECTNESS MIGRATIONS (apply after the above)
+-- ============================================================================
+
+-- Drop the removed /irritate + /stfu feature.
+drop table if exists annoyance_sessions;
+
+-- Scan watermark: add a created_at timestamp column so the scan can resume in
+-- time order (raw UUID comparison skips ~half of new messages).
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name = 'daily_processing_state' and column_name = 'last_processed_at') then
+    alter table daily_processing_state add column last_processed_at timestamptz;
+  end if;
+end; $$;
+
+-- Advisory locks for the scan cron to prevent concurrent duplicate processing.
+create or replace function pg_try_advisory_lock(key bigint) returns boolean
+language sql as $$ select pg_try_advisory_lock(hashtextext('bakaiti_scan'), key) $$;
+
+create or replace function pg_advisory_unlock(key bigint) returns boolean
+language sql as $$ select pg_advisory_unlock(hashtextextended('bakaiti_scan', 0), key) $$;
+
+-- 14a. Prevent duplicate DM conversations (race condition).
+create unique index if not exists idx_conversations_dm_unique
+  on conversations (user1_id, user2_id)
+  where type = 'dm';
+
+-- 14b. Tighten ROW LEVEL SECURITY.
+
+-- Helper function: allow RLS to resolve auth user -> allowed_users id by email.
+create or replace function current_user_id() returns uuid as $$
+  select id from allowed_users where email = auth.email() limit 1;
+$$ language sql stable set search_path = public;
+
+create or replace function current_allowed_user_id() returns uuid as $$
+  select current_user_id();
+$$ language sql stable set search_path = public;
+
+-- allowed_users: users may only ever update their OWN row (prevents self-approval
+-- via the anon client and profile tampering of other accounts).
+drop policy if exists "authenticated can update own" on allowed_users;
+create policy "can update own"
+  on allowed_users for update to authenticated
+  using (email = auth.email())
+  with check (email = auth.email());
+
+-- messages: inserts must claim an own-sender id; only read conversations you belong to.
+drop policy if exists "authenticated can insert messages" on messages;
+create policy "can insert own messages"
+  on messages for insert to authenticated
+  with check (
+    sender_id in (select id from allowed_users where email = auth.email())
+    and exists (
+      select 1 from conversations c
+      where c.id = messages.conversation_id
+        and (c.user1_id = sender_id or c.user2_id = sender_id
+             or exists (select 1 from conversation_participants p
+                        where p.conversation_id = c.id and p.user_id = sender_id))
+    )
+  );
+
+drop policy if exists "authenticated can read messages" on messages;
+create policy "can read own conversations messages"
+  on messages for select to authenticated
+  using (
+    exists (
+      select 1 from conversations c
+      where c.id = messages.conversation_id
+        and (c.user1_id = current_user_id() or c.user2_id = current_user_id()
+             or exists (select 1 from conversation_participants p
+                        where p.conversation_id = c.id and p.user_id = current_user_id()))
+    )
+  );
+
+drop policy if exists "authenticated can update messages" on messages;
+create policy "can update read flag own conversations"
+  on messages for update to authenticated
+  using (
+    exists (
+      select 1 from conversations c
+      where c.id = messages.conversation_id
+        and (c.user1_id = current_user_id() or c.user2_id = current_user_id()
+             or exists (select 1 from conversation_participants p
+                        where p.conversation_id = c.id and p.user_id = current_user_id()))
+    )
+  );
+
+-- reactions: only read reactions in conversations you belong to; only react within them.
+drop policy if exists "authenticated can read reactions" on reactions;
+create policy "can read own conversation reactions"
+  on reactions for select to authenticated
+  using (
+    exists (
+      select 1 from messages m
+      join conversations c on c.id = m.conversation_id
+      where m.id = reactions.message_id
+        and (c.user1_id = current_user_id() or c.user2_id = current_user_id()
+             or exists (select 1 from conversation_participants p
+                        where p.conversation_id = c.id and p.user_id = current_user_id()))
+    )
+  );
+
+drop policy if exists "authenticated can insert reactions" on reactions;
+create policy "can insert own conversation reactions"
+  on reactions for insert to authenticated
+  with check (
+    user_id = current_user_id()
+    and exists (select 1 from conversations c where c.id = (select conversation_id from messages where id = reactions.message_id) and (c.type = 'dm' or exists (select 1 from conversation_participants p where p.conversation_id = c.id and p.user_id = current_user_id())))
+  );
+
+-- push_subscriptions: users may only see/delete their own subscriptions.
+drop policy if exists "push_subs_select" on push_subscriptions;
+drop policy if exists "push_subs_update" on push_subscriptions;
+drop policy if exists "push_subs_delete" on push_subscriptions;
+create policy "push_subs_select" on push_subscriptions
+  for select to authenticated using (user_id = current_user_id());
+create policy "push_subs_update" on push_subscriptions
+  for update to authenticated using (user_id = current_user_id());
+create policy "push_subs_delete" on push_subscriptions
+  for delete to authenticated using (user_id = current_user_id());
+
+-- reminders: users may only read/update their own reminders.
+drop policy if exists "reminders select" on reminders;
+drop policy if exists "reminders update" on reminders;
+drop policy if exists "reminders delete" on reminders;
+create policy "reminders select" on reminders
+  for select to authenticated using (user_id = current_user_id());
+create policy "reminders update" on reminders
+  for update to authenticated using (user_id = current_user_id());
+create policy "reminders delete" on reminders
+  for delete to authenticated using (user_id = current_user_id());
+
+-- poll_votes: a user may only manage their own votes.
+drop policy if exists "poll_votes delete" on poll_votes;
+create policy "poll_votes delete" on poll_votes
+  for delete to authenticated using (user_id = current_user_id());
+
+-- Distinct conversation count for a user (DMs + groups without double-counting
+-- a group creator who is both user1_id and a participant).
+create or replace function count_user_conversations(p_user_id uuid)
+returns int as $$
+  select (
+    (select count(*)::int from conversations
+     where type = 'dm' and (user1_id = p_user_id or user2_id = p_user_id))
+    +
+    (select count(distinct conversation_id)::int from conversation_participants
+     where user_id = p_user_id)
+  );
+$$ language sql stable set search_path = public;
+
 
