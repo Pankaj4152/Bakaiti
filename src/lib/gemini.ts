@@ -307,3 +307,27 @@ export async function analyzeDay(
     })),
   }
 }
+
+export async function translateText(text: string, language: string): Promise<string | null> {
+  if (!API_KEY || !text.trim()) return null
+  const prompt = `Translate the following message to ${language}. Respond with ONLY the translation. Do not add quotes, explanations, or the original text. Preserve tone.\n\nOriginal: "${text}"`
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
+      }),
+    }
+  )
+
+  if (!res.ok) return null
+  const data = await res.json()
+  const translated = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!translated) return null
+  const cleaned = translated.trim()
+  return cleaned || null
+}

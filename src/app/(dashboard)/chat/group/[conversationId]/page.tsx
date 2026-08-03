@@ -30,7 +30,8 @@ const getMessages = cache(async (conversationId: string) => {
     .from("messages")
     .select("*, sender:allowed_users(*)")
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
+    .limit(50)
 })
 
 export default async function GroupConversationPage({
@@ -66,7 +67,8 @@ export default async function GroupConversationPage({
     .select("id, name, avatar_url")
     .in("id", participantIds)
 
-  const { data: messages } = await getMessages(conversationId)
+  const { data: messagesRaw } = await getMessages(conversationId)
+  const messages = (messagesRaw ?? []).reverse()
 
   const themeClass = currentUser.theme && currentUser.theme !== "default" ? `theme-${currentUser.theme}` : ""
   const senderId = currentUser.id

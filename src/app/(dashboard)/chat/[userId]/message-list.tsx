@@ -11,9 +11,19 @@ import { MessageEffect } from "@/components/chat/message-effects"
 import { PollCard } from "@/components/chat/poll-card"
 import { GlitchEffect } from "@/components/chat/glitch-effect"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import { Pin } from "lucide-react"
+import { TranslateButton } from "@/components/chat/translate-button"
 import { format } from "date-fns"
 
 const EMOJI_LIST = ["😂", "🔥", "💀", "❤️", "😭", "🥹"]
+
+interface Pin {
+  id: string
+  message_id: string
+  created_at: string
+  pinned_by: string
+  message?: Message | null
+}
 
 export function MessageList({
   messages: initialMessages,
@@ -33,6 +43,10 @@ export function MessageList({
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [reactions, setReactions] = useState<Record<string, Reaction[]>>({})
   const [pickingEmojiFor, setPickingEmojiFor] = useState<string | null>(null)
+  const [pinned, setPinned] = useState<Pin[]>([])
+  const [messageIds, setMessageIds] = useState<string[]>(initialMessages.map((m) => m.id))
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const lastScrollBottom = useRef(true)
 
   const formatMessageTime = (createdAt: string) => {
     const date = new Date(createdAt)
@@ -64,6 +78,52 @@ export function MessageList({
     }
     senderCache.current = cache
   }, [initialMessages])
+
+  // --- Pagination: load older messages when the user scrolls to the top. ---
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  const [hasMore, setHasMore] = useState(initialMessages.length >= 50)
+  const oldestRef = useRef<string | null>(initialMessages[0]?.created_at ?? null)
+
+  const loadOlder = useCallback(async () => {
+    if (loadingOlder || !hasMore || !oldestRef.current) return
+    setLoadingOlder(true)
+    try {
+      const { data } = await supabase
+        .from("messages")
+        .select("*, sender:allowed_users(*)")
+        .eq("conversation_id", conversationId)
+        .lt("created_at", oldestRef.current)
+        .order("created_at", { ascending: false })
+        .limit(50)
+
+      if (data && data.length > 0) {
+        const older = data.reverse()
+        for (const m of older) {
+          if (m.sender && !senderCache.current[m.sender_id]) senderCache.current[m.sender_id] = m.sender
+        }
+        messages.current = [...older, ...messages.current]
+        oldestRef.current = older[0].created_at
+        setDisplay([...messages.current])
+        setHasMore(data.length >= 50)
+      } else {
+        setHasMore(false)
+      }
+    } catch {
+      setHasMore(false)
+    } finally {
+      setLoadingOlder(false)
+    }
+  }, [conversationId, hasMore, loadingOlder, supabase])
+
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const onScroll = () => {
+      if (el.scrollTop < 40) loadOlder()
+    }
+    el.addEventListener("scroll", onScroll)
+    return () => el.removeEventListener("scroll", onScroll)
+  }, [loadOlder])
 
   useEffect(() => {
     const channel = supabase
@@ -101,6 +161,7 @@ export function MessageList({
             refreshConversations()
           }
 
+          if (messages.current.some((m) => m.id === newMsg.id)) return
           messages.current = [...messages.current, newMsg]
           setDisplay([...messages.current])
         }
@@ -134,6 +195,22 @@ export function MessageList({
     return () => { supabase.removeChannel(channel) }
   }, [conversationId, currentUserId])
 
+  // Optimistic send: show our own freshly-inserted message instantly, before
+  // the realtime INSERT round-trip. The realtime handler dedupes by id, so the
+  // message only ever appears once.
+  useEffect(() => {
+    const onNewMessage = (e: Event) => {
+      const newMsg = (e as CustomEvent).detail as Message
+      if (!newMsg || newMsg.conversation_id !== conversationId) return
+      if (messages.current.some((m) => m.id === newMsg.id)) return
+      newMsg.sender = senderCache.current[newMsg.sender_id]
+      messages.current = [...messages.current, newMsg]
+      setDisplay([...messages.current])
+    }
+    window.addEventListener("bakaiti:new-message", onNewMessage)
+    return () => window.removeEventListener("bakaiti:new-message", onNewMessage)
+  }, [conversationId])
+
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     const existing = (reactions[messageId] ?? []).find((r) => r.user_id === currentUserId && r.emoji === emoji)
     if (existing) {
@@ -154,13 +231,18 @@ export function MessageList({
     return Object.values(grouped).sort((a, b) => b.count - a.count)
   }
 
+  // Keep messageIds in sync with the growing message list
   useEffect(() => {
-    const messageIds = messages.current.map((m) => m.id)
-    if (messageIds.length === 0) return
+    setMessageIds(messages.current.map((m) => m.id))
+  }, [display])
+
+  useEffect(() => {
+    const ids = messageIds
+    if (ids.length === 0) return
     supabase
       .from("reactions")
       .select("*")
-      .in("message_id", messageIds)
+      .in("message_id", ids)
       .then(({ data }) => {
         if (data) {
           const grouped: Record<string, Reaction[]> = {}
@@ -182,9 +264,11 @@ export function MessageList({
             const next = { ...prev }
             const msgId = (payload.new as Reaction)?.message_id ?? (payload.old as Reaction)?.message_id
             if (!msgId) return prev
+            // Ignore reactions for messages outside this conversation.
+            if (!ids.includes(msgId)) return prev
             if (payload.eventType === "INSERT") {
               const r = payload.new as Reaction
-              next[msgId] = [...(next[msgId] ?? []), r]
+              next[msgId] = [...(next[msgId] ?? []).filter((x) => !(x.user_id === r.user_id && x.emoji === r.emoji)), r]
             } else if (payload.eventType === "DELETE") {
               const r = payload.old as Reaction
               next[msgId] = (next[msgId] ?? []).filter((x) => x.id !== r.id)
@@ -196,7 +280,7 @@ export function MessageList({
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [conversationId])
+  }, [conversationId, messageIds])
 
   useEffect(() => {
     if (!pickingEmojiFor) return
@@ -208,13 +292,54 @@ export function MessageList({
     return () => document.removeEventListener("mousedown", handler)
   }, [pickingEmojiFor])
 
+  // Load pinned messages for this conversation.
+  const loadPins = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/pin?conversationId=${conversationId}`)
+      const data = await res.json()
+      setPinned(data.pins ?? [])
+    } catch {
+      setPinned([])
+    }
+  }, [conversationId])
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "auto" })
+    loadPins()
+  }, [loadPins])
+
+  const togglePin = useCallback(async (msg: Message) => {
+    const existing = pinned.find((p) => p.message_id === msg.id)
+    if (existing) {
+      await fetch(`/api/pin?messageId=${msg.id}`, { method: "DELETE" })
+    } else {
+      await fetch("/api/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, messageId: msg.id }),
+      })
+    }
+    loadPins()
+  }, [pinned, conversationId, loadPins])
+
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    lastScrollBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }, [display])
+
+  useEffect(() => {
+    // Only auto-scroll to the newest message if the user is already near the
+    // bottom (so reading older/history isn't interrupted by new arrivals).
+    if (lastScrollBottom.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "auto" })
+    }
   }, [display])
 
   useEffect(() => {
     messages.current = initialMessages
     setDisplay(initialMessages)
+    setHasMore(initialMessages.length >= 50)
+    oldestRef.current = initialMessages[0]?.created_at ?? null
   }, [initialMessages])
 
   const [activeEffect, setActiveEffect] = useState<string | null>(null)
@@ -242,7 +367,37 @@ export function MessageList({
 
   return (
     <TooltipProvider>
-    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1" ref={scrollContainerRef}>
+      {pinned.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pb-2 mb-2 border-b border-dashed border-border">
+          <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+            <Pin className="h-3 w-3" />
+            Pinned
+          </span>
+          {pinned.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => {
+                p.message?.id && document.getElementById(`msg-${p.message.id}`)?.scrollIntoView({ behavior: "smooth" })
+              }}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 hover:bg-muted rounded-full px-2 py-0.5 truncate max-w-[200px] transition-colors"
+              title="Scroll to message"
+            >
+              {p.message?.content ? (
+                <span className="truncate">{p.message.content.slice(0, 60)}</span>
+              ) : p.message?.sticker_url ? (
+                <span>📌 Sticker</span>
+              ) : p.message?.image_url ? (
+                <span>📌 Photo</span>
+              ) : p.message?.audio_url ? (
+                <span>📌 Voice message</span>
+              ) : (
+                <span>📌 Message</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
       {activeEffect && (() => {
         const [name, ...rest] = activeEffect.split(" ")
         if (name === "glitch") return <GlitchEffect />
@@ -255,7 +410,7 @@ export function MessageList({
         const isLastInGroup = i === display.length - 1 || display[i + 1].sender_id !== msg.sender_id
 
         return (
-          <div key={msg.id}>
+          <div key={msg.id} id={`msg-${msg.id}`}>
             {showUnreadSeparator && (
               <div className="flex items-center gap-2 py-2">
                 <div className="flex-1 h-px bg-border" />
@@ -358,6 +513,19 @@ export function MessageList({
                     >
                       +
                     </button>
+                  )}
+                  <button
+                    onClick={() => togglePin(msg)}
+                    className={`text-xs hover:text-foreground transition-colors ${
+                      pinned.some((p) => p.message_id === msg.id) ? "text-primary" : "text-muted-foreground"
+                    }`}
+                    title={pinned.some((p) => p.message_id === msg.id) ? "Unpin" : "Pin message"}
+                    aria-label={pinned.some((p) => p.message_id === msg.id) ? "Unpin message" : "Pin message"}
+                  >
+                    <Pin className="h-3 w-3" />
+                  </button>
+                  {msg.content && !msg.sticker_url && !msg.poll_id && (
+                    <TranslateButton text={msg.content} />
                   )}
                 </div>
               </div>
