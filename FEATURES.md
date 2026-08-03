@@ -53,7 +53,6 @@ Every `/` command shows a UI popup/form instead of requiring manual syntax:
 
 | Command | UI Form |
 |---------|---------|
-| `/irritate @user` | Target select, Speed, Style, Type options |
 | `/poll` | Question input, dynamic Add Option buttons |
 | `/roast <msg>` | Optional context textarea, Roast button |
 | `/spam <msg> <n>` | Message input, Count slider |
@@ -84,11 +83,6 @@ Every `/` command shows a UI popup/form instead of requiring manual syntax:
 - [ ] `/simps` — Leaderboard of who replies fastest
 - [ ] `/confetti`, `/fireworks`, `/rain` — message effects
 - [ ] `/spam <msg> <n>` — repeat message N times
-
-## 😤 Annoy Meter / Irritate Bot
-- [ ] `/irritate @user` — Bakait analyzes target's behavior
-- [ ] Sends messages until target replies or `/stfu`
-- [ ] Configurable: `--speed`, `--style`, `--type`
 
 ## 📦 Deploy
 Push to GitHub → Vercel → set all env vars → run `supabase-schema.sql` in Supabase SQL Editor.
