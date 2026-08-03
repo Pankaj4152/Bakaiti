@@ -24,25 +24,56 @@ export function PollCard({
       if (!pollData) { setLoading(false); return }
 
       const { data: options } = await supabase.from("poll_options").select("id, poll_id, text").eq("poll_id", pollId)
-      const { data: votes } = await supabase.from("poll_votes").select("id, option_id, user_id")
 
       const optMap: Record<string, PollOption> = {}
       if (options) for (const o of options) {
         optMap[o.id] = { ...o, votes: [] }
       }
-      if (votes) for (const v of votes) {
-        if (optMap[v.option_id]) optMap[v.option_id].votes.push({ user_id: v.user_id })
+
+      // Only fetch votes for THIS poll's options (not the entire poll_votes table).
+      const optionIds = options?.map((o) => o.id) ?? []
+      if (optionIds.length > 0) {
+        const { data: votes } = await supabase
+          .from("poll_votes")
+          .select("id, option_id, user_id")
+          .in("option_id", optionIds)
+
+        if (votes) for (const v of votes) {
+          if (optMap[v.option_id]) optMap[v.option_id].votes.push({ user_id: v.user_id })
+        }
       }
 
       setPoll({ ...pollData, options: Object.values(optMap) })
       setLoading(false)
     }
 
+    let thisPollOptionIds: string[] = []
+
     load()
 
+    const preloadOptionIds = async () => {
+      const { data: options } = await supabase.from("poll_options").select("id").eq("poll_id", pollId)
+      thisPollOptionIds = (options ?? []).map((o) => o.id)
+    }
+    preloadOptionIds()
+
+    // Reload only when a vote belongs to THIS poll (avoids re-fetching every
+    // PollCard in the app when a vote happens in another conversation).
     const channel = supabase
       .channel(`poll:${pollId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "poll_votes" }, load)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "poll_votes" },
+        (payload) => {
+          const optId = (payload.new as any)?.option_id ?? (payload.old as any)?.option_id
+          if (!optId) return
+          // If we haven't loaded options yet, refresh them; otherwise only react
+          // to votes for this poll.
+          if (thisPollOptionIds.length === 0 || thisPollOptionIds.includes(optId)) {
+            load()
+          }
+        }
+      )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }

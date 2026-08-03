@@ -13,22 +13,24 @@ function randomBetween(min: number, max: number) {
 }
 
 function Particle({ emoji }: { emoji: string }) {
-  const left = randomBetween(0, 100)
-  const delay = randomBetween(0, 2)
-  const duration = randomBetween(1.5, 3.5)
-  const size = randomBetween(18, 32)
+  const [style] = useState(() => {
+    const left = randomBetween(0, 100)
+    const delay = randomBetween(0, 2)
+    const duration = randomBetween(1.5, 3.5)
+    const size = randomBetween(18, 32)
+    return {
+      left: `${left}%`,
+      top: `-${randomBetween(10, 30)}px`,
+      fontSize: `${size}px`,
+      animationDelay: `${delay}s`,
+      animationDuration: `${duration}s`,
+    }
+  })
 
   return (
     <span
       className="absolute pointer-events-none animate-fall"
-      style={{
-        left: `${left}%`,
-        top: `-${randomBetween(10, 30)}px`,
-        fontSize: `${size}px`,
-        animationDelay: `${delay}s`,
-        animationDuration: `${duration}s`,
-        zIndex: 50,
-      }}
+      style={{ ...style, zIndex: 50 }}
     >
       {emoji}
     </span>

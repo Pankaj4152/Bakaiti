@@ -30,10 +30,20 @@ export function AudioRecorder({
   const mediaRecorder = useRef<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
   const timer = useRef<ReturnType<typeof setInterval>>(undefined)
+  const streamRef = useRef<MediaStream | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
-    return () => { clearInterval(timer.current) }
+    return () => {
+      // Clean up on unmount: stop any live mic tracks so the microphone isn't
+      // held open after the component is gone.
+      clearInterval(timer.current)
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+      if (mediaRecorder.current?.state === "recording") {
+        mediaRecorder.current.stop()
+      }
+    }
   }, [])
 
   // Check permission state on mount
@@ -77,6 +87,7 @@ export function AudioRecorder({
     }
 
     setPermState("granted")
+    streamRef.current = stream
 
     let mimeType = getSupportedMimeType()
     if (!mimeType) {
@@ -101,6 +112,7 @@ export function AudioRecorder({
       }
     } catch (e) {
       stream.getTracks().forEach((t) => t.stop())
+      if (streamRef.current === stream) streamRef.current = null
       setError("Recording not supported on this device")
       return
     }
@@ -114,6 +126,7 @@ export function AudioRecorder({
 
     recorder.onstop = async () => {
       stream.getTracks().forEach((t) => t.stop())
+      if (streamRef.current === stream) streamRef.current = null
       clearInterval(timer.current)
 
       const blob = new Blob(chunks.current, { type: mimeType })

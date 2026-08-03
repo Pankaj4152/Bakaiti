@@ -101,48 +101,43 @@ body {
 }
 
 /* --- Theme Packs --- */
+/* Each pack overrides the real color tokens (--primary, --accent, ...) so that
+   alpha variants (bg-primary/10, text-primary, ring-primary, ...) all work
+   correctly instead of only solid .bg-primary. */
 .theme-orange {
-  --theme-hue: 25;
-  --theme-primary: var(--theme-hue) 90% 55%;
-  --theme-primary-foreground: 0 0% 100%;
-  --theme-accent: var(--theme-hue) 80% 45%;
+  --primary: 25 90% 55%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 25 80% 45%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 25 90% 55%;
   --theme-gradient: linear-gradient(135deg, #ff8a00, #e52e71);
-}
-.theme-orange .bg-primary {
-  background: linear-gradient(135deg, #ff8a00, #e52e71);
 }
 
 .theme-cyberpunk {
-  --theme-hue: 280;
-  --theme-primary: var(--theme-hue) 80% 55%;
-  --theme-primary-foreground: 0 0% 100%;
-  --theme-accent: 150 100% 50%;
+  --primary: 280 80% 55%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 150 100% 50%;
+  --accent-foreground: 0 0% 5%;
+  --ring: 280 80% 55%;
   --theme-gradient: linear-gradient(135deg, #f0f, #0ff);
-}
-.theme-cyberpunk .bg-primary {
-  background: linear-gradient(135deg, #f0f, #0ff);
 }
 
 .theme-whatsapp {
-  --theme-hue: 142;
-  --theme-primary: var(--theme-hue) 70% 45%;
-  --theme-primary-foreground: 0 0% 100%;
-  --theme-accent: var(--theme-hue) 80% 35%;
+  --primary: 142 70% 45%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 142 80% 35%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 142 70% 45%;
   --theme-gradient: linear-gradient(135deg, #25D366, #128C7E);
-}
-.theme-whatsapp .bg-primary {
-  background: #075e54;
 }
 
 .theme-discord {
-  --theme-hue: 227;
-  --theme-primary: var(--theme-hue) 60% 50%;
-  --theme-primary-foreground: 0 0% 100%;
-  --theme-accent: var(--theme-hue) 70% 40%;
+  --primary: 227 60% 50%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 227 70% 40%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 227 60% 50%;
   --theme-gradient: linear-gradient(135deg, #5865F2, #4752C4);
-}
-.theme-discord .bg-primary {
-  background: #5865F2;
 }
 
 .theme-terminal {
@@ -156,15 +151,9 @@ body {
   --muted-foreground: 120 100% 50%;
   --primary: 120 100% 70%;
   --primary-foreground: 120 100% 5%;
+  --accent: 120 100% 15%;
+  --accent-foreground: 120 100% 70%;
   --border: 120 100% 15%;
   --input: 120 100% 15%;
   --ring: 120 100% 50%;
-}
-.theme-terminal .bg-primary {
-  background: #00ff41;
-  color: #000;
-}
-.theme-terminal .bg-muted {
-  background: #0a1a0a;
-  color: #00ff41;
 }
