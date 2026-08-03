@@ -50,7 +50,7 @@ export function ChatInput({
     })
   }
 
-  const callBakaitCommand = async (command: string, extra: Record<string, any> = {}) => {
+  const callBakaitCommand = async (command: string, extra: Record<string, string | undefined> = {}) => {
     const res = await fetch("/api/bakait/command", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -126,8 +126,8 @@ export function ChatInput({
       return
     }
     if (cmd.command === "/help") {
-      setText("/help")
-      send()
+      setText("")
+      send("/help")
       return
     }
     if (cmd.command === "/remind") {
@@ -146,14 +146,6 @@ export function ChatInput({
           conversation_id: conversationId,
           sender_id: senderId,
           content: command.slice(1),
-        })
-      } else if (command === "/stfu") {
-        setText("")
-        await supabase.from("messages").insert({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: "🛑 STFU — irritate bot stopped",
-          is_ai: true,
         })
       } else {
         await callBakaitCommand(command)
@@ -178,8 +170,8 @@ export function ChatInput({
     setSending(false)
   }
 
-  const send = async () => {
-    const content = text.trim()
+  const send = async (overrideContent?: string) => {
+    const content = (overrideContent ?? text).trim()
     if (!content || sending) return
 
     if (content.startsWith("/remember")) {
@@ -206,12 +198,12 @@ export function ChatInput({
 
           for (const [type, group] of Object.entries(data.memories)) {
             const emoji = typeEmojis[type] ?? "📌"
-            const items = (group as any).items as { content: string }[]
+            const items = (group as { items: { content: string }[] }).items
             lines.push(`${emoji} ${type.charAt(0) + type.slice(1).toLowerCase()} (${items.length}): ${items.map((i) => i.content).join(", ")}`)
           }
 
           if (data.quotes.length > 0) {
-            lines.push(`🏆 Legendary Quotes (${data.quotes.length}): ${data.quotes.map((q: any) => q.quote).join(", ")}`)
+            lines.push(`🏆 Legendary Quotes (${data.quotes.length}): ${data.quotes.map((q: { quote: string }) => q.quote).join(", ")}`)
           }
 
           if (lines.length === 1) lines.push("Nothing saved yet for this user")
@@ -538,11 +530,21 @@ export function ChatInput({
     setSending(true)
     setText("")
 
-    await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: senderId,
-      content,
-    })
+    const { data: inserted } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content,
+      })
+      .select("*")
+      .single()
+
+    // Optimistically deliver the message to the current view immediately (the
+    // realtime INSERT will dedupe by id so nothing posts twice).
+    if (inserted) {
+      window.dispatchEvent(new CustomEvent("bakaiti:new-message", { detail: inserted }))
+    }
 
     fetch("/api/push/send", {
       method: "POST",
@@ -555,11 +557,19 @@ export function ChatInput({
   }
 
   const handleStickerSelect = async (url: string) => {
-    await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: senderId,
-      sticker_url: url,
-    })
+    const { data: inserted } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        sticker_url: url,
+      })
+      .select("*")
+      .single()
+
+    if (inserted) {
+      window.dispatchEvent(new CustomEvent("bakaiti:new-message", { detail: inserted }))
+    }
 
     fetch("/api/push/send", {
       method: "POST",
@@ -569,7 +579,14 @@ export function ChatInput({
   }
 
   return (
-    <div className="flex items-center gap-2 p-4 border-t">
+    <div className="relative flex items-center gap-2 p-4 border-t">
+      {showCommands && (
+        <CommandSuggestions
+          text={text}
+          onSelect={handleCommandSelect}
+          onClose={() => setShowCommands(false)}
+        />
+      )}
       <Input
         ref={inputRef}
         placeholder="Type a message..."
@@ -602,7 +619,7 @@ export function ChatInput({
         senderId={senderId}
         onDone={() => setRecordingActive(false)}
       />
-      <Button size="icon" onClick={send} disabled={!text.trim() || sending}>
+      <Button size="icon" onClick={() => send()} disabled={!text.trim() || sending}>
         <Send className="h-4 w-4" />
       </Button>
     </div>
