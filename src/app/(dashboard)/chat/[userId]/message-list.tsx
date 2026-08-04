@@ -514,18 +514,22 @@ export function MessageList({
                       +
                     </button>
                   )}
-                  <button
-                    onClick={() => togglePin(msg)}
-                    className={`text-xs hover:text-foreground transition-colors ${
-                      pinned.some((p) => p.message_id === msg.id) ? "text-primary" : "text-muted-foreground"
-                    }`}
-                    title={pinned.some((p) => p.message_id === msg.id) ? "Unpin" : "Pin message"}
-                    aria-label={pinned.some((p) => p.message_id === msg.id) ? "Unpin message" : "Pin message"}
-                  >
-                    <Pin className="h-3 w-3" />
-                  </button>
-                  {msg.content && !msg.sticker_url && !msg.poll_id && (
-                    <TranslateButton text={msg.content} />
+                  {pickingEmojiFor === msg.id && (
+                    <>
+                      <button
+                        onClick={() => togglePin(msg)}
+                        className={`text-xs hover:text-foreground transition-colors ${
+                          pinned.some((p) => p.message_id === msg.id) ? "text-primary" : "text-muted-foreground"
+                        }`}
+                        title={pinned.some((p) => p.message_id === msg.id) ? "Unpin" : "Pin message"}
+                        aria-label={pinned.some((p) => p.message_id === msg.id) ? "Unpin message" : "Pin message"}
+                      >
+                        <Pin className="h-3 w-3" />
+                      </button>
+                      {msg.content && !msg.sticker_url && !msg.poll_id && (
+                        <TranslateButton text={msg.content} />
+                      )}
+                    </>
                   )}
                 </div>
               </div>
