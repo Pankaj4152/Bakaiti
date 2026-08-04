@@ -14,9 +14,6 @@ export async function POST(request: Request) {
 
   const { name, username, avatar_url } = body
 
-  const user = await getAuthUser()
-  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-
   // Never accept "status" or "email" from the client. Identity is derived from the session.
   const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
