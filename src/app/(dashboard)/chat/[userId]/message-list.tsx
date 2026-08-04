@@ -213,12 +213,46 @@ export function MessageList({
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     const existing = (reactions[messageId] ?? []).find((r) => r.user_id === currentUserId && r.emoji === emoji)
-    if (existing) {
-      await supabase.from("reactions").delete().eq("id", existing.id)
-    } else {
-      await supabase.from("reactions").insert({ message_id: messageId, user_id: currentUserId, emoji })
+
+    // Optimistic Update
+    setReactions((prev) => {
+      const next = { ...prev }
+      if (existing) {
+        next[messageId] = (next[messageId] ?? []).filter((x) => x.id !== existing.id)
+      } else {
+        const tempReaction: Reaction = {
+          id: `temp-${Date.now()}`,
+          message_id: messageId,
+          user_id: currentUserId,
+          emoji,
+          created_at: new Date().toISOString(),
+        }
+        next[messageId] = [...(next[messageId] ?? []).filter((x) => !(x.user_id === currentUserId && x.emoji === emoji)), tempReaction]
+      }
+      return next
+    })
+
+    try {
+      if (existing) {
+        const { error } = await supabase.from("reactions").delete().eq("id", existing.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from("reactions").insert({ message_id: messageId, user_id: currentUserId, emoji })
+        if (error) throw error
+      }
+    } catch (err) {
+      console.error("Failed to toggle reaction, reverting:", err)
+      setReactions((prev) => {
+        const next = { ...prev }
+        if (existing) {
+          next[messageId] = [...(next[messageId] ?? []).filter((x) => !(x.user_id === currentUserId && x.emoji === emoji)), existing]
+        } else {
+          next[messageId] = (next[messageId] ?? []).filter((x) => !(x.user_id === currentUserId && x.emoji === emoji))
+        }
+        return next
+      })
     }
-  }, [reactions, currentUserId])
+  }, [reactions, currentUserId, supabase])
 
   const groupReactions = (messageId: string) => {
     const msgReactions = reactions[messageId] ?? []
