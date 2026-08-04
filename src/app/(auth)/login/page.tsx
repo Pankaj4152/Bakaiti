@@ -43,12 +43,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
         log.warn("SIGNIN", "Failed:", error.message)
-        if (error.message.includes("Invalid login")) {
-          setMode("signup")
-          setError("No account yet. Create one below.")
-        } else {
-          setError(error.message)
-        }
+        setError(error.message)
         setLoading(false)
         return
       }
