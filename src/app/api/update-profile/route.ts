@@ -78,13 +78,13 @@ export async function POST(request: Request) {
     }
     ({ error: dbError } = await adminDb.from("allowed_users").update(userRow).eq("email", cleanEmail))
   } else {
-    // First-time on-boarding: insert with status "pending". Admin approval is required separately.
+    // First-time on-boarding: insert with status "approved" to allow immediate access.
     ({ error: dbError } = await adminDb.from("allowed_users").insert({
       email: cleanEmail,
       name: row.name ?? cleanEmail.split("@")[0],
       username: row.username ?? null,
       avatar_url: row.avatar_url ?? null,
-      status: "pending",
+      status: "approved",
     }))
   }
 

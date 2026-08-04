@@ -7,7 +7,7 @@ create table if not exists allowed_users (
   name text not null,
   username text unique,
   avatar_url text,
-  status text not null default 'pending',
+  status text not null default 'approved',
   created_at timestamptz default now()
 );
 

@@ -95,7 +95,7 @@ export default function LoginPage() {
           email,
           name: displayName.trim() || username,
           username,
-          status: "pending",
+          status: "approved",
         }),
       })
 
@@ -108,8 +108,8 @@ export default function LoginPage() {
         return
       }
 
-      log.info("SIGNUP", "Done, redirecting to pending")
-      router.replace("/pending")
+      log.info("SIGNUP", "Done, redirecting to chat")
+      router.replace("/chat")
     }
     setLoading(false)
   }
