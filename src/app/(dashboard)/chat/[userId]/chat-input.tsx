@@ -11,6 +11,60 @@ import { CommandSuggestions } from "@/components/chat/command-suggestions"
 import { COMMANDS, type Command } from "@/lib/commands"
 import * as chrono from "chrono-node"
 
+const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<File> => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith("image/")) {
+      resolve(file)
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const img = new window.Image()
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width)
+            width = maxWidth
+          } else {
+            width = Math.round((width * maxHeight) / height)
+            height = maxHeight
+          }
+        }
+
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          resolve(file)
+          return
+        }
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              })
+              resolve(compressedFile)
+            } else {
+              resolve(file)
+            }
+          },
+          "image/jpeg",
+          quality
+        )
+      }
+      img.src = event.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
 function safeEval(expr: string): number | string {
   const sanitized = expr.replace(/[^0-9+\-*/().%\s]/g, "")
   try {
@@ -163,9 +217,17 @@ export function ChatInput({
 
   const uploadFile = async (file: File) => {
     setSending(true)
-    const ext = file.name.split(".").pop() ?? "png"
+    let fileToUpload = file
+    if (file.type.startsWith("image/")) {
+      try {
+        fileToUpload = await compressImage(file)
+      } catch (err) {
+        console.error("Compression failed, using original file:", err)
+      }
+    }
+    const ext = fileToUpload.name.split(".").pop() ?? "png"
     const fileName = `${conversationId}/${Date.now()}_${senderId}.${ext}`
-    const { error } = await supabase.storage.from("images").upload(fileName, file)
+    const { error } = await supabase.storage.from("images").upload(fileName, fileToUpload)
     if (error) { setSending(false); return }
     const { data: { publicUrl } } = supabase.storage.from("images").getPublicUrl(fileName)
     await supabase.from("messages").insert({
