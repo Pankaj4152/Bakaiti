@@ -35,11 +35,18 @@ export function ChatInput({
   const [sending, setSending] = useState(false)
   const [recordingActive, setRecordingActive] = useState(false)
   const [showCommands, setShowCommands] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const typingChannel = useRef<ReturnType<typeof supabase.channel>>(undefined)
   const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  useEffect(() => {
+    const textarea = inputRef.current
+    if (!textarea) return
+    textarea.style.height = "auto"
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+  }, [text])
 
   const insertAI = async (response: string) => {
     await supabase.from("messages").insert({
@@ -76,7 +83,7 @@ export function ChatInput({
     typingTimer.current = setTimeout(() => { typingTimer.current = undefined }, 2500)
   }, [senderId])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
     setText(val)
     setShowCommands(val.startsWith("/"))
@@ -578,6 +585,20 @@ export function ChatInput({
     }).catch(() => {})
   }
 
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/") || item.type.startsWith("video/")) {
+        const file = item.getAsFile()
+        if (file) {
+          e.preventDefault()
+          await uploadFile(file)
+        }
+      }
+    }
+  }
+
   return (
     <div className="relative flex items-center gap-2 p-4 border-t">
       {showCommands && (
@@ -587,18 +608,21 @@ export function ChatInput({
           onClose={() => setShowCommands(false)}
         />
       )}
-      <Input
+      <textarea
         ref={inputRef}
         placeholder="Type a message..."
         value={text}
-          onChange={handleInputChange}
+        onChange={handleInputChange}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
             send()
           }
         }}
-        className="flex-1"
+        onPaste={handlePaste}
+        rows={1}
+        className="flex-1 min-h-[38px] max-h-[200px] resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto"
+        disabled={sending}
       />
       <input
         ref={fileInputRef}
