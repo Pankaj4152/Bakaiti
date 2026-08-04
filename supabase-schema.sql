@@ -42,6 +42,17 @@ do $$ begin
   end if;
 end; $$;
 
+-- Migration: admins/owners for group conversations (rename + manage members)
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name = 'conversations' and column_name = 'admin_id') then
+    alter table conversations add column admin_id uuid references allowed_users(id) on delete set null;
+  end if;
+end; $$;
+
+-- Backfill admin_id for groups using the creator (user1_id) as the default owner.
+update conversations set admin_id = user1_id
+  where type = 'group' and admin_id is null;
+
 -- 2b. Conversation participants (for group chats)
 create table if not exists conversation_participants (
   conversation_id uuid not null references conversations(id) on delete cascade,
