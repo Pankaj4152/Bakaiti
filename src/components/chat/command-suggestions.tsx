@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
-import { COMMANDS, findCommands, type Command } from "@/lib/commands"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { findCommands, type Command } from "@/lib/commands"
 import { cn } from "@/lib/utils"
 
 export function CommandSuggestions({
@@ -13,16 +13,11 @@ export function CommandSuggestions({
   onSelect: (cmd: Command) => void
   onClose: () => void
 }) {
-  const [suggestions, setSuggestions] = useState<Command[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
-
-  useEffect(() => {
-    const results = findCommands(text)
-    setSuggestions(results)
-    setSelectedIndex(0)
-  }, [text])
+  const suggestions = useMemo(() => findCommands(text), [text])
+  const activeIndex = Math.min(selectedIndex, Math.max(suggestions.length - 1, 0))
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -33,15 +28,15 @@ export function CommandSuggestions({
         e.preventDefault()
         setSelectedIndex((i) => Math.max(i - 1, 0))
       } else if (e.key === "Enter" || e.key === "Tab") {
-        if (suggestions[selectedIndex]) {
+        if (suggestions[activeIndex]) {
           e.preventDefault()
-          onSelect(suggestions[selectedIndex])
+          onSelect(suggestions[activeIndex])
         }
       } else if (e.key === "Escape") {
         onClose()
       }
     },
-    [suggestions, selectedIndex, onSelect, onClose]
+    [suggestions, activeIndex, onSelect, onClose]
   )
 
   useEffect(() => {
@@ -50,8 +45,8 @@ export function CommandSuggestions({
   }, [handleKeyDown])
 
   useEffect(() => {
-    itemRefs.current[selectedIndex]?.scrollIntoView({ block: "nearest" })
-  }, [selectedIndex])
+    itemRefs.current[activeIndex]?.scrollIntoView({ block: "nearest" })
+  }, [activeIndex])
 
   const visible = suggestions.length > 0 && text.startsWith("/")
 
@@ -69,10 +64,9 @@ export function CommandSuggestions({
             ref={(element) => { itemRefs.current[i] = element }}
             onClick={() => onSelect(cmd)}
             onMouseEnter={() => setSelectedIndex(i)}
-            aria-selected={i === selectedIndex}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors",
-              i === selectedIndex ? "bg-accent" : "hover:bg-accent/50"
+              i === activeIndex ? "bg-accent" : "hover:bg-accent/50"
             )}
           >
             <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
