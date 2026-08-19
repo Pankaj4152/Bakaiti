@@ -823,6 +823,10 @@ create policy "can update read flag own conversations"
     )
   );
 
+drop policy if exists "users can delete own recent messages" on messages;
+create policy "users can delete own recent messages" on messages for delete to authenticated
+  using (sender_id = current_user_id() and created_at >= now() - interval '1 minute');
+
 -- reactions: only read reactions in conversations you belong to; only react within them.
 drop policy if exists "authenticated can read reactions" on reactions;
 create policy "can read own conversation reactions"

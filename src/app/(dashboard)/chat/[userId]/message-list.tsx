@@ -11,7 +11,7 @@ import { MessageEffect } from "@/components/chat/message-effects"
 import { PollCard } from "@/components/chat/poll-card"
 import { GlitchEffect } from "@/components/chat/glitch-effect"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
-import { Heart, Pin, SmilePlus } from "lucide-react"
+import { Heart, Pin, SmilePlus, Trash2 } from "lucide-react"
 import { TranslateButton } from "@/components/chat/translate-button"
 import { format } from "date-fns"
 
@@ -191,6 +191,16 @@ export function MessageList({
             setDisplay([...messages.current])
             refreshConversations()
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "messages" },
+        (payload) => {
+          const deleted = payload.old as Pick<Message, "id">
+          messages.current = messages.current.filter((message) => message.id !== deleted.id)
+          setDisplay([...messages.current])
+          refreshConversations()
         }
       )
       .subscribe()
@@ -396,6 +406,21 @@ export function MessageList({
     }
     loadPins()
   }, [pinned, conversationId, loadPins])
+
+  const deleteMessage = useCallback(async (message: Message) => {
+    const previous = messages.current
+    messages.current = messages.current.filter((item) => item.id !== message.id)
+    setDisplay([...messages.current])
+    setPickingEmojiFor(null)
+    try {
+      const response = await fetch(`/api/messages/${message.id}`, { method: "DELETE" })
+      if (!response.ok) throw new Error("Delete rejected")
+      refreshConversations()
+    } catch {
+      messages.current = previous
+      setDisplay([...previous])
+    }
+  }, [refreshConversations])
 
   useEffect(() => {
     const el = scrollContainerRef.current
@@ -606,6 +631,9 @@ export function MessageList({
                         <Pin className="h-3 w-3" />
                       </button>
                       <button onClick={() => { void toggleReaction(msg.id, "❤️"); setPickingEmojiFor(null) }} className="text-muted-foreground hover:text-red-500 transition-colors" title="Heart" aria-label="React with heart"><Heart className="h-3.5 w-3.5" /></button>
+                      {isMine && Date.now() - new Date(msg.created_at).getTime() <= 60_000 && (
+                        <button onClick={() => void deleteMessage(msg)} className="text-muted-foreground hover:text-destructive transition-colors" title="Delete for everyone" aria-label="Delete message for everyone"><Trash2 className="h-3.5 w-3.5" /></button>
+                      )}
                       {msg.content && !msg.sticker_url && !msg.poll_id && (
                         <TranslateButton text={msg.content} />
                       )}
