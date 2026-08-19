@@ -95,6 +95,10 @@ export function ChatInput({
   const typingChannel = useRef<ReturnType<typeof supabase.channel>>(undefined)
   const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
+  const focusInput = useCallback(() => {
+    requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
+  }, [])
+
   useEffect(() => {
     const textarea = inputRef.current
     if (!textarea) return
@@ -213,6 +217,7 @@ export function ChatInput({
       }
     } catch {}
     setSending(false)
+    focusInput()
   }
 
   const uploadFile = async (file: File) => {
@@ -237,6 +242,7 @@ export function ChatInput({
       image_url: publicUrl,
     })
     setSending(false)
+    focusInput()
   }
 
   const send = async (overrideContent?: string) => {
@@ -622,7 +628,7 @@ export function ChatInput({
     }).catch(() => {})
 
     setSending(false)
-    inputRef.current?.focus()
+    focusInput()
   }
 
   const handleStickerSelect = async (url: string) => {
@@ -645,6 +651,7 @@ export function ChatInput({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ conversationId, senderId, content: "sent a sticker" }),
     }).catch(() => {})
+    focusInput()
   }
 
   const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -684,7 +691,8 @@ export function ChatInput({
         onPaste={handlePaste}
         rows={1}
         className="flex-1 min-h-[38px] max-h-[200px] resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto"
-        disabled={sending}
+        readOnly={sending}
+        aria-busy={sending}
       />
       <input
         ref={fileInputRef}

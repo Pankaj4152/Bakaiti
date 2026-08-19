@@ -36,6 +36,7 @@
 
 ### Infrastructure
 - [x] Push Notifications (Service Worker + VAPID + Realtime fallback)
+- [x] Composer retains keyboard focus after sending text, commands, stickers, and media
 - [x] Vault page (memories, recaps, legendary quotes)
 - [x] PWA (icons, manifest, service worker)
 - [x] Sidebar mobile sheet drawer
