@@ -54,6 +54,7 @@
 - [x] Recipients can accept or reject requests from the Friends dialog
 - [x] Accepting creates the DM; direct chat URLs cannot create one early
 - [x] Existing direct conversations are migrated as accepted friendships
+- [x] Friend relationships are unique by unordered user pair, including simultaneous reciprocal requests
 
 ## 🚧 Planned Features
 

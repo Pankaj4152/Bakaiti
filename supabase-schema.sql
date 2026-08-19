@@ -104,6 +104,23 @@ where type = 'dm' and user2_id is not null
 on conflict (requester_id, recipient_id) do update
 set status = 'accepted', responded_at = coalesce(friend_requests.responded_at, now());
 
+-- Collapse reciprocal duplicates before enforcing one row per unordered pair.
+-- Prefer an accepted row, then the newest pending/rejected row.
+with ranked_friend_requests as (
+  select id, row_number() over (
+    partition by least(requester_id, recipient_id), greatest(requester_id, recipient_id)
+    order by case status when 'accepted' then 0 when 'pending' then 1 else 2 end,
+      coalesce(responded_at, created_at) desc, id
+  ) as pair_rank
+  from friend_requests
+)
+delete from friend_requests request
+using ranked_friend_requests ranked
+where request.id = ranked.id and ranked.pair_rank > 1;
+
+create unique index if not exists idx_friend_requests_unordered_pair
+  on friend_requests (least(requester_id, recipient_id), greatest(requester_id, recipient_id));
+
 -- 2b. Conversation participants (for group chats)
 create table if not exists conversation_participants (
   conversation_id uuid not null references conversations(id) on delete cascade,
