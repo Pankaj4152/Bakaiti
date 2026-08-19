@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateMeme } from "@/lib/gemini"
 import { renderMemeSVG } from "@/lib/meme-templates"
@@ -53,6 +52,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not enough messages for a meme yet" }, { status: 400 })
   }
 
+  const { data: cooldownSeconds, error: cooldownError } = await admin.rpc("claim_meme_cooldown", { p_user_id: user.id })
+  if (cooldownError) return NextResponse.json({ error: "Could not check meme cooldown" }, { status: 500 })
+  if (typeof cooldownSeconds === "number" && cooldownSeconds > 0) {
+    return NextResponse.json({ error: `Wait ${cooldownSeconds}s before sending another meme`, retryAfterSeconds: cooldownSeconds }, { status: 429, headers: { "Retry-After": String(cooldownSeconds) } })
+  }
+
   const recentMessages = messages.reverse().map((m) => ({
     sender_name: userIdToName[m.sender_id] ?? "Unknown",
     content: m.content ?? null,
@@ -61,6 +66,7 @@ export async function POST(request: Request) {
 
   const memeText = await generateMeme(recentMessages, userNames, userPrompt)
   if (!memeText) {
+    await admin.from("meme_cooldowns").delete().eq("user_id", user.id)
     return NextResponse.json({ error: "Failed to generate meme" }, { status: 500 })
   }
 
@@ -74,18 +80,24 @@ export async function POST(request: Request) {
   })
 
   if (uploadError) {
+    await admin.from("meme_cooldowns").delete().eq("user_id", user.id)
     return NextResponse.json({ error: "Failed to upload meme" }, { status: 500 })
   }
 
   const { data: { publicUrl } } = admin.storage.from("images").getPublicUrl(fileName)
 
-  await admin.from("messages").insert({
+  const { error: insertError } = await admin.from("messages").insert({
     conversation_id: conversationId,
     sender_id: user.id,
     content: `${memeText.topText} | ${memeText.bottomText}`,
     image_url: publicUrl,
     is_ai: true,
   })
+  if (insertError) {
+    await admin.storage.from("images").remove([fileName])
+    await admin.from("meme_cooldowns").delete().eq("user_id", user.id)
+    return NextResponse.json({ error: "Failed to send meme" }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true })
 }

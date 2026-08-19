@@ -65,6 +65,35 @@ create table if not exists friend_requests (
   unique (requester_id, recipient_id)
 );
 
+create table if not exists meme_cooldowns (
+  user_id uuid primary key references allowed_users(id) on delete cascade,
+  next_allowed_at timestamptz not null
+);
+
+create or replace function claim_meme_cooldown(p_user_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  claimed_user uuid;
+  seconds_left integer;
+begin
+  insert into meme_cooldowns (user_id, next_allowed_at)
+  values (p_user_id, now() + interval '2 minutes')
+  on conflict (user_id) do update
+    set next_allowed_at = now() + interval '2 minutes'
+    where meme_cooldowns.next_allowed_at <= now()
+  returning user_id into claimed_user;
+
+  if claimed_user is not null then return 0; end if;
+  select greatest(1, ceil(extract(epoch from (next_allowed_at - now())))::integer)
+    into seconds_left from meme_cooldowns where user_id = p_user_id;
+  return coalesce(seconds_left, 1);
+end;
+$$;
+
 create index if not exists idx_friend_requests_recipient_status on friend_requests(recipient_id, status);
 create index if not exists idx_friend_requests_requester_status on friend_requests(requester_id, status);
 
@@ -357,6 +386,7 @@ alter table conversations enable row level security;
 alter table messages enable row level security;
 alter table reactions enable row level security;
 alter table friend_requests enable row level security;
+alter table meme_cooldowns enable row level security;
 
 do $$ begin
   if not exists (select 1 from pg_policies where policyname = 'authenticated can read allowed_users') then

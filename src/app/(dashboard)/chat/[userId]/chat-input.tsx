@@ -89,6 +89,7 @@ export function ChatInput({
   const [sending, setSending] = useState(false)
   const [recordingActive, setRecordingActive] = useState(false)
   const [showCommands, setShowCommands] = useState(false)
+  const [feedback, setFeedback] = useState("")
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
@@ -465,11 +466,18 @@ export function ChatInput({
     if (content.startsWith("/meme")) {
       const userPrompt = content.slice(5).trim() || undefined
       setText("")
-      fetch("/api/meme", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, senderId, userPrompt }),
-      }).catch(() => {})
+      setSending(true)
+      try {
+        const response = await fetch("/api/meme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, userPrompt }) })
+        const data = await response.json()
+        setFeedback(response.ok ? "Meme sent" : data.error ?? "Could not send meme")
+      } catch {
+        setFeedback("Could not send meme")
+      } finally {
+        setSending(false)
+        focusInput()
+        setTimeout(() => setFeedback(""), 5000)
+      }
       return
     }
 
@@ -670,6 +678,7 @@ export function ChatInput({
 
   return (
     <div className="relative flex items-center gap-2 p-4 border-t">
+      {feedback && <p role="status" className="absolute bottom-full left-4 right-4 mb-2 rounded-md border bg-popover px-3 py-2 text-center text-sm shadow-md">{feedback}</p>}
       {showCommands && (
         <CommandSuggestions
           text={text}

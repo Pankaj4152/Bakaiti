@@ -18,6 +18,8 @@ Conversation previews, unread counts, friend acceptances, and new messages updat
 
 A message is marked seen only while the chat tab is visible and focused and the message is actually visible in the message area. Background or minimized apps do not send seen receipts.
 
+The `/meme` command can send one generated meme every two minutes per user. If it is used too soon, the composer shows the exact number of seconds remaining.
+
 ## Groups
 
 Click the **👥** button in the sidebar to create a group. Give it a name and add members. Group chats show stacked avatars in the header.
