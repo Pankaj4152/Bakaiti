@@ -40,6 +40,7 @@
 - [x] Composer retains keyboard focus after sending text, commands, stickers, and media
 - [x] Slash-command keyboard selection automatically scrolls the active option into view
 - [x] Conversation sidebar resyncs through realtime, reconnect, network, and tab-visibility events
+- [x] Seen receipts require a focused, visible tab and the message to be visible in the chat viewport
 - [x] Vault page (memories, recaps, legendary quotes)
 - [x] PWA (icons, manifest, service worker)
 - [x] Sidebar mobile sheet drawer

@@ -45,6 +45,7 @@ export function MessageList({
   const [pickingEmojiFor, setPickingEmojiFor] = useState<string | null>(null)
   const [pinned, setPinned] = useState<Pin[]>([])
   const [messageIds, setMessageIds] = useState<string[]>(initialMessages.map((m) => m.id))
+  const [pageActive, setPageActive] = useState(() => typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus())
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const lastScrollBottom = useRef(true)
 
@@ -151,16 +152,6 @@ export function MessageList({
             if (sender) senderCache.current[newMsg.sender_id] = sender
           }
 
-          if (newMsg.sender_id !== currentUserId) {
-            await fetch("/api/messages/mark-read", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ conversationId }),
-            })
-            newMsg.read = true
-            refreshConversations()
-          }
-
           if (messages.current.some((m) => m.id === newMsg.id)) return
           messages.current = [...messages.current, newMsg]
           setDisplay([...messages.current])
@@ -194,6 +185,45 @@ export function MessageList({
 
     return () => { supabase.removeChannel(channel) }
   }, [conversationId, currentUserId])
+
+  useEffect(() => {
+    const updatePageActive = () => setPageActive(document.visibilityState === "visible" && document.hasFocus())
+    window.addEventListener("focus", updatePageActive)
+    window.addEventListener("blur", updatePageActive)
+    document.addEventListener("visibilitychange", updatePageActive)
+    return () => {
+      window.removeEventListener("focus", updatePageActive)
+      window.removeEventListener("blur", updatePageActive)
+      document.removeEventListener("visibilitychange", updatePageActive)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!pageActive || !scrollContainerRef.current) return
+    const unreadIds = new Set(display.filter((message) => !message.read && message.sender_id !== currentUserId).map((message) => message.id))
+    if (unreadIds.size === 0) return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (document.visibilityState !== "visible" || !document.hasFocus()) return
+      const visibleIds = entries.filter((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.6).map((entry) => (entry.target as HTMLElement).dataset.messageId).filter((id): id is string => !!id && unreadIds.has(id))
+      if (visibleIds.length === 0) return
+      visibleIds.forEach((id) => unreadIds.delete(id))
+      fetch("/api/messages/mark-read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, messageIds: visibleIds }) })
+        .then((response) => {
+          if (!response.ok) throw new Error("Failed to mark messages read")
+          messages.current = messages.current.map((message) => visibleIds.includes(message.id) ? { ...message, read: true } : message)
+          setDisplay([...messages.current])
+          refreshConversations()
+        })
+        .catch(() => visibleIds.forEach((id) => unreadIds.add(id)))
+    }, { root: scrollContainerRef.current, threshold: 0.6 })
+
+    unreadIds.forEach((id) => {
+      const element = document.getElementById(`msg-${id}`)
+      if (element) observer.observe(element)
+    })
+    return () => observer.disconnect()
+  }, [conversationId, currentUserId, display, pageActive, refreshConversations])
 
   // Optimistic send: show our own freshly-inserted message instantly, before
   // the realtime INSERT round-trip. The realtime handler dedupes by id, so the
@@ -444,7 +474,7 @@ export function MessageList({
         const isLastInGroup = i === display.length - 1 || display[i + 1].sender_id !== msg.sender_id
 
         return (
-          <div key={msg.id} id={`msg-${msg.id}`}>
+          <div key={msg.id} id={`msg-${msg.id}`} data-message-id={msg.id}>
             {showUnreadSeparator && (
               <div className="flex items-center gap-2 py-2">
                 <div className="flex-1 h-px bg-border" />

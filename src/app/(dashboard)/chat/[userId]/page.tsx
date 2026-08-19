@@ -5,7 +5,6 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChatInput } from "./chat-input"
 import { MessageList } from "./message-list"
-import { MarkRead } from "./mark-read"
 import { MobileMenuButton } from "./chat-header"
 import { ChatDisplayName } from "./chat-display-name"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
@@ -69,7 +68,6 @@ export default async function ConversationPage({
 
   return (
     <div className={`flex flex-col h-full ${themeClass}`}>
-      <MarkRead conversationId={conversationId} />
       <div className="flex items-center gap-1 px-2 h-14 border-b flex-shrink-0">
         <MobileMenuButton />
         <Link

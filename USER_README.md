@@ -16,6 +16,8 @@ Notifications are enabled by default. On first use, click or press a key in the 
 
 Conversation previews, unread counts, friend acceptances, and new messages update automatically. Returning to the app or reconnecting the network also triggers a fresh sync.
 
+A message is marked seen only while the chat tab is visible and focused and the message is actually visible in the message area. Background or minimized apps do not send seen receipts.
+
 ## Groups
 
 Click the **👥** button in the sidebar to create a group. Give it a name and add members. Group chats show stacked avatars in the header.
