@@ -8,7 +8,11 @@ Sign up with your email. An admin will approve your account. Set your name and u
 
 ## DMs
 
-Click **+** in the sidebar, type an exact username, and start chatting. Messages show read receipts (✓ / ✓✓).
+Click **+** in the sidebar, find an exact username, and send a friend request. A direct chat becomes available only after the recipient accepts it. Incoming and pending requests are shown in the same Friends dialog. Messages show read receipts (✓ / ✓✓).
+
+## Notifications
+
+Notifications are enabled by default. On first use, click or press a key in the app and approve the browser permission prompt. If permission was previously blocked, re-enable it from the browser's site settings; a web app cannot override a browser-level denial.
 
 ## Groups
 

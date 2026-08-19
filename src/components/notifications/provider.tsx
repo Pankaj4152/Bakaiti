@@ -3,6 +3,12 @@
 import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 
+type NotificationMessage = {
+  sender_id: string
+  conversation_id: string
+  content: string | null
+}
+
 function urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4)
   const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/")
@@ -32,11 +38,30 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     let isSubscribed = true
     let channel: ReturnType<typeof supabase.channel> | null = null
+    let requestOnInteraction: (() => void) | null = null
+
+    const clearPermissionListeners = () => {
+      if (!requestOnInteraction) return
+      window.removeEventListener("pointerdown", requestOnInteraction)
+      window.removeEventListener("keydown", requestOnInteraction)
+      requestOnInteraction = null
+    }
 
     const initNotifications = async () => {
-      let permission = Notification.permission
+      const permission = Notification.permission
       if (permission === "default") {
-        permission = await Notification.requestPermission()
+        localStorage.setItem("chitput:notifications-enabled", "true")
+        if (!requestOnInteraction) {
+          requestOnInteraction = () => {
+            clearPermissionListeners()
+            Notification.requestPermission().then((result) => {
+              if (result === "granted" && isSubscribed) void initNotifications()
+            })
+          }
+          window.addEventListener("pointerdown", requestOnInteraction, { once: true })
+          window.addEventListener("keydown", requestOnInteraction, { once: true })
+        }
+        return
       }
 
       if (permission !== "granted") return
@@ -86,7 +111,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "messages" },
           async (payload) => {
-            const msg = payload.new as any
+            const msg = payload.new as NotificationMessage
             if (msg.sender_id === profile.id) return
             if (document.visibilityState === "visible") return
 
@@ -146,10 +171,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     return () => {
       isSubscribed = false
+      clearPermissionListeners()
       if (channel) supabase.removeChannel(channel)
     }
   }, [userEmail])
 
   return <>{children}</>
 }
-

@@ -36,6 +36,7 @@
 
 ### Infrastructure
 - [x] Push Notifications (Service Worker + VAPID + Realtime fallback)
+- [x] Notifications default on and request browser permission on the first valid user interaction
 - [x] Composer retains keyboard focus after sending text, commands, stickers, and media
 - [x] Slash-command keyboard selection automatically scrolls the active option into view
 - [x] Vault page (memories, recaps, legendary quotes)
