@@ -89,11 +89,16 @@ export function ChatInput({
   const [sending, setSending] = useState(false)
   const [recordingActive, setRecordingActive] = useState(false)
   const [showCommands, setShowCommands] = useState(false)
+  const [feedback, setFeedback] = useState("")
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const typingChannel = useRef<ReturnType<typeof supabase.channel>>(undefined)
   const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const focusInput = useCallback(() => {
+    requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
+  }, [])
 
   useEffect(() => {
     const textarea = inputRef.current
@@ -213,6 +218,7 @@ export function ChatInput({
       }
     } catch {}
     setSending(false)
+    focusInput()
   }
 
   const uploadFile = async (file: File) => {
@@ -237,6 +243,7 @@ export function ChatInput({
       image_url: publicUrl,
     })
     setSending(false)
+    focusInput()
   }
 
   const send = async (overrideContent?: string) => {
@@ -459,11 +466,18 @@ export function ChatInput({
     if (content.startsWith("/meme")) {
       const userPrompt = content.slice(5).trim() || undefined
       setText("")
-      fetch("/api/meme", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, senderId, userPrompt }),
-      }).catch(() => {})
+      setSending(true)
+      try {
+        const response = await fetch("/api/meme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, userPrompt }) })
+        const data = await response.json()
+        setFeedback(response.ok ? "Meme sent" : data.error ?? "Could not send meme")
+      } catch {
+        setFeedback("Could not send meme")
+      } finally {
+        setSending(false)
+        focusInput()
+        setTimeout(() => setFeedback(""), 5000)
+      }
       return
     }
 
@@ -622,7 +636,7 @@ export function ChatInput({
     }).catch(() => {})
 
     setSending(false)
-    inputRef.current?.focus()
+    focusInput()
   }
 
   const handleStickerSelect = async (url: string) => {
@@ -645,6 +659,7 @@ export function ChatInput({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ conversationId, senderId, content: "sent a sticker" }),
     }).catch(() => {})
+    focusInput()
   }
 
   const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -663,6 +678,7 @@ export function ChatInput({
 
   return (
     <div className="relative flex items-center gap-2 p-4 border-t">
+      {feedback && <p role="status" className="absolute bottom-full left-4 right-4 mb-2 rounded-md border bg-popover px-3 py-2 text-center text-sm shadow-md">{feedback}</p>}
       {showCommands && (
         <CommandSuggestions
           text={text}
@@ -684,7 +700,8 @@ export function ChatInput({
         onPaste={handlePaste}
         rows={1}
         className="flex-1 min-h-[38px] max-h-[200px] resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto"
-        disabled={sending}
+        readOnly={sending}
+        aria-busy={sending}
       />
       <input
         ref={fileInputRef}

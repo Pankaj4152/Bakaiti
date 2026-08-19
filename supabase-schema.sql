@@ -53,6 +53,57 @@ end; $$;
 update conversations set admin_id = user1_id
   where type = 'group' and admin_id is null;
 
+-- 2a. Friend requests. Direct chats may only begin after acceptance.
+create table if not exists friend_requests (
+  id uuid primary key default gen_random_uuid(),
+  requester_id uuid not null references allowed_users(id) on delete cascade,
+  recipient_id uuid not null references allowed_users(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected')),
+  created_at timestamptz not null default now(),
+  responded_at timestamptz,
+  constraint friend_requests_different_users check (requester_id <> recipient_id),
+  unique (requester_id, recipient_id)
+);
+
+create table if not exists meme_cooldowns (
+  user_id uuid primary key references allowed_users(id) on delete cascade,
+  next_allowed_at timestamptz not null
+);
+
+create or replace function claim_meme_cooldown(p_user_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  claimed_user uuid;
+  seconds_left integer;
+begin
+  insert into meme_cooldowns (user_id, next_allowed_at)
+  values (p_user_id, now() + interval '2 minutes')
+  on conflict (user_id) do update
+    set next_allowed_at = now() + interval '2 minutes'
+    where meme_cooldowns.next_allowed_at <= now()
+  returning user_id into claimed_user;
+
+  if claimed_user is not null then return 0; end if;
+  select greatest(1, ceil(extract(epoch from (next_allowed_at - now())))::integer)
+    into seconds_left from meme_cooldowns where user_id = p_user_id;
+  return coalesce(seconds_left, 1);
+end;
+$$;
+
+create index if not exists idx_friend_requests_recipient_status on friend_requests(recipient_id, status);
+create index if not exists idx_friend_requests_requester_status on friend_requests(requester_id, status);
+
+insert into friend_requests (requester_id, recipient_id, status, responded_at)
+select least(user1_id, user2_id), greatest(user1_id, user2_id), 'accepted', now()
+from conversations
+where type = 'dm' and user2_id is not null
+on conflict (requester_id, recipient_id) do update
+set status = 'accepted', responded_at = coalesce(friend_requests.responded_at, now());
+
 -- 2b. Conversation participants (for group chats)
 create table if not exists conversation_participants (
   conversation_id uuid not null references conversations(id) on delete cascade,
@@ -250,6 +301,9 @@ do $$
     if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'reactions') then
       alter publication supabase_realtime add table reactions;
     end if;
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'friend_requests') then
+      alter publication supabase_realtime add table friend_requests;
+    end if;
   end;
 $$;
 
@@ -331,6 +385,8 @@ alter table allowed_users enable row level security;
 alter table conversations enable row level security;
 alter table messages enable row level security;
 alter table reactions enable row level security;
+alter table friend_requests enable row level security;
+alter table meme_cooldowns enable row level security;
 
 do $$ begin
   if not exists (select 1 from pg_policies where policyname = 'authenticated can read allowed_users') then
@@ -694,6 +750,30 @@ create or replace function current_allowed_user_id() returns uuid as $$
   select current_user_id();
 $$ language sql stable set search_path = public;
 
+drop policy if exists "users can read own friend requests" on friend_requests;
+create policy "users can read own friend requests" on friend_requests for select to authenticated
+  using (requester_id = current_user_id() or recipient_id = current_user_id());
+
+drop policy if exists "authenticated can read conversations" on conversations;
+create policy "users can read own conversations" on conversations for select to authenticated
+  using (
+    user1_id = current_user_id() or user2_id = current_user_id()
+    or exists (select 1 from conversation_participants p where p.conversation_id = conversations.id and p.user_id = current_user_id())
+  );
+
+drop policy if exists "authenticated can insert conversations" on conversations;
+create policy "friends can create direct conversations" on conversations for insert to authenticated
+  with check (
+    type = 'dm'
+    and current_user_id() in (user1_id, user2_id)
+    and exists (
+      select 1 from friend_requests f
+      where f.status = 'accepted'
+        and ((f.requester_id = user1_id and f.recipient_id = user2_id)
+          or (f.requester_id = user2_id and f.recipient_id = user1_id))
+    )
+  );
+
 -- allowed_users: users may only ever update their OWN row (prevents self-approval
 -- via the anon client and profile tampering of other accounts).
 drop policy if exists "authenticated can update own" on allowed_users;
@@ -742,6 +822,10 @@ create policy "can update read flag own conversations"
                         where p.conversation_id = c.id and p.user_id = current_user_id()))
     )
   );
+
+drop policy if exists "users can delete own recent messages" on messages;
+create policy "users can delete own recent messages" on messages for delete to authenticated
+  using (sender_id = current_user_id() and created_at >= now() - interval '1 minute');
 
 -- reactions: only read reactions in conversations you belong to; only react within them.
 drop policy if exists "authenticated can read reactions" on reactions;
@@ -805,5 +889,3 @@ returns int as $$
      where user_id = p_user_id)
   );
 $$ language sql stable set search_path = public;
-
-

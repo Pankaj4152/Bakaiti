@@ -8,7 +8,21 @@ Sign up with your email. An admin will approve your account. Set your name and u
 
 ## DMs
 
-Click **+** in the sidebar, type an exact username, and start chatting. Messages show read receipts (✓ / ✓✓).
+Click **+** in the sidebar, find an exact username, and send a friend request. A direct chat becomes available only after the recipient accepts it. Incoming and pending requests are shown in the same Friends dialog. Messages show read receipts (✓ / ✓✓).
+
+## Notifications
+
+Notifications are enabled by default. On first use, click or press a key in the app and approve the browser permission prompt. If permission was previously blocked, re-enable it from the browser's site settings; a web app cannot override a browser-level denial.
+
+Conversation previews, unread counts, friend acceptances, and new messages update automatically. Returning to the app or reconnecting the network also triggers a fresh sync.
+
+A message is marked seen only while the chat tab is visible and focused and the message is actually visible in the message area. Background or minimized apps do not send seen receipts.
+
+The `/meme` command can send one generated meme every two minutes per user. If it is used too soon, the composer shows the exact number of seconds remaining.
+
+React from the smile button beside a message, or double-click/double-tap a message to quickly add a heart. Tap an existing reaction pill to add or remove your own reaction.
+
+Open the action menu on your own message and choose the trash icon to delete it for everyone. The option is available for one minute after sending; the server also enforces the deadline.
 
 ## Groups
 

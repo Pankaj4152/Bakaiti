@@ -11,7 +11,7 @@ import { MessageEffect } from "@/components/chat/message-effects"
 import { PollCard } from "@/components/chat/poll-card"
 import { GlitchEffect } from "@/components/chat/glitch-effect"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
-import { Pin } from "lucide-react"
+import { Heart, Pin, SmilePlus, Trash2 } from "lucide-react"
 import { TranslateButton } from "@/components/chat/translate-button"
 import { format } from "date-fns"
 
@@ -41,10 +41,12 @@ export function MessageList({
   const { refreshConversations } = useSidebar()
   const senderCache = useRef<Record<string, any>>({})
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastTap = useRef<{ messageId: string; at: number } | null>(null)
   const [reactions, setReactions] = useState<Record<string, Reaction[]>>({})
   const [pickingEmojiFor, setPickingEmojiFor] = useState<string | null>(null)
   const [pinned, setPinned] = useState<Pin[]>([])
   const [messageIds, setMessageIds] = useState<string[]>(initialMessages.map((m) => m.id))
+  const [pageActive, setPageActive] = useState(() => typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus())
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const lastScrollBottom = useRef(true)
 
@@ -67,6 +69,17 @@ export function MessageList({
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
+    }
+  }
+
+  const handleTouchEnd = (messageId: string) => {
+    handleLongPressUp()
+    const now = Date.now()
+    if (lastTap.current?.messageId === messageId && now - lastTap.current.at < 320) {
+      void toggleReaction(messageId, "❤️")
+      lastTap.current = null
+    } else {
+      lastTap.current = { messageId, at: now }
     }
   }
 
@@ -151,16 +164,6 @@ export function MessageList({
             if (sender) senderCache.current[newMsg.sender_id] = sender
           }
 
-          if (newMsg.sender_id !== currentUserId) {
-            await fetch("/api/messages/mark-read", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ conversationId }),
-            })
-            newMsg.read = true
-            refreshConversations()
-          }
-
           if (messages.current.some((m) => m.id === newMsg.id)) return
           messages.current = [...messages.current, newMsg]
           setDisplay([...messages.current])
@@ -190,10 +193,59 @@ export function MessageList({
           }
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "messages" },
+        (payload) => {
+          const deleted = payload.old as Pick<Message, "id">
+          messages.current = messages.current.filter((message) => message.id !== deleted.id)
+          setDisplay([...messages.current])
+          refreshConversations()
+        }
+      )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [conversationId, currentUserId])
+
+  useEffect(() => {
+    const updatePageActive = () => setPageActive(document.visibilityState === "visible" && document.hasFocus())
+    window.addEventListener("focus", updatePageActive)
+    window.addEventListener("blur", updatePageActive)
+    document.addEventListener("visibilitychange", updatePageActive)
+    return () => {
+      window.removeEventListener("focus", updatePageActive)
+      window.removeEventListener("blur", updatePageActive)
+      document.removeEventListener("visibilitychange", updatePageActive)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!pageActive || !scrollContainerRef.current) return
+    const unreadIds = new Set(display.filter((message) => !message.read && message.sender_id !== currentUserId).map((message) => message.id))
+    if (unreadIds.size === 0) return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (document.visibilityState !== "visible" || !document.hasFocus()) return
+      const visibleIds = entries.filter((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.6).map((entry) => (entry.target as HTMLElement).dataset.messageId).filter((id): id is string => !!id && unreadIds.has(id))
+      if (visibleIds.length === 0) return
+      visibleIds.forEach((id) => unreadIds.delete(id))
+      fetch("/api/messages/mark-read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, messageIds: visibleIds }) })
+        .then((response) => {
+          if (!response.ok) throw new Error("Failed to mark messages read")
+          messages.current = messages.current.map((message) => visibleIds.includes(message.id) ? { ...message, read: true } : message)
+          setDisplay([...messages.current])
+          refreshConversations()
+        })
+        .catch(() => visibleIds.forEach((id) => unreadIds.add(id)))
+    }, { root: scrollContainerRef.current, threshold: 0.6 })
+
+    unreadIds.forEach((id) => {
+      const element = document.getElementById(`msg-${id}`)
+      if (element) observer.observe(element)
+    })
+    return () => observer.disconnect()
+  }, [conversationId, currentUserId, display, pageActive, refreshConversations])
 
   // Optimistic send: show our own freshly-inserted message instantly, before
   // the realtime INSERT round-trip. The realtime handler dedupes by id, so the
@@ -355,6 +407,21 @@ export function MessageList({
     loadPins()
   }, [pinned, conversationId, loadPins])
 
+  const deleteMessage = useCallback(async (message: Message) => {
+    const previous = messages.current
+    messages.current = messages.current.filter((item) => item.id !== message.id)
+    setDisplay([...messages.current])
+    setPickingEmojiFor(null)
+    try {
+      const response = await fetch(`/api/messages/${message.id}`, { method: "DELETE" })
+      if (!response.ok) throw new Error("Delete rejected")
+      refreshConversations()
+    } catch {
+      messages.current = previous
+      setDisplay([...previous])
+    }
+  }, [refreshConversations])
+
   useEffect(() => {
     const el = scrollContainerRef.current
     if (!el) return
@@ -444,7 +511,7 @@ export function MessageList({
         const isLastInGroup = i === display.length - 1 || display[i + 1].sender_id !== msg.sender_id
 
         return (
-          <div key={msg.id} id={`msg-${msg.id}`}>
+          <div key={msg.id} id={`msg-${msg.id}`} data-message-id={msg.id}>
             {showUnreadSeparator && (
               <div className="flex items-center gap-2 py-2">
                 <div className="flex-1 h-px bg-border" />
@@ -475,7 +542,8 @@ export function MessageList({
                       onMouseUp={handleLongPressUp}
                       onMouseLeave={handleLongPressUp}
                       onTouchStart={() => handleLongPressDown(msg.id)}
-                      onTouchEnd={handleLongPressUp}
+                      onTouchEnd={() => handleTouchEnd(msg.id)}
+                      onDoubleClick={() => void toggleReaction(msg.id, "❤️")}
                       className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words cursor-pointer ${
                         msg.is_ai
                           ? "bg-zinc-900 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px]"
@@ -514,12 +582,12 @@ export function MessageList({
                     {msg.read ? "✓✓" : "✓"}
                   </span>
                 )}
-                <div className="flex items-center gap-0.5 mt-0.5 flex-wrap">
+                <div className="flex items-center gap-1 mt-0.5 flex-wrap min-h-6">
                   {groupReactions(msg.id).map((g) => (
                     <button
                       key={g.emoji}
                       onClick={() => toggleReaction(msg.id, g.emoji)}
-                      className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
+                      className={`text-xs px-2 py-0.5 rounded-full border shadow-sm transition-all hover:scale-105 ${
                         g.mine
                           ? "bg-primary/20 border-primary/40 text-primary"
                           : "bg-muted/50 border-border hover:bg-muted"
@@ -529,7 +597,7 @@ export function MessageList({
                     </button>
                   ))}
                   {pickingEmojiFor === msg.id ? (
-                    <div data-emoji-picker className="flex items-center gap-0.5 bg-popover border rounded-full px-1.5 py-0.5 shadow-sm">
+                    <div data-emoji-picker className="flex items-center gap-1 bg-popover border rounded-full px-2 py-1 shadow-lg animate-in fade-in zoom-in-95">
                       {EMOJI_LIST.map((emoji) => (
                         <button
                           key={emoji}
@@ -543,9 +611,11 @@ export function MessageList({
                   ) : (
                     <button
                       onClick={() => setPickingEmojiFor(msg.id)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      className="h-6 w-6 rounded-full border bg-background/90 text-muted-foreground shadow-sm opacity-100 md:opacity-0 md:group-hover/message:opacity-100 focus:opacity-100 hover:text-foreground hover:bg-accent transition-all flex items-center justify-center"
+                      title="React to message"
+                      aria-label="React to message"
                     >
-                      +
+                      <SmilePlus className="h-3.5 w-3.5" />
                     </button>
                   )}
                   {pickingEmojiFor === msg.id && (
@@ -560,6 +630,10 @@ export function MessageList({
                       >
                         <Pin className="h-3 w-3" />
                       </button>
+                      <button onClick={() => { void toggleReaction(msg.id, "❤️"); setPickingEmojiFor(null) }} className="text-muted-foreground hover:text-red-500 transition-colors" title="Heart" aria-label="React with heart"><Heart className="h-3.5 w-3.5" /></button>
+                      {isMine && Date.now() - new Date(msg.created_at).getTime() <= 60_000 && (
+                        <button onClick={() => void deleteMessage(msg)} className="text-muted-foreground hover:text-destructive transition-colors" title="Delete for everyone" aria-label="Delete message for everyone"><Trash2 className="h-3.5 w-3.5" /></button>
+                      )}
                       {msg.content && !msg.sticker_url && !msg.poll_id && (
                         <TranslateButton text={msg.content} />
                       )}

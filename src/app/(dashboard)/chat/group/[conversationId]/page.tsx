@@ -4,7 +4,6 @@ import { redirect } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChatInput } from "../../[userId]/chat-input"
 import { MessageList } from "../../[userId]/message-list"
-import { MarkRead } from "../../[userId]/mark-read"
 import { MobileMenuButton } from "../../[userId]/chat-header"
 
 const getConversation = cache(async (conversationId: string) => {
@@ -75,7 +74,6 @@ export default async function GroupConversationPage({
 
   return (
     <div className={`flex flex-col h-full ${themeClass}`}>
-      <MarkRead conversationId={conversationId} />
       <div className="flex items-center gap-1 px-2 h-14 border-b flex-shrink-0">
         <MobileMenuButton />
         <div className="flex items-center gap-2 px-2 flex-1">

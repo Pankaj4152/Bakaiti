@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useCallback, useEffect, useMemo, useState, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
@@ -51,13 +51,13 @@ export function UserList({ onNav }: { onNav?: () => void }) {
   const [myProfile, setMyProfile] = useState<{ id: string; name: string; username: string; avatar_url: string | null } | null>(null)
   const router = useRouter()
   const params = useParams()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { refreshKey } = useSidebar()
   const hasLoaded = useRef(false)
   const nicknames = useNicknames()
   const onlineSet = useOnlineUsers()
 
-  const load = () => {
+  const load = useCallback(() => {
     fetch("/api/conversations")
       .then((r) => r.json())
       .then((res) => {
@@ -66,7 +66,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
       })
       .catch(() => setLoading(false))
       .finally(() => { hasLoaded.current = true })
-  }
+  }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -78,9 +78,33 @@ export function UserList({ onNav }: { onNav?: () => void }) {
         .maybeSingle()
         .then(({ data }) => setMyProfile(data))
     })
-  }, [])
+  }, [supabase])
 
-  useEffect(() => { load() }, [refreshKey])
+  useEffect(() => { load() }, [refreshKey, load])
+
+  useEffect(() => {
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined
+    const scheduleLoad = () => {
+      if (refreshTimer) clearTimeout(refreshTimer)
+      refreshTimer = setTimeout(load, 100)
+    }
+    const channel = supabase
+      .channel("sidebar-conversation-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "friend_requests" }, scheduleLoad)
+      .subscribe((status) => { if (status === "SUBSCRIBED") scheduleLoad() })
+
+    const syncWhenVisible = () => { if (document.visibilityState === "visible") scheduleLoad() }
+    window.addEventListener("online", scheduleLoad)
+    document.addEventListener("visibilitychange", syncWhenVisible)
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer)
+      window.removeEventListener("online", scheduleLoad)
+      document.removeEventListener("visibilitychange", syncWhenVisible)
+      void supabase.removeChannel(channel)
+    }
+  }, [load, supabase])
 
   const onlineUsers = conversations
     .filter((c) => c.type !== "group" && c.otherUser && (isOnline(c.otherUser.last_seen) || onlineSet.has(c.otherUser.id)))
@@ -91,7 +115,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-4 h-14 border-b flex-shrink-0">
-        <button onClick={() => { onNav?.(); myProfile && router.push(`/profile/${myProfile.id}`) }} className="shrink-0">
+        <button onClick={() => { onNav?.(); if (myProfile) router.push(`/profile/${myProfile.id}`) }} className="shrink-0">
           <Avatar className="h-8 w-8">
             <AvatarImage src={myProfile?.avatar_url ?? undefined} />
             <AvatarFallback className="text-xs">{myProfile?.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>

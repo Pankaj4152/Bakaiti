@@ -11,7 +11,11 @@ export async function POST(request: Request) {
   }
 
   const conversationId = body.conversationId as string | undefined
+  const messageIds = Array.isArray(body.messageIds)
+    ? body.messageIds.filter((id): id is string => typeof id === "string").slice(0, 100)
+    : []
   if (!conversationId) return NextResponse.json({ error: "conversationId required" }, { status: 400 })
+  if (messageIds.length === 0) return NextResponse.json({ error: "messageIds required" }, { status: 400 })
 
   const user = await getAuthUser()
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
@@ -25,6 +29,7 @@ export async function POST(request: Request) {
     .from("messages")
     .update({ read: true })
     .eq("conversation_id", conversationId)
+    .in("id", messageIds)
     .neq("sender_id", user.id)
     .eq("read", false)
 
@@ -32,5 +37,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to mark read" }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, count: messageIds.length })
 }

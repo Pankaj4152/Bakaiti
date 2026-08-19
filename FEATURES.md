@@ -36,9 +36,23 @@
 
 ### Infrastructure
 - [x] Push Notifications (Service Worker + VAPID + Realtime fallback)
+- [x] Notifications default on and request browser permission on the first valid user interaction
+- [x] Composer retains keyboard focus after sending text, commands, stickers, and media
+- [x] Slash-command keyboard selection automatically scrolls the active option into view
+- [x] Conversation sidebar resyncs through realtime, reconnect, network, and tab-visibility events
+- [x] Seen receipts require a focused, visible tab and the message to be visible in the chat viewport
+- [x] Meme generation is limited server-side to one successful send per user every two minutes
+- [x] Instagram-inspired quick reactions with double-click/double-tap heart and realtime counts
+- [x] Senders can delete a message for everyone within one minute, with server-side enforcement
 - [x] Vault page (memories, recaps, legendary quotes)
 - [x] PWA (icons, manifest, service worker)
 - [x] Sidebar mobile sheet drawer
+
+### Friends and direct messages
+- [x] Users send a friend request before starting a direct chat
+- [x] Recipients can accept or reject requests from the Friends dialog
+- [x] Accepting creates the DM; direct chat URLs cannot create one early
+- [x] Existing direct conversations are migrated as accepted friendships
 
 ## 🚧 Planned Features
 
