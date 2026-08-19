@@ -20,6 +20,8 @@ A message is marked seen only while the chat tab is visible and focused and the 
 
 The `/meme` command can send one generated meme every two minutes per user. If it is used too soon, the composer shows the exact number of seconds remaining.
 
+React from the smile button beside a message, or double-click/double-tap a message to quickly add a heart. Tap an existing reaction pill to add or remove your own reaction.
+
 ## Groups
 
 Click the **👥** button in the sidebar to create a group. Give it a name and add members. Group chats show stacked avatars in the header.

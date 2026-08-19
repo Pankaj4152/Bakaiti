@@ -11,7 +11,7 @@ import { MessageEffect } from "@/components/chat/message-effects"
 import { PollCard } from "@/components/chat/poll-card"
 import { GlitchEffect } from "@/components/chat/glitch-effect"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
-import { Pin } from "lucide-react"
+import { Heart, Pin, SmilePlus } from "lucide-react"
 import { TranslateButton } from "@/components/chat/translate-button"
 import { format } from "date-fns"
 
@@ -41,6 +41,7 @@ export function MessageList({
   const { refreshConversations } = useSidebar()
   const senderCache = useRef<Record<string, any>>({})
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastTap = useRef<{ messageId: string; at: number } | null>(null)
   const [reactions, setReactions] = useState<Record<string, Reaction[]>>({})
   const [pickingEmojiFor, setPickingEmojiFor] = useState<string | null>(null)
   const [pinned, setPinned] = useState<Pin[]>([])
@@ -68,6 +69,17 @@ export function MessageList({
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
+    }
+  }
+
+  const handleTouchEnd = (messageId: string) => {
+    handleLongPressUp()
+    const now = Date.now()
+    if (lastTap.current?.messageId === messageId && now - lastTap.current.at < 320) {
+      void toggleReaction(messageId, "❤️")
+      lastTap.current = null
+    } else {
+      lastTap.current = { messageId, at: now }
     }
   }
 
@@ -505,7 +517,8 @@ export function MessageList({
                       onMouseUp={handleLongPressUp}
                       onMouseLeave={handleLongPressUp}
                       onTouchStart={() => handleLongPressDown(msg.id)}
-                      onTouchEnd={handleLongPressUp}
+                      onTouchEnd={() => handleTouchEnd(msg.id)}
+                      onDoubleClick={() => void toggleReaction(msg.id, "❤️")}
                       className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words cursor-pointer ${
                         msg.is_ai
                           ? "bg-zinc-900 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px]"
@@ -544,12 +557,12 @@ export function MessageList({
                     {msg.read ? "✓✓" : "✓"}
                   </span>
                 )}
-                <div className="flex items-center gap-0.5 mt-0.5 flex-wrap">
+                <div className="flex items-center gap-1 mt-0.5 flex-wrap min-h-6">
                   {groupReactions(msg.id).map((g) => (
                     <button
                       key={g.emoji}
                       onClick={() => toggleReaction(msg.id, g.emoji)}
-                      className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
+                      className={`text-xs px-2 py-0.5 rounded-full border shadow-sm transition-all hover:scale-105 ${
                         g.mine
                           ? "bg-primary/20 border-primary/40 text-primary"
                           : "bg-muted/50 border-border hover:bg-muted"
@@ -559,7 +572,7 @@ export function MessageList({
                     </button>
                   ))}
                   {pickingEmojiFor === msg.id ? (
-                    <div data-emoji-picker className="flex items-center gap-0.5 bg-popover border rounded-full px-1.5 py-0.5 shadow-sm">
+                    <div data-emoji-picker className="flex items-center gap-1 bg-popover border rounded-full px-2 py-1 shadow-lg animate-in fade-in zoom-in-95">
                       {EMOJI_LIST.map((emoji) => (
                         <button
                           key={emoji}
@@ -573,9 +586,11 @@ export function MessageList({
                   ) : (
                     <button
                       onClick={() => setPickingEmojiFor(msg.id)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      className="h-6 w-6 rounded-full border bg-background/90 text-muted-foreground shadow-sm opacity-100 md:opacity-0 md:group-hover/message:opacity-100 focus:opacity-100 hover:text-foreground hover:bg-accent transition-all flex items-center justify-center"
+                      title="React to message"
+                      aria-label="React to message"
                     >
-                      +
+                      <SmilePlus className="h-3.5 w-3.5" />
                     </button>
                   )}
                   {pickingEmojiFor === msg.id && (
@@ -590,6 +605,7 @@ export function MessageList({
                       >
                         <Pin className="h-3 w-3" />
                       </button>
+                      <button onClick={() => { void toggleReaction(msg.id, "❤️"); setPickingEmojiFor(null) }} className="text-muted-foreground hover:text-red-500 transition-colors" title="Heart" aria-label="React with heart"><Heart className="h-3.5 w-3.5" /></button>
                       {msg.content && !msg.sticker_url && !msg.poll_id && (
                         <TranslateButton text={msg.content} />
                       )}
