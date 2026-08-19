@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ data })
   }
   const { data, error } = await admin.from("friend_requests").insert({ requester_id: user.id, recipient_id: target.id }).select().single()
+  if (error?.code === "23505") return NextResponse.json({ error: "A request is already pending" }, { status: 409 })
   if (error) return NextResponse.json({ error: "Failed to send friend request" }, { status: 500 })
   return NextResponse.json({ data }, { status: 201 })
 }

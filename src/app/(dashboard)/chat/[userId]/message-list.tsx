@@ -227,7 +227,17 @@ export function MessageList({
 
     const observer = new IntersectionObserver((entries) => {
       if (document.visibilityState !== "visible" || !document.hasFocus()) return
-      const visibleIds = entries.filter((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.6).map((entry) => (entry.target as HTMLElement).dataset.messageId).filter((id): id is string => !!id && unreadIds.has(id))
+      const visibleIds = entries
+        .filter((entry) => {
+          if (!entry.isIntersecting) return false
+          const viewportHeight = entry.rootBounds?.height ?? window.innerHeight
+          const messageHeight = entry.boundingClientRect.height
+          return messageHeight > viewportHeight
+            ? entry.intersectionRect.height >= viewportHeight * 0.5
+            : entry.intersectionRatio >= 0.6
+        })
+        .map((entry) => (entry.target as HTMLElement).dataset.messageId)
+        .filter((id): id is string => !!id && unreadIds.has(id))
       if (visibleIds.length === 0) return
       visibleIds.forEach((id) => unreadIds.delete(id))
       fetch("/api/messages/mark-read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, messageIds: visibleIds }) })
@@ -238,7 +248,7 @@ export function MessageList({
           refreshConversations()
         })
         .catch(() => visibleIds.forEach((id) => unreadIds.add(id)))
-    }, { root: scrollContainerRef.current, threshold: 0.6 })
+    }, { root: scrollContainerRef.current, threshold: Array.from({ length: 101 }, (_, index) => index / 100) })
 
     unreadIds.forEach((id) => {
       const element = document.getElementById(`msg-${id}`)
