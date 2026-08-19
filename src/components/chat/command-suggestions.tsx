@@ -16,6 +16,7 @@ export function CommandSuggestions({
   const [suggestions, setSuggestions] = useState<Command[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   useEffect(() => {
     const results = findCommands(text)
@@ -44,9 +45,13 @@ export function CommandSuggestions({
   )
 
   useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
+    document.addEventListener("keydown", handleKeyDown, true)
+    return () => document.removeEventListener("keydown", handleKeyDown, true)
   }, [handleKeyDown])
+
+  useEffect(() => {
+    itemRefs.current[selectedIndex]?.scrollIntoView({ block: "nearest" })
+  }, [selectedIndex])
 
   const visible = suggestions.length > 0 && text.startsWith("/")
 
@@ -61,7 +66,10 @@ export function CommandSuggestions({
         {suggestions.map((cmd, i) => (
           <button
             key={cmd.command}
+            ref={(element) => { itemRefs.current[i] = element }}
             onClick={() => onSelect(cmd)}
+            onMouseEnter={() => setSelectedIndex(i)}
+            aria-selected={i === selectedIndex}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors",
               i === selectedIndex ? "bg-accent" : "hover:bg-accent/50"
