@@ -39,6 +39,7 @@
 - [x] Notifications default on and request browser permission on the first valid user interaction
 - [x] Composer retains keyboard focus after sending text, commands, stickers, and media
 - [x] Slash-command keyboard selection automatically scrolls the active option into view
+- [x] Conversation sidebar resyncs through realtime, reconnect, network, and tab-visibility events
 - [x] Vault page (memories, recaps, legendary quotes)
 - [x] PWA (icons, manifest, service worker)
 - [x] Sidebar mobile sheet drawer

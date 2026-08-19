@@ -14,6 +14,8 @@ Click **+** in the sidebar, find an exact username, and send a friend request. A
 
 Notifications are enabled by default. On first use, click or press a key in the app and approve the browser permission prompt. If permission was previously blocked, re-enable it from the browser's site settings; a web app cannot override a browser-level denial.
 
+Conversation previews, unread counts, friend acceptances, and new messages update automatically. Returning to the app or reconnecting the network also triggers a fresh sync.
+
 ## Groups
 
 Click the **👥** button in the sidebar to create a group. Give it a name and add members. Group chats show stacked avatars in the header.
