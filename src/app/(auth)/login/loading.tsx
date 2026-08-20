@@ -1,9 +1,9 @@
-import { Loader2 } from "lucide-react"
+import { SpiralLoader } from "@/components/ui/spiral-loader"
 
 export default function LoginLoading() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <SpiralLoader size={120} label="Loading Bakaiti" />
     </div>
   )
 }
