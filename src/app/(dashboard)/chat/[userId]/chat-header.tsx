@@ -7,7 +7,7 @@ import { Menu } from "lucide-react"
 export function MobileMenuButton() {
   const { setOpen } = useSidebar()
   return (
-    <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={() => setOpen(true)}>
+    <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={() => setOpen(true)} aria-label="Open chat navigation">
       <Menu className="h-5 w-5" />
     </Button>
   )

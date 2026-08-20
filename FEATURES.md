@@ -48,6 +48,14 @@
 - [x] Vault page (memories, recaps, legendary quotes)
 - [x] PWA (icons, manifest, service worker)
 - [x] Sidebar mobile sheet drawer
+- [x] Accessible mobile navigation drawer opens without dialog-title runtime errors
+
+### Friends and direct messages
+- [x] Users send a friend request before starting a direct chat
+- [x] Recipients can accept or reject requests from the Friends dialog
+- [x] Accepting creates the DM; direct chat URLs cannot create one early
+- [x] Existing direct conversations are migrated as accepted friendships
+- [x] Friend relationships are unique by unordered user pair, including simultaneous reciprocal requests
 
 ### Friends and direct messages
 - [x] Users send a friend request before starting a direct chat
