@@ -49,7 +49,7 @@
 - [x] PWA (icons, manifest, service worker)
 - [x] Sidebar mobile sheet drawer
 - [x] Accessible mobile navigation drawer opens without dialog-title runtime errors
-- [x] Formula-based spiral loader with consistent full-page, chat, auth, and sidebar refresh positioning
+- [x] Bakaiti-themed animated 👀 loader with consistent full-page, chat, auth, and sidebar positioning
 
 ### Friends and direct messages
 - [x] Users send a friend request before starting a direct chat

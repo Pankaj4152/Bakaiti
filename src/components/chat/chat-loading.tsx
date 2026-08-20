@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton"
-import { SpiralLoader } from "@/components/ui/spiral-loader"
+import { EyeLoader } from "@/components/ui/eye-loader"
 
 export function ChatLoadingShell({ group = false }: { group?: boolean }) {
   return (
@@ -11,7 +11,7 @@ export function ChatLoadingShell({ group = false }: { group?: boolean }) {
       </div>
       <div className="relative flex flex-1 items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.06),transparent_48%)]" />
-        <SpiralLoader className="relative" size={112} label="Loading chat" />
+        <EyeLoader className="relative" size={76} />
       </div>
       <div className="flex h-[70px] flex-shrink-0 items-center gap-2 border-t px-3 sm:px-4">
         <Skeleton className="h-10 flex-1 rounded-xl" />
