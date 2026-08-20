@@ -13,7 +13,7 @@ import { HelpDialog } from "./help-dialog"
 import { useSidebar } from "./sidebar-context"
 import { useNicknames } from "@/components/chat/use-nicknames"
 import { useOnlineUsers } from "@/lib/realtime-presence"
-import { EyeLoader } from "@/components/ui/eye-loader"
+import { RoundLoader } from "@/components/ui/round-loader"
 
 interface Participant {
   id: string; name: string; avatar_url: string | null
@@ -133,7 +133,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex min-h-48 items-center justify-center px-4 py-8">
-            <EyeLoader size={46} />
+            <RoundLoader size={24} />
           </div>
         ) : conversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
