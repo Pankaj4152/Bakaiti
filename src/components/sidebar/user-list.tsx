@@ -112,6 +112,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
     .map((c) => c.otherUser!)
     .filter((u, i, arr) => arr.findIndex((a) => a.id === u.id) === i)
     .slice(0, 6)
+  const visibleConversations = conversations.filter((conversation) => conversation.type === "group" || !!conversation.otherUser?.id)
 
   return (
     <div className="flex flex-col h-full">
@@ -135,7 +136,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
           <div className="flex min-h-48 items-center justify-center px-4 py-8">
             <RoundLoader size={24} />
           </div>
-        ) : conversations.length === 0 ? (
+        ) : visibleConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
             <MessageCircle className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">No conversations yet</p>
@@ -172,7 +173,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
                 </div>
               </div>
             )}
-            {conversations.map((convo) => {
+            {visibleConversations.map((convo) => {
             const isGroup = convo.type === "group"
             const href = isGroup ? `/chat/group/${convo.id}` : `/chat/${convo.otherUser?.id}`
             const active = isGroup ? params?.conversationId === convo.id : params?.userId === convo.otherUser?.id

@@ -50,6 +50,8 @@
 - [x] Sidebar mobile sheet drawer
 - [x] Accessible mobile navigation drawer opens without dialog-title runtime errors
 - [x] Simple round loader centered on the full viewport, with compact local sidebar loading
+- [x] Installed PWA retries failed navigations and shows a branded offline fallback instead of Android's generic load error
+- [x] Sidebar suppresses invalid direct-message destinations before rendering navigation links
 
 ### Friends and direct messages
 - [x] Users send a friend request before starting a direct chat

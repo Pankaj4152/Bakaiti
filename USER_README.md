@@ -16,6 +16,8 @@ Notifications are enabled by default. On first use, click or press a key in the 
 
 Conversation previews, unread counts, friend acceptances, and new messages update automatically. Returning to the app or reconnecting the network also triggers a fresh sync.
 
+The installed mobile app retries brief navigation failures automatically. If the connection remains unavailable, it shows Bakaiti's offline screen with a retry button instead of the phone's generic page-load error.
+
 A message is marked seen only while the chat tab is visible and focused and the message is actually visible in the message area. Background or minimized apps do not send seen receipts.
 
 The `/meme` command can send one generated meme every two minutes per user. If it is used too soon, the composer shows the exact number of seconds remaining.
