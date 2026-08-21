@@ -57,6 +57,7 @@ export function MessageList({
   const [pageActive, setPageActive] = useState(() => typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus())
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const lastScrollBottom = useRef(true)
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null)
 
   const formatMessageTime = (createdAt: string) => {
     const date = new Date(createdAt)
@@ -67,13 +68,29 @@ export function MessageList({
     return isThisYear ? format(date, "MMM d, h:mm a") : format(date, "MMM d yyyy, h:mm a")
   }
 
-  const handleLongPressDown = (msgId: string) => {
+  const handleTouchStart = (event: React.TouchEvent, msgId: string) => {
     if (readOnly) return
+    const touch = event.touches[0]
+    if (touch) {
+      touchStartPos.current = { x: touch.clientX, y: touch.clientY }
+    }
     longPressTriggered.current = false
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
     longPressTimer.current = setTimeout(() => {
       longPressTriggered.current = true
+      try { navigator.vibrate?.(30) } catch {}
       setActionMessageId(msgId)
-    }, 500)
+    }, 450)
+  }
+
+  const handleTouchMove = (event: React.TouchEvent) => {
+    if (!touchStartPos.current || !longPressTimer.current) return
+    const touch = event.touches[0]
+    if (!touch) return
+    const distance = Math.hypot(touch.clientX - touchStartPos.current.x, touch.clientY - touchStartPos.current.y)
+    if (distance > 10) {
+      handleLongPressUp()
+    }
   }
 
   const handleLongPressUp = () => {
@@ -81,6 +98,7 @@ export function MessageList({
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
     }
+    touchStartPos.current = null
   }
 
   const openMessageActions = (messageId: string) => {
@@ -89,7 +107,7 @@ export function MessageList({
   }
 
   const handleMessageClick = (event: React.MouseEvent<HTMLDivElement>, messageId: string) => {
-    if (readOnly || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return
+    if (readOnly) return
     const target = event.target as HTMLElement
     if (target.closest("button, a, input, textarea, select, audio, video, img")) return
     openMessageActions(messageId)
@@ -109,34 +127,12 @@ export function MessageList({
   }
 
   const handleTouchEnd = (messageId: string) => {
+    const wasTriggered = longPressTriggered.current
     handleLongPressUp()
-    if (readOnly) return
-    if (longPressTriggered.current) {
+    if (readOnly || wasTriggered) {
       longPressTriggered.current = false
       return
     }
-    const now = Date.now()
-    if (lastTap.current?.messageId === messageId && now - lastTap.current.at < 320) {
-      void toggleReaction(messageId, "❤️")
-      lastTap.current = null
-    } else {
-      lastTap.current = { messageId, at: now }
-    }
-  }
-
-  useEffect(() => {
-    if (!initialMessages[0]) return
-    const cache: Record<string, any> = {}
-    for (const msg of initialMessages) {
-      if (msg.sender && !cache[msg.sender_id]) cache[msg.sender_id] = msg.sender
-    }
-    senderCache.current = cache
-  }, [initialMessages])
-
-  // --- Pagination: load older messages when the user scrolls to the top. ---
-  const [loadingOlder, setLoadingOlder] = useState(false)
-  const [hasMore, setHasMore] = useState(initialMessages.length >= 50)
-  const oldestRef = useRef<string | null>(initialMessages[0]?.created_at ?? null)
 
   const loadOlder = useCallback(async () => {
     if (loadingOlder || !hasMore || !oldestRef.current) return
@@ -293,12 +289,162 @@ export function MessageList({
         .catch(() => visibleIds.forEach((id) => unreadIds.add(id)))
     }, { root: scrollContainerRef.current, threshold: Array.from({ length: 101 }, (_, index) => index / 100) })
 
+
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const onScroll = () => {
+      if (el.scrollTop < 40) loadOlder()
+    }
+    el.addEventListener("scroll", onScroll)
+    return () => el.removeEventListener("scroll", onScroll)
+  }, [loadOlder])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`messages:${conversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        async (payload) => {
+          const newMsg = payload.new as Message
+          const cached = senderCache.current[newMsg.sender_id]
+          if (cached) {
+            newMsg.sender = cached
+          } else if (!newMsg.sender) {
+            const { data: sender } = await supabase
+              .from("allowed_users")
+              .select("*")
+              .eq("id", newMsg.sender_id)
+              .maybeSingle()
+            newMsg.sender = sender ?? undefined
+            if (sender) senderCache.current[newMsg.sender_id] = sender
+          }
+
+          if (messages.current.some((m) => m.id === newMsg.id)) return
+          messages.current = [...messages.current, newMsg]
+          setDisplay([...messages.current])
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          const updated = payload.new as Message
+          let changed = false
+          messages.current = messages.current.map((m) => {
+            if (m.id === updated.id && m.read !== updated.read) {
+              changed = true
+              return { ...m, read: updated.read }
+            }
+            return m
+          })
+          if (changed) {
+            setDisplay([...messages.current])
+            refreshConversations()
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "messages" },
+        (payload) => {
+          const deleted = payload.old as Pick<Message, "id">
+          messages.current = messages.current.filter((message) => message.id !== deleted.id)
+          setDisplay([...messages.current])
+          refreshConversations()
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [conversationId, currentUserId])
+
+  useEffect(() => {
+    const updatePageActive = () => setPageActive(document.visibilityState === "visible" && document.hasFocus())
+    window.addEventListener("focus", updatePageActive)
+    window.addEventListener("blur", updatePageActive)
+    document.addEventListener("visibilitychange", updatePageActive)
+    return () => {
+      window.removeEventListener("focus", updatePageActive)
+      window.removeEventListener("blur", updatePageActive)
+      document.removeEventListener("visibilitychange", updatePageActive)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!pageActive || !scrollContainerRef.current) return
+    const unreadIds = new Set(display.filter((message) => !message.read && message.sender_id !== currentUserId).map((message) => message.id))
+    if (unreadIds.size === 0) return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (document.visibilityState !== "visible" || !document.hasFocus()) return
+      const visibleIds = entries
+        .filter((entry) => {
+          if (!entry.isIntersecting) return false
+          const viewportHeight = entry.rootBounds?.height ?? window.innerHeight
+          const messageHeight = entry.boundingClientRect.height
+          return messageHeight > viewportHeight
+            ? entry.intersectionRect.height >= viewportHeight * 0.5
+            : entry.intersectionRatio >= 0.6
+        })
+        .map((entry) => (entry.target as HTMLElement).dataset.messageId)
+        .filter((id): id is string => !!id && unreadIds.has(id))
+      if (visibleIds.length === 0) return
+      visibleIds.forEach((id) => unreadIds.delete(id))
+      fetch("/api/messages/mark-read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, messageIds: visibleIds }) })
+        .then((response) => {
+          if (!response.ok) throw new Error("Failed to mark messages read")
+          messages.current = messages.current.map((message) => visibleIds.includes(message.id) ? { ...message, read: true } : message)
+          setDisplay([...messages.current])
+          refreshConversations()
+        })
+        .catch(() => visibleIds.forEach((id) => unreadIds.add(id)))
+    }, { root: scrollContainerRef.current, threshold: Array.from({ length: 101 }, (_, index) => index / 100) })
+
     unreadIds.forEach((id) => {
       const element = document.getElementById(`msg-${id}`)
       if (element) observer.observe(element)
     })
     return () => observer.disconnect()
   }, [conversationId, currentUserId, display, pageActive, refreshConversations])
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "instant") => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior })
+    } else if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight
+    }
+  }, [])
+
+  // Auto-scroll to bottom on mount & conversation change
+  useEffect(() => {
+    scrollToBottom("instant")
+    const t1 = setTimeout(() => scrollToBottom("instant"), 50)
+    const t2 = setTimeout(() => scrollToBottom("instant"), 250)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [conversationId, scrollToBottom])
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (el) {
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 300
+      if (isNearBottom) {
+        scrollToBottom("smooth")
+      }
+    }
+  }, [display.length, scrollToBottom])
 
   // Optimistic send: show our own freshly-inserted message instantly, before
   // the realtime INSERT round-trip. The realtime handler dedupes by id, so the
@@ -320,7 +466,6 @@ export function MessageList({
     if (readOnly) return
     const existing = (reactions[messageId] ?? []).find((r) => r.user_id === currentUserId && r.emoji === emoji)
 
-    // Optimistic Update
     setReactions((prev) => {
       const next = { ...prev }
       if (existing) {
@@ -600,14 +745,14 @@ export function MessageList({
                       role={readOnly ? undefined : "button"}
                       aria-label={`Message from ${isMine ? "you" : msg.sender?.name ?? "user"}. ${readOnly ? "Read only" : "Open message actions"}`}
                       onClick={(event) => handleMessageClick(event, msg.id)}
-                      onContextMenu={(event) => { if (!readOnly) { event.preventDefault(); openMessageActions(msg.id) } }}
+                      onContextMenu={(event) => { if (!readOnly) { event.preventDefault(); event.stopPropagation(); openMessageActions(msg.id) } }}
                       onKeyDown={(event) => handleMessageKeyDown(event, msg.id)}
-                      onTouchStart={() => handleLongPressDown(msg.id)}
-                      onTouchMove={handleLongPressUp}
+                      onTouchStart={(event) => handleTouchStart(event, msg.id)}
+                      onTouchMove={handleTouchMove}
                       onTouchEnd={() => handleTouchEnd(msg.id)}
                       onTouchCancel={handleLongPressUp}
                       onDoubleClick={() => { if (!readOnly) void toggleReaction(msg.id, "❤️") }}
-                      className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${readOnly ? "cursor-default" : "cursor-pointer"} ${
+                      className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words outline-none select-none [webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${readOnly ? "cursor-default" : "cursor-pointer"} ${
                         msg.is_ai
                           ? "bg-zinc-900 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px]"
                           : isMine
@@ -708,7 +853,7 @@ export function MessageList({
             </div>
           </div>
         )
-      })}
+      })}`
       <div ref={bottomRef} />
     </div>
     <Dialog open={!!actionMessage} onOpenChange={(open) => { if (!open) setActionMessageId(null) }}>

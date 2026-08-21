@@ -345,6 +345,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
             )
           })}
           </div>
+        )}
       </div>
       <div className="border-t p-2">
         <HelpDialog placement="footer" />
