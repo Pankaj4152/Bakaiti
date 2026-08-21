@@ -16,13 +16,14 @@ export async function GET() {
 
   if (!rows) return NextResponse.json({ data: [] })
 
-  const { data: archived } = await admin
-    .from("archived_conversations")
-    .select("conversation_id, archived_at")
-    .eq("user_id", user.id)
+  const [{ data: archived }, { data: deleted }] = await Promise.all([
+    admin.from("archived_conversations").select("conversation_id, archived_at").eq("user_id", user.id),
+    admin.from("deleted_conversations").select("conversation_id, deleted_at").eq("user_id", user.id),
+  ])
   const archivedAt = new Map((archived ?? []).map((item) => [item.conversation_id, new Date(item.archived_at).getTime()]))
+  const deletedAt = new Map((deleted ?? []).map((item) => [item.conversation_id, new Date(item.deleted_at).getTime()]))
   const visibleRows = rows.filter((row: any) => {
-    const hiddenAt = archivedAt.get(row.id)
+    const hiddenAt = Math.max(archivedAt.get(row.id) ?? 0, deletedAt.get(row.id) ?? 0)
     if (!hiddenAt) return true
     const latestAt = row.lastMessage?.created_at ? new Date(row.lastMessage.created_at).getTime() : 0
     return latestAt > hiddenAt

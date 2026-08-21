@@ -101,6 +101,22 @@ export function UserList({ onNav }: { onNav?: () => void }) {
     setContextLoading(false)
   }
 
+  const deleteChatForMe = async () => {
+    if (!contextConversation) return
+    if (!window.confirm("Delete this chat from your side? Other people will keep their copy.")) return
+    setContextLoading(true); setContextError("")
+    const response = await fetch("/api/conversations/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId: contextConversation.id }) })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) setContextError(result.error ?? "Could not delete chat")
+    else {
+      setConversations((items) => items.filter((item) => item.id !== contextConversation.id))
+      setContextConversation(null)
+      router.push("/chat")
+      router.refresh()
+    }
+    setContextLoading(false)
+  }
+
   const leaveGroup = async () => {
     if (!contextConversation) return
     if (!window.confirm(`Leave ${contextConversation.name ?? "this group"}?`)) return
@@ -357,6 +373,9 @@ export function UserList({ onNav }: { onNav?: () => void }) {
             )}
             <Button variant="ghost" className="justify-start" onClick={hideConversation} disabled={contextLoading}>
               <Archive /> Hide from chat list
+            </Button>
+            <Button variant="ghost" className="justify-start text-destructive hover:text-destructive" onClick={deleteChatForMe} disabled={contextLoading}>
+              <Trash2 /> Delete chat for me
             </Button>
             {contextConversation?.type === "group" && myProfile && (contextConversation.adminId === myProfile.id || contextConversation.creatorId === myProfile.id) ? (
               <Button variant="ghost" className="justify-start text-destructive hover:text-destructive" onClick={deleteGroup} disabled={contextLoading}>

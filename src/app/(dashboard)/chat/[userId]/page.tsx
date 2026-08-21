@@ -21,12 +21,14 @@ const getOtherUser = cache(async (userId: string) => {
   return supabase.from("allowed_users").select("*").eq("id", userId).maybeSingle()
 })
 
-const getMessages = cache(async (conversationId: string) => {
+const getMessages = cache(async (conversationId: string, historyCutoff: string | null) => {
   const supabase = await createClient()
-  return supabase
+  let query = supabase
     .from("messages")
     .select("*, sender:allowed_users(*)")
     .eq("conversation_id", conversationId)
+  if (historyCutoff) query = query.gt("created_at", historyCutoff)
+  return query
     .order("created_at", { ascending: false })
     .limit(50)
 })
@@ -68,7 +70,14 @@ export default async function ConversationPage({
   const conversationId = existingConvo?.id
   if (!conversationId) redirect("/chat")
 
-  const { data: messagesRaw } = await getMessages(conversationId)
+  const { data: deletedChat } = await supabase
+    .from("deleted_conversations")
+    .select("deleted_at")
+    .eq("user_id", currentUser.id)
+    .eq("conversation_id", conversationId)
+    .maybeSingle()
+  const historyCutoff = deletedChat?.deleted_at ?? null
+  const { data: messagesRaw } = await getMessages(conversationId, historyCutoff)
   const messages = (messagesRaw ?? []).reverse()
 
   const themeClass = currentUser.theme && currentUser.theme !== "default" ? `theme-${currentUser.theme}` : ""
@@ -96,13 +105,14 @@ export default async function ConversationPage({
           </div>
           <TypingIndicator conversationId={conversationId} otherUserId={userId} />
         </Link>
-        <MediaButton conversationId={conversationId} />
+        <MediaButton conversationId={conversationId} historyCutoff={historyCutoff} />
       </div>
       <MessageList
         messages={messages ?? []}
         currentUserId={currentUser.id}
         conversationId={conversationId}
         readOnly={!friendship}
+        historyCutoff={historyCutoff}
       />
       {friendship ? (
         <ChatInput conversationId={conversationId} senderId={currentUser.id} />

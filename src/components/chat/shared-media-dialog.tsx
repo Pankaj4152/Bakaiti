@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import {
   Dialog,
@@ -15,10 +15,12 @@ type Tab = "media" | "audio" | "links"
 
 export function SharedMediaDialog({
   conversationId,
+  historyCutoff = null,
   open,
   onOpenChange,
 }: {
   conversationId: string
+  historyCutoff?: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
@@ -27,17 +29,19 @@ export function SharedMediaDialog({
   const [audioFiles, setAudioFiles] = useState<{ url: string; created_at: string }[]>([])
   const [links, setLinks] = useState<{ url: string; text: string }[]>([])
   const [loading, setLoading] = useState(false)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
 
     const load = async () => {
-      const { data: msgs } = await supabase
+      let query = supabase
         .from("messages")
         .select("content, image_url, audio_url")
         .eq("conversation_id", conversationId)
+      if (historyCutoff) query = query.gt("created_at", historyCutoff)
+      const { data: msgs } = await query
         .order("created_at", { ascending: false })
 
       if (!msgs) { setLoading(false); return }
@@ -65,7 +69,7 @@ export function SharedMediaDialog({
     }
 
     load()
-  }, [open, conversationId])
+  }, [open, conversationId, historyCutoff, supabase])
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: "media", label: "Media", count: images.length },

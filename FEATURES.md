@@ -70,6 +70,7 @@
 - [x] Previous DM history remains visible to both participants after unfriending, in a clearly locked read-only state
 - [x] Conversation rows support desktop right-click and mobile long-press actions for profile, hide, and group leave
 - [x] Mobile users can swipe right from the left screen edge to open chat navigation without disrupting vertical scrolling
+- [x] Users can delete a DM or group chat from their own side without deleting anyone else's copy
 - [x] Help & tips lives in the sidebar footer instead of the primary chat header
 - [x] Vault navigation is temporarily hidden while the route and implementation remain available for later profile integration
 

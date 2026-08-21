@@ -30,11 +30,13 @@ export function MessageList({
   currentUserId,
   conversationId,
   readOnly = false,
+  historyCutoff = null,
 }: {
   messages: Message[]
   currentUserId: string
   conversationId: string
   readOnly?: boolean
+  historyCutoff?: string | null
 }) {
   const messages = useRef<Message[]>(initialMessages)
   const [display, setDisplay] = useState<Message[]>(initialMessages)
@@ -105,11 +107,13 @@ export function MessageList({
     if (loadingOlder || !hasMore || !oldestRef.current) return
     setLoadingOlder(true)
     try {
-      const { data } = await supabase
+      let query = supabase
         .from("messages")
         .select("*, sender:allowed_users(*)")
         .eq("conversation_id", conversationId)
         .lt("created_at", oldestRef.current)
+      if (historyCutoff) query = query.gt("created_at", historyCutoff)
+      const { data } = await query
         .order("created_at", { ascending: false })
         .limit(50)
 
@@ -130,7 +134,7 @@ export function MessageList({
     } finally {
       setLoadingOlder(false)
     }
-  }, [conversationId, hasMore, loadingOlder, supabase])
+  }, [conversationId, hasMore, historyCutoff, loadingOlder, supabase])
 
   useEffect(() => {
     const el = scrollContainerRef.current
@@ -398,11 +402,11 @@ export function MessageList({
     try {
       const res = await fetch(`/api/pin?conversationId=${conversationId}`)
       const data = await res.json()
-      setPinned(data.pins ?? [])
+      setPinned((data.pins ?? []).filter((pin: Pin) => !historyCutoff || (pin.message?.created_at && new Date(pin.message.created_at).getTime() > new Date(historyCutoff).getTime())))
     } catch {
       setPinned([])
     }
-  }, [conversationId])
+  }, [conversationId, historyCutoff])
 
   useEffect(() => {
     loadPins()

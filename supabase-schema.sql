@@ -114,6 +114,14 @@ where request.id = ranked.id and ranked.pair_rank > 1;
 create unique index if not exists idx_friend_requests_unordered_pair
   on friend_requests (least(requester_id, recipient_id), greatest(requester_id, recipient_id));
 
+-- Per-user chat deletion marker. Shared messages stay intact for everyone else.
+create table if not exists deleted_conversations (
+  user_id uuid not null references allowed_users(id) on delete cascade,
+  conversation_id uuid not null references conversations(id) on delete cascade,
+  deleted_at timestamptz not null default now(),
+  primary key (user_id, conversation_id)
+);
+
 -- 2b. Conversation participants (for group chats)
 create table if not exists conversation_participants (
   conversation_id uuid not null references conversations(id) on delete cascade,
@@ -373,10 +381,12 @@ returns json as $$
   ) order by c.last_message_at desc), '[]'::json)
   from conversations c
   left join allowed_users u on u.id = case when c.type = 'group' then null else case when c.user1_id = my_user_id then c.user2_id else c.user1_id end end
+  left join deleted_conversations dc on dc.conversation_id = c.id and dc.user_id = my_user_id
   left join lateral (
     select content, audio_url, image_url, sticker_url, created_at, sender_id
     from messages
     where conversation_id = c.id
+      and (dc.deleted_at is null or created_at > dc.deleted_at)
     order by created_at desc
     limit 1
   ) lm on true
@@ -384,6 +394,7 @@ returns json as $$
     select count(*)::int as unread_count
     from messages
     where conversation_id = c.id
+      and (dc.deleted_at is null or created_at > dc.deleted_at)
       and read = false
       and sender_id != my_user_id
   ) uc on true
@@ -630,6 +641,8 @@ create table if not exists archived_conversations (
 
 alter table archived_conversations enable row level security;
 
+alter table deleted_conversations enable row level security;
+
 do $$ begin
   if not exists (select 1 from pg_policies where policyname = 'archived select') then
     create policy "archived select" on archived_conversations for select to authenticated using (user_id = auth.uid());
@@ -822,6 +835,10 @@ create policy "users can remove own friendships" on friend_requests for delete t
     status = 'accepted'
     and (requester_id = current_user_id() or recipient_id = current_user_id())
   );
+
+drop policy if exists "users can read own deleted chats" on deleted_conversations;
+create policy "users can read own deleted chats" on deleted_conversations for select to authenticated
+  using (user_id = current_user_id());
 
 drop policy if exists "authenticated can read conversations" on conversations;
 drop policy if exists "users can read own conversations" on conversations;
