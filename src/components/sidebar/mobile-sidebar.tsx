@@ -8,29 +8,43 @@ export function MobileSidebar() {
   const { open, setOpen } = useSidebar()
   const swipe = useRef<{ startX: number; startY: number; lastX: number; lastY: number } | null>(null)
 
-  const startEdgeSwipe = (event: React.TouchEvent<HTMLDivElement>) => {
-    const touch = event.touches[0]
-    swipe.current = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY }
-  }
-
-  const trackEdgeSwipe = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (!swipe.current) return
-    const touch = event.touches[0]
-    swipe.current.lastX = touch.clientX
-    swipe.current.lastY = touch.clientY
-    const horizontal = touch.clientX - swipe.current.startX
-    const vertical = Math.abs(touch.clientY - swipe.current.startY)
-    if (horizontal > 8 && horizontal > vertical * 1.5 && event.cancelable) event.preventDefault()
-  }
-
-  const finishEdgeSwipe = () => {
-    const gesture = swipe.current
-    swipe.current = null
-    if (!gesture) return
-    const horizontal = gesture.lastX - gesture.startX
-    const vertical = Math.abs(gesture.lastY - gesture.startY)
-    if (horizontal >= 60 && vertical <= 45 && horizontal > vertical * 1.5) setOpen(true)
-  }
+  useEffect(() => {
+    if (open || window.matchMedia("(min-width: 768px)").matches) return
+    const start = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      if (!touch || touch.clientX > 48) { swipe.current = null; return }
+      swipe.current = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY }
+    }
+    const move = (event: TouchEvent) => {
+      if (!swipe.current) return
+      const touch = event.touches[0]
+      if (!touch) return
+      swipe.current.lastX = touch.clientX
+      swipe.current.lastY = touch.clientY
+      const horizontal = touch.clientX - swipe.current.startX
+      const vertical = Math.abs(touch.clientY - swipe.current.startY)
+      if (horizontal > 8 && horizontal > vertical * 1.25 && event.cancelable) event.preventDefault()
+    }
+    const finish = () => {
+      const gesture = swipe.current
+      swipe.current = null
+      if (!gesture) return
+      const horizontal = gesture.lastX - gesture.startX
+      const vertical = Math.abs(gesture.lastY - gesture.startY)
+      if (horizontal >= 52 && vertical <= 60 && horizontal > vertical * 1.25) setOpen(true)
+    }
+    const cancel = () => { swipe.current = null }
+    document.addEventListener("touchstart", start, { passive: true, capture: true })
+    document.addEventListener("touchmove", move, { passive: false, capture: true })
+    document.addEventListener("touchend", finish, { passive: true, capture: true })
+    document.addEventListener("touchcancel", cancel, { passive: true, capture: true })
+    return () => {
+      document.removeEventListener("touchstart", start, true)
+      document.removeEventListener("touchmove", move, true)
+      document.removeEventListener("touchend", finish, true)
+      document.removeEventListener("touchcancel", cancel, true)
+    }
+  }, [open, setOpen])
 
   useEffect(() => {
     if (!open) return
@@ -44,18 +58,7 @@ export function MobileSidebar() {
     }
   }, [open, setOpen])
 
-  if (!open) {
-    return (
-      <div
-        className="fixed inset-y-0 left-0 z-40 w-6 touch-pan-y md:hidden"
-        onTouchStart={startEdgeSwipe}
-        onTouchMove={trackEdgeSwipe}
-        onTouchEnd={finishEdgeSwipe}
-        onTouchCancel={() => { swipe.current = null }}
-        aria-hidden="true"
-      />
-    )
-  }
+  if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 md:hidden">
