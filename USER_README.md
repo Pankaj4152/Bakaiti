@@ -8,7 +8,9 @@ Sign up with your email. An admin will approve your account. Set your name and u
 
 ## DMs
 
-Click **+** in the sidebar, find an exact username, and send a friend request. A direct chat becomes available only after the recipient accepts it. Incoming and pending requests are shown in the same Friends dialog. Messages show read receipts (✓ / ✓✓).
+Click **+** in the sidebar, choose **Add new friend**, find an exact username, and send a request. Search results show whether you are already friends, a request is pending, or an incoming request can be accepted. A direct chat becomes writable only after acceptance. Received requests, sent requests, and recent acceptances appear under the heart-shaped **Activity** button. Messages show read receipts (✓ / ✓✓).
+
+Previous chats remain readable after unfriending, but sending is locked until a new request is accepted. If you deleted a chat from your own side, search for an accepted friend and choose **Open chat** to start fresh.
 
 ## Notifications
 
@@ -20,6 +22,8 @@ The installed mobile app retries brief navigation failures automatically. If the
 
 On mobile, the navigation drawer runs a single conversation connection. The desktop sidebar is not mounted invisibly in the background.
 
+Swipe right starting near the left edge of the mobile screen to open the conversation sidebar. The menu button remains available as a fallback.
+
 A message is marked seen only while the chat tab is visible and focused and the message is actually visible in the message area. Background or minimized apps do not send seen receipts.
 
 The `/meme` command can send one generated meme every two minutes per user. If it is used too soon, the composer shows the exact number of seconds remaining.
@@ -28,9 +32,13 @@ React from the smile button beside a message, or double-click/double-tap a messa
 
 Open the action menu on your own message and choose **Delete for everyone**. The option is available for two minutes after sending, and the server also enforces the deadline.
 
+On desktop, left-click or right-click a message to open its actions. On mobile, long-press it. Keyboard users can focus messages with **Tab** and open actions using **Enter**, **Space**, the context-menu key, or **Shift+F10**.
+
+Right-click a conversation on desktop or long-press it on mobile for chat actions. **Hide from chat list** preserves your history. **Delete chat for me** removes existing history only from your side; other participants keep their copy, and a future message brings the chat back with only newer messages.
+
 ## Groups
 
-Click the **👥** button in the sidebar to create a group. Give it a name and add members. Group chats show stacked avatars in the header.
+Click **+** in the sidebar and choose **Create a group**. Give it a name and add members. Group chats show stacked avatars in the header. Long-press/right-click a group to leave it; owners can delete the group for everyone.
 
 ## Commands
 
@@ -71,11 +79,11 @@ Go to your profile → Edit Profile → Chat Theme. Pick from Default, Orange, C
 
 ## Vault
 
-Click the archive icon in the sidebar to browse AI-generated memories, daily recaps, and legendary quotes.
+Vault navigation is temporarily hidden while memories and recaps are being stabilized. Its data and implementation are preserved for a later profile integration.
 
 ## Profile
 
-Click your avatar in the sidebar to see your stats, achievements, and fun labels. Edit your profile photo, name, username, and chat theme.
+Click your avatar in the sidebar to see your stats, achievements, fun labels, and accepted Friends list. Friend entries provide profile and chat shortcuts. Edit your profile photo, name, username, and chat theme from the same page.
 
 ## Notifications
 
