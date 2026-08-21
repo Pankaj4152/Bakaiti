@@ -64,6 +64,7 @@
 - [x] Existing direct conversations are migrated as accepted friendships
 - [x] Friend relationships are unique by unordered user pair, including simultaneous reciprocal requests
 - [x] Either user can remove a friend without deleting old chat history; removed DMs are hidden and locked
+- [x] Accepted friends can also be removed directly from the friend's profile
 
 ### Friends and direct messages
 - [x] Users send a friend request before starting a direct chat

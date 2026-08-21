@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { computeUserStats, getAchievements, getFunLabels, type ComputedStats } from "@/lib/stats"
 import { ProfileBackButton } from "./profile-header"
+import { RemoveFriendButton } from "./remove-friend-button"
 
 export default async function ProfilePage({
   params,
@@ -27,6 +28,24 @@ export default async function ProfilePage({
   if (!profile) redirect("/chat")
 
   const isOwn = profile.email === user.email
+  let friendshipId: string | null = null
+  if (!isOwn) {
+    const { data: currentProfile } = await supabase
+      .from("allowed_users")
+      .select("id")
+      .eq("email", user.email)
+      .maybeSingle()
+
+    if (currentProfile) {
+      const { data: friendship } = await supabase
+        .from("friend_requests")
+        .select("id")
+        .eq("status", "accepted")
+        .or(`and(requester_id.eq.${currentProfile.id},recipient_id.eq.${userId}),and(requester_id.eq.${userId},recipient_id.eq.${currentProfile.id})`)
+        .maybeSingle()
+      friendshipId = friendship?.id ?? null
+    }
+  }
 
   let stats: ComputedStats
   try {
@@ -66,6 +85,9 @@ export default async function ProfilePage({
                 currentAvatarUrl={profile.avatar_url}
                 currentTheme={profile.theme}
               />
+            )}
+            {!isOwn && friendshipId && (
+              <RemoveFriendButton friendshipId={friendshipId} friendName={profile.name} />
             )}
             {labels.length > 0 && (
               <div className="flex flex-wrap gap-1.5 justify-center">
@@ -139,9 +161,13 @@ export default async function ProfilePage({
             <Link href="/chat" className="underline hover:text-foreground">
               Back to chat
             </Link>
-          ) : (
+          ) : friendshipId ? (
             <Link href={`/chat/${userId}`} className="underline hover:text-foreground">
               Send a message
+            </Link>
+          ) : (
+            <Link href="/chat" className="underline hover:text-foreground">
+              Back to chat
             </Link>
           )}
         </p>
