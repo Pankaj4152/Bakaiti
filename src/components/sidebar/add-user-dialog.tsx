@@ -13,14 +13,16 @@ import { useSidebar } from "./sidebar-context"
 type Profile = { id: string; name: string; username: string; avatar_url: string | null }
 type FriendRequest = { id: string; requester_id: string; recipient_id: string; status: string; requester: Profile; recipient: Profile }
 
-export function AddUserDialog() {
+export function AddUserDialog({ open: controlledOpen, onOpenChange, showTrigger = true }: { open?: boolean; onOpenChange?: (open: boolean) => void; showTrigger?: boolean } = {}) {
   const [username, setUsername] = useState("")
   const [foundUser, setFoundUser] = useState<Profile | null>(null)
   const [requests, setRequests] = useState<FriendRequest[]>([])
   const [currentUserId, setCurrentUserId] = useState("")
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = onOpenChange ?? setInternalOpen
   const router = useRouter()
   const supabase = createClient()
   const { refreshConversations } = useSidebar()
@@ -81,7 +83,7 @@ export function AddUserDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (value) void loadRequests(); else { setUsername(""); setFoundUser(null); setMessage("") } }}>
-      <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" title="Friends"><Plus className="h-4 w-4" /></Button></DialogTrigger>
+      {showTrigger && <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" title="Add friend"><Plus className="h-4 w-4" /></Button></DialogTrigger>}
       <DialogContent>
         <DialogHeader><DialogTitle>Friends</DialogTitle></DialogHeader>
         <div className="space-y-4 pt-2">

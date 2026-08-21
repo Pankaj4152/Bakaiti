@@ -21,8 +21,10 @@ interface UserItem {
   avatar_url: string | null
 }
 
-export function CreateGroupDialog() {
-  const [open, setOpen] = useState(false)
+export function CreateGroupDialog({ open: controlledOpen, onOpenChange, showTrigger = true }: { open?: boolean; onOpenChange?: (open: boolean) => void; showTrigger?: boolean } = {}) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = onOpenChange ?? setInternalOpen
   const [name, setName] = useState("")
   const [search, setSearch] = useState("")
   const [users, setUsers] = useState<UserItem[]>([])
@@ -77,11 +79,11 @@ export function CreateGroupDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+      {showTrigger && <DialogTrigger asChild>
         <button className="shrink-0 h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors" title="Create Group">
           <Users className="h-4 w-4" />
         </button>
-      </DialogTrigger>
+      </DialogTrigger>}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Group</DialogTitle>

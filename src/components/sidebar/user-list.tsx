@@ -7,8 +7,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { MessageCircle, Archive, LogOut, Users } from "lucide-react"
-import { AddUserDialog } from "./add-user-dialog"
-import { CreateGroupDialog } from "./create-group-dialog"
+import { NewActionsDialog } from "./new-actions-dialog"
 import { HelpDialog } from "./help-dialog"
 import { useSidebar } from "./sidebar-context"
 import { useNicknames } from "@/components/chat/use-nicknames"
@@ -124,12 +123,11 @@ export function UserList({ onNav }: { onNav?: () => void }) {
           </Avatar>
         </button>
         <h1 className="font-bold text-lg flex-1">Bakaiti</h1>
-        <CreateGroupDialog />
         <button onClick={() => { onNav?.(); router.push("/vault") }} className="shrink-0 h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors" title="The Vault">
           <Archive className="h-4 w-4" />
         </button>
         <HelpDialog />
-        <AddUserDialog />
+        <NewActionsDialog />
       </div>
       <div className="flex-1 overflow-y-auto">
         {loading ? (
