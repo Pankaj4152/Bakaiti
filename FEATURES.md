@@ -33,6 +33,7 @@
 - [x] Achievements & fun labels
 - [x] Avatar upload
 - [x] Theme selector
+- [x] Lowercase-normalized usernames with application checks and a database unique constraint
 
 ### Infrastructure
 - [x] Push Notifications (Service Worker + VAPID + Realtime fallback)
@@ -62,6 +63,7 @@
 - [x] Accepting creates the DM; direct chat URLs cannot create one early
 - [x] Existing direct conversations are migrated as accepted friendships
 - [x] Friend relationships are unique by unordered user pair, including simultaneous reciprocal requests
+- [x] Either user can remove a friend without deleting old chat history; removed DMs are hidden and locked
 
 ### Friends and direct messages
 - [x] Users send a friend request before starting a direct chat

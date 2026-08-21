@@ -62,3 +62,25 @@ export async function PATCH(request: Request) {
   }
   return NextResponse.json({ success: true, status, conversationId })
 }
+
+export async function DELETE(request: Request) {
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  const body = (await request.json().catch(() => ({}))) as Body
+  if (!body.requestId) return NextResponse.json({ error: "Friendship is required" }, { status: 400 })
+
+  const admin = createAdminClient()
+  const { data: friendship } = await admin
+    .from("friend_requests")
+    .select("id")
+    .eq("id", body.requestId)
+    .eq("status", "accepted")
+    .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
+    .maybeSingle()
+
+  if (!friendship) return NextResponse.json({ error: "Friendship not found" }, { status: 404 })
+
+  const { error } = await admin.from("friend_requests").delete().eq("id", friendship.id)
+  if (error) return NextResponse.json({ error: "Failed to remove friend" }, { status: 500 })
+  return NextResponse.json({ success: true })
+}

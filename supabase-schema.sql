@@ -97,13 +97,6 @@ $$;
 create index if not exists idx_friend_requests_recipient_status on friend_requests(recipient_id, status);
 create index if not exists idx_friend_requests_requester_status on friend_requests(requester_id, status);
 
-insert into friend_requests (requester_id, recipient_id, status, responded_at)
-select least(user1_id, user2_id), greatest(user1_id, user2_id), 'accepted', now()
-from conversations
-where type = 'dm' and user2_id is not null
-on conflict (requester_id, recipient_id) do update
-set status = 'accepted', responded_at = coalesce(friend_requests.responded_at, now());
-
 -- Collapse reciprocal duplicates before enforcing one row per unordered pair.
 -- Prefer an accepted row, then the newest pending/rejected row.
 with ranked_friend_requests as (
@@ -392,8 +385,19 @@ returns json as $$
       and read = false
       and sender_id != my_user_id
   ) uc on true
-  where c.user1_id = my_user_id or c.user2_id = my_user_id or exists (
-    select 1 from conversation_participants where conversation_id = c.id and user_id = my_user_id
+  where (
+    c.type = 'dm'
+    and (c.user1_id = my_user_id or c.user2_id = my_user_id)
+    and exists (
+      select 1 from friend_requests f
+      where f.status = 'accepted'
+        and ((f.requester_id = c.user1_id and f.recipient_id = c.user2_id)
+          or (f.requester_id = c.user2_id and f.recipient_id = c.user1_id))
+    )
+  ) or (
+    c.type = 'group' and exists (
+      select 1 from conversation_participants where conversation_id = c.id and user_id = my_user_id
+    )
   );
 $$ language sql;
 
@@ -773,18 +777,50 @@ create or replace function current_allowed_user_id() returns uuid as $$
   select current_user_id();
 $$ language sql stable set search_path = public;
 
+-- A removed friend must not retain DM access merely because an old conversation exists.
+create or replace function is_active_conversation_member(p_conversation_id uuid, p_user_id uuid)
+returns boolean
+language sql stable security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from conversations c
+    where c.id = p_conversation_id and (
+      (c.type = 'group' and exists (
+        select 1 from conversation_participants p
+        where p.conversation_id = c.id and p.user_id = p_user_id
+      ))
+      or
+      (c.type = 'dm' and p_user_id in (c.user1_id, c.user2_id) and exists (
+        select 1 from friend_requests f
+        where f.status = 'accepted'
+          and ((f.requester_id = c.user1_id and f.recipient_id = c.user2_id)
+            or (f.requester_id = c.user2_id and f.recipient_id = c.user1_id))
+      ))
+    )
+  );
+$$;
+
 drop policy if exists "users can read own friend requests" on friend_requests;
 create policy "users can read own friend requests" on friend_requests for select to authenticated
   using (requester_id = current_user_id() or recipient_id = current_user_id());
 
+drop policy if exists "users can remove own friendships" on friend_requests;
+create policy "users can remove own friendships" on friend_requests for delete to authenticated
+  using (
+    status = 'accepted'
+    and (requester_id = current_user_id() or recipient_id = current_user_id())
+  );
+
 drop policy if exists "authenticated can read conversations" on conversations;
+drop policy if exists "users can read own conversations" on conversations;
 create policy "users can read own conversations" on conversations for select to authenticated
   using (
-    user1_id = current_user_id() or user2_id = current_user_id()
-    or exists (select 1 from conversation_participants p where p.conversation_id = conversations.id and p.user_id = current_user_id())
+    is_active_conversation_member(id, current_user_id())
   );
 
 drop policy if exists "authenticated can insert conversations" on conversations;
+drop policy if exists "friends can create direct conversations" on conversations;
 create policy "friends can create direct conversations" on conversations for insert to authenticated
   with check (
     type = 'dm'
@@ -800,6 +836,7 @@ create policy "friends can create direct conversations" on conversations for ins
 -- allowed_users: users may only ever update their OWN row (prevents self-approval
 -- via the anon client and profile tampering of other accounts).
 drop policy if exists "authenticated can update own" on allowed_users;
+drop policy if exists "can update own" on allowed_users;
 create policy "can update own"
   on allowed_users for update to authenticated
   using (email = auth.email())
@@ -807,43 +844,28 @@ create policy "can update own"
 
 -- messages: inserts must claim an own-sender id; only read conversations you belong to.
 drop policy if exists "authenticated can insert messages" on messages;
+drop policy if exists "can insert own messages" on messages;
 create policy "can insert own messages"
   on messages for insert to authenticated
   with check (
     sender_id in (select id from allowed_users where email = auth.email())
-    and exists (
-      select 1 from conversations c
-      where c.id = messages.conversation_id
-        and (c.user1_id = sender_id or c.user2_id = sender_id
-             or exists (select 1 from conversation_participants p
-                        where p.conversation_id = c.id and p.user_id = sender_id))
-    )
+    and is_active_conversation_member(conversation_id, sender_id)
   );
 
 drop policy if exists "authenticated can read messages" on messages;
+drop policy if exists "can read own conversations messages" on messages;
 create policy "can read own conversations messages"
   on messages for select to authenticated
   using (
-    exists (
-      select 1 from conversations c
-      where c.id = messages.conversation_id
-        and (c.user1_id = current_user_id() or c.user2_id = current_user_id()
-             or exists (select 1 from conversation_participants p
-                        where p.conversation_id = c.id and p.user_id = current_user_id()))
-    )
+    is_active_conversation_member(conversation_id, current_user_id())
   );
 
 drop policy if exists "authenticated can update messages" on messages;
+drop policy if exists "can update read flag own conversations" on messages;
 create policy "can update read flag own conversations"
   on messages for update to authenticated
   using (
-    exists (
-      select 1 from conversations c
-      where c.id = messages.conversation_id
-        and (c.user1_id = current_user_id() or c.user2_id = current_user_id()
-             or exists (select 1 from conversation_participants p
-                        where p.conversation_id = c.id and p.user_id = current_user_id()))
-    )
+    is_active_conversation_member(conversation_id, current_user_id())
   );
 
 drop policy if exists "users can delete own recent messages" on messages;
@@ -852,25 +874,22 @@ create policy "users can delete own recent messages" on messages for delete to a
 
 -- reactions: only read reactions in conversations you belong to; only react within them.
 drop policy if exists "authenticated can read reactions" on reactions;
+drop policy if exists "can read own conversation reactions" on reactions;
 create policy "can read own conversation reactions"
   on reactions for select to authenticated
   using (
-    exists (
-      select 1 from messages m
-      join conversations c on c.id = m.conversation_id
-      where m.id = reactions.message_id
-        and (c.user1_id = current_user_id() or c.user2_id = current_user_id()
-             or exists (select 1 from conversation_participants p
-                        where p.conversation_id = c.id and p.user_id = current_user_id()))
-    )
+    exists (select 1 from messages m where m.id = reactions.message_id
+      and is_active_conversation_member(m.conversation_id, current_user_id()))
   );
 
 drop policy if exists "authenticated can insert reactions" on reactions;
+drop policy if exists "can insert own conversation reactions" on reactions;
 create policy "can insert own conversation reactions"
   on reactions for insert to authenticated
   with check (
     user_id = current_user_id()
-    and exists (select 1 from conversations c where c.id = (select conversation_id from messages where id = reactions.message_id) and (c.type = 'dm' or exists (select 1 from conversation_participants p where p.conversation_id = c.id and p.user_id = current_user_id())))
+    and exists (select 1 from messages m where m.id = reactions.message_id
+      and is_active_conversation_member(m.conversation_id, current_user_id()))
   );
 
 -- push_subscriptions: users may only see/delete their own subscriptions.

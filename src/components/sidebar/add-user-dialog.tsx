@@ -64,8 +64,20 @@ export function AddUserDialog() {
     setLoading(false)
   }
 
+  const removeFriend = async (request: FriendRequest) => {
+    const friend = request.requester_id === currentUserId ? request.recipient : request.requester
+    if (!window.confirm(`Remove ${friend.name} from your friends? Your old chat will be kept.`)) return
+    setLoading(true); setMessage("")
+    const res = await fetch("/api/friend-requests", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestId: request.id }) })
+    const json = await res.json()
+    setMessage(res.ok ? `${friend.name} removed from friends` : json.error ?? "Could not remove friend")
+    if (res.ok) { await loadRequests(); refreshConversations(); router.refresh() }
+    setLoading(false)
+  }
+
   const incoming = requests.filter((r) => r.status === "pending" && r.recipient_id === currentUserId)
   const outgoing = requests.filter((r) => r.status === "pending" && r.requester_id === currentUserId)
+  const friends = requests.filter((r) => r.status === "accepted")
 
   return (
     <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (value) void loadRequests(); else { setUsername(""); setFoundUser(null); setMessage("") } }}>
@@ -74,6 +86,7 @@ export function AddUserDialog() {
         <DialogHeader><DialogTitle>Friends</DialogTitle></DialogHeader>
         <div className="space-y-4 pt-2">
           {incoming.length > 0 && <section className="space-y-2"><p className="text-xs font-semibold uppercase text-muted-foreground">Requests</p>{incoming.map((request) => <div key={request.id} className="flex items-center gap-3 rounded-lg border p-3"><User profile={request.requester} /><div className="ml-auto flex gap-2"><Button size="sm" onClick={() => respond(request.id, "accept", request.requester_id)} disabled={loading}>Accept</Button><Button size="sm" variant="ghost" onClick={() => respond(request.id, "reject", request.requester_id)} disabled={loading}>Reject</Button></div></div>)}</section>}
+          {friends.length > 0 && <section className="space-y-2"><p className="text-xs font-semibold uppercase text-muted-foreground">Friends</p>{friends.map((request) => { const friend = request.requester_id === currentUserId ? request.recipient : request.requester; return <div key={request.id} className="flex items-center gap-3 rounded-lg border p-3"><User profile={friend} /><Button className="ml-auto" size="sm" variant="outline" onClick={() => removeFriend(request)} disabled={loading}>Remove</Button></div> })}</section>}
           <div className="flex gap-2"><Input placeholder="Exact username" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") search() }} /><Button onClick={search} disabled={loading || !username.trim()}>{loading ? "..." : "Search"}</Button></div>
           {foundUser && <div className="flex items-center gap-3 rounded-lg border p-3"><User profile={foundUser} /><Button className="ml-auto" size="sm" onClick={sendRequest} disabled={loading}>Add friend</Button></div>}
           {outgoing.length > 0 && <section className="space-y-2"><p className="text-xs font-semibold uppercase text-muted-foreground">Sent</p>{outgoing.map((request) => <div key={request.id} className="flex items-center gap-3 rounded-lg border p-3"><User profile={request.recipient} /><span className="ml-auto text-xs text-muted-foreground">Pending</span></div>)}</section>}

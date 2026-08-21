@@ -45,12 +45,20 @@ export async function isConversationMember(userId: string, conversationId: strin
   const admin = createAdminClient()
   const { data: convo } = await admin
     .from("conversations")
-    .select("user1_id, user2_id")
+    .select("type, user1_id, user2_id")
     .eq("id", conversationId)
     .maybeSingle()
 
   if (!convo) return false
-  if (convo.user1_id === userId || convo.user2_id === userId) return true
+  if (convo.type === "dm" && (convo.user1_id === userId || convo.user2_id === userId)) {
+    const { data: friendship } = await admin
+      .from("friend_requests")
+      .select("id")
+      .eq("status", "accepted")
+      .or(`and(requester_id.eq.${convo.user1_id},recipient_id.eq.${convo.user2_id}),and(requester_id.eq.${convo.user2_id},recipient_id.eq.${convo.user1_id})`)
+      .maybeSingle()
+    return !!friendship
+  }
 
   const { data: participant } = await admin
     .from("conversation_participants")

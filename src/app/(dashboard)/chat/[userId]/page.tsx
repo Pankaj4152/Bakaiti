@@ -51,6 +51,15 @@ export default async function ConversationPage({
 
   const [user1Id, user2Id] = [currentUser.id, userId].sort()
 
+  const { data: friendship } = await supabase
+    .from("friend_requests")
+    .select("id")
+    .eq("status", "accepted")
+    .or(`and(requester_id.eq.${user1Id},recipient_id.eq.${user2Id}),and(requester_id.eq.${user2Id},recipient_id.eq.${user1Id})`)
+    .maybeSingle()
+
+  if (!friendship) redirect("/chat")
+
   const { data: existingConvo } = await supabase
     .from("conversations")
     .select("id")
