@@ -18,6 +18,8 @@ Conversation previews, unread counts, friend acceptances, and new messages updat
 
 The installed mobile app retries brief navigation failures automatically. If the connection remains unavailable, it shows Bakaiti's offline screen with a retry button instead of the phone's generic page-load error.
 
+On mobile, the navigation drawer runs a single conversation connection. The desktop sidebar is not mounted invisibly in the background.
+
 A message is marked seen only while the chat tab is visible and focused and the message is actually visible in the message area. Background or minimized apps do not send seen receipts.
 
 The `/meme` command can send one generated meme every two minutes per user. If it is used too soon, the composer shows the exact number of seconds remaining.

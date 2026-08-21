@@ -52,6 +52,8 @@
 - [x] Simple round loader centered on the full viewport, with compact local sidebar loading
 - [x] Installed PWA retries failed navigations and shows a branded offline fallback instead of Android's generic load error
 - [x] Sidebar suppresses invalid direct-message destinations before rendering navigation links
+- [x] Mobile drawer mounts one lightweight sidebar only; hidden desktop realtime listeners are not created on mobile
+- [x] Production builds use local system fonts and cannot fail because Google Fonts is unreachable
 
 ### Friends and direct messages
 - [x] Users send a friend request before starting a direct chat
