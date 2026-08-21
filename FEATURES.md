@@ -69,6 +69,7 @@
 - [x] Username search shows whether users are friends, a request was sent, or an incoming request can be accepted
 - [x] Previous DM history remains visible to both participants after unfriending, in a clearly locked read-only state
 - [x] Conversation rows support desktop right-click and mobile long-press actions for profile, hide, and group leave
+- [x] Mobile users can swipe right from the left screen edge to open chat navigation without disrupting vertical scrolling
 - [x] Help & tips lives in the sidebar footer instead of the primary chat header
 - [x] Vault navigation is temporarily hidden while the route and implementation remain available for later profile integration
 
