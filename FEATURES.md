@@ -54,6 +54,7 @@
 - [x] Sidebar suppresses invalid direct-message destinations before rendering navigation links
 - [x] Mobile drawer mounts one lightweight sidebar only; hidden desktop realtime listeners are not created on mobile
 - [x] Production builds use local system fonts and cannot fail because Google Fonts is unreachable
+- [x] Scan advisory-lock migration uses valid PostgreSQL hashing and non-conflicting RPC names
 
 ### Friends and direct messages
 - [x] Users send a friend request before starting a direct chat

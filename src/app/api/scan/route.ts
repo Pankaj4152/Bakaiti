@@ -13,13 +13,13 @@ function isAuthorized(request: Request): boolean {
 }
 
 // Acquire an advisory lock so two concurrent runs never double-process.
-async function acquireLock(admin: ReturnType<typeof createAdminClient>, lockKey = "scan") {
-  const { data } = await admin.rpc("pg_try_advisory_lock", { key: 727272 })
+async function acquireLock(admin: ReturnType<typeof createAdminClient>) {
+  const { data } = await admin.rpc("try_bakaiti_scan_lock", { lock_key: 727272 })
   return data === true
 }
 
 async function releaseLock(admin: ReturnType<typeof createAdminClient>) {
-  await admin.rpc("pg_advisory_unlock", { key: 727272 })
+  await admin.rpc("release_bakaiti_scan_lock", { lock_key: 727272 })
 }
 
 async function runScan(): Promise<NextResponse> {

@@ -745,11 +745,17 @@ do $$ begin
 end; $$;
 
 -- Advisory locks for the scan cron to prevent concurrent duplicate processing.
-create or replace function pg_try_advisory_lock(key bigint) returns boolean
-language sql as $$ select pg_try_advisory_lock(hashtextext('bakaiti_scan'), key) $$;
+-- App-specific RPC names avoid shadowing PostgreSQL's built-in functions.
+drop function if exists public.pg_try_advisory_lock(bigint);
+drop function if exists public.pg_advisory_unlock(bigint);
 
-create or replace function pg_advisory_unlock(key bigint) returns boolean
-language sql as $$ select pg_advisory_unlock(hashtextextended('bakaiti_scan', 0), key) $$;
+create or replace function try_bakaiti_scan_lock(lock_key bigint) returns boolean
+language sql security definer set search_path = pg_catalog, public
+as $$ select pg_catalog.pg_try_advisory_lock(pg_catalog.hashtextextended('bakaiti_scan', lock_key)) $$;
+
+create or replace function release_bakaiti_scan_lock(lock_key bigint) returns boolean
+language sql security definer set search_path = pg_catalog, public
+as $$ select pg_catalog.pg_advisory_unlock(pg_catalog.hashtextextended('bakaiti_scan', lock_key)) $$;
 
 -- 14a. Prevent duplicate DM conversations (race condition).
 create unique index if not exists idx_conversations_dm_unique
