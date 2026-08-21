@@ -8,6 +8,7 @@ import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { computeUserStats, getAchievements, getFunLabels, type ComputedStats } from "@/lib/stats"
 import { ProfileBackButton } from "./profile-header"
 import { RemoveFriendButton } from "./remove-friend-button"
+import { FriendsDialog } from "./friends-dialog"
 
 export default async function ProfilePage({
   params,
@@ -78,13 +79,16 @@ export default async function ProfilePage({
               )}
             </div>
             {isOwn && (
-              <EditProfileDialog
-                email={profile.email}
-                currentName={profile.name}
-                currentUsername={profile.username}
-                currentAvatarUrl={profile.avatar_url}
-                currentTheme={profile.theme}
-              />
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <EditProfileDialog
+                  email={profile.email}
+                  currentName={profile.name}
+                  currentUsername={profile.username}
+                  currentAvatarUrl={profile.avatar_url}
+                  currentTheme={profile.theme}
+                />
+                <FriendsDialog />
+              </div>
             )}
             {!isOwn && friendshipId && (
               <RemoveFriendButton friendshipId={friendshipId} friendName={profile.name} />
