@@ -77,6 +77,30 @@ export function MessageList({
     }
   }
 
+  const openMessageActions = (messageId: string) => {
+    if (readOnly) return
+    setPickingEmojiFor((current) => current === messageId ? null : messageId)
+  }
+
+  const handleMessageClick = (event: React.MouseEvent<HTMLDivElement>, messageId: string) => {
+    if (readOnly || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return
+    const target = event.target as HTMLElement
+    if (target.closest("button, a, input, textarea, select, audio, video, img")) return
+    openMessageActions(messageId)
+  }
+
+  const handleMessageKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, messageId: string) => {
+    if (event.key === "Escape") {
+      setPickingEmojiFor(null)
+      return
+    }
+    if (readOnly) return
+    if (event.key === "Enter" || event.key === " " || event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+      event.preventDefault()
+      openMessageActions(messageId)
+    }
+  }
+
   const handleTouchEnd = (messageId: string) => {
     handleLongPressUp()
     if (readOnly) return
@@ -557,13 +581,17 @@ export function MessageList({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
-                      onMouseDown={() => handleLongPressDown(msg.id)}
-                      onMouseUp={handleLongPressUp}
-                      onMouseLeave={handleLongPressUp}
+                      tabIndex={0}
+                      role={readOnly ? undefined : "button"}
+                      aria-label={`Message from ${isMine ? "you" : msg.sender?.name ?? "user"}. ${readOnly ? "Read only" : "Open message actions"}`}
+                      onClick={(event) => handleMessageClick(event, msg.id)}
+                      onContextMenu={(event) => { if (!readOnly) { event.preventDefault(); openMessageActions(msg.id) } }}
+                      onKeyDown={(event) => handleMessageKeyDown(event, msg.id)}
                       onTouchStart={() => handleLongPressDown(msg.id)}
                       onTouchEnd={() => handleTouchEnd(msg.id)}
+                      onTouchCancel={handleLongPressUp}
                       onDoubleClick={() => { if (!readOnly) void toggleReaction(msg.id, "❤️") }}
-                      className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words ${readOnly ? "cursor-default" : "cursor-pointer"} ${
+                      className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${readOnly ? "cursor-default" : "cursor-pointer"} ${
                         msg.is_ai
                           ? "bg-zinc-900 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px]"
                           : isMine
