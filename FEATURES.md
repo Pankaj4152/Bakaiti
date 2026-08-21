@@ -67,6 +67,7 @@
 - [x] Accepted friends can also be removed directly from the friend's profile
 - [x] Social actions are organized into Activity (requests/status), Add friend, and Create group flows
 - [x] Username search shows whether users are friends, a request was sent, or an incoming request can be accepted
+- [x] Accepted friends found through username search can reopen a locally deleted chat and start fresh
 - [x] Previous DM history remains visible to both participants after unfriending, in a clearly locked read-only state
 - [x] Conversation rows support desktop right-click and mobile long-press actions for profile, hide, and group leave
 - [x] Mobile users can swipe right from the left screen edge to open chat navigation without disrupting vertical scrolling

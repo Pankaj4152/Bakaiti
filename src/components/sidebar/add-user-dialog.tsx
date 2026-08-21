@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +23,7 @@ export function AddUserDialog({ open: controlledOpen, onOpenChange, showTrigger 
   const open = controlledOpen ?? internalOpen
   const setOpen = onOpenChange ?? setInternalOpen
   const supabase = createClient()
+  const router = useRouter()
 
   const search = async () => {
     const q = username.toLowerCase().trim()
@@ -66,7 +68,7 @@ export function AddUserDialog({ open: controlledOpen, onOpenChange, showTrigger 
 
   const relationshipAction = () => {
     if (!relationship || relationship.status === "rejected") return <Button className="ml-auto" size="sm" onClick={sendRequest} disabled={loading}>Add friend</Button>
-    if (relationship.status === "accepted") return <span className="ml-auto rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">Friends</span>
+    if (relationship.status === "accepted") return <div className="ml-auto flex items-center gap-2"><span className="rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">Friends</span><Button size="sm" onClick={() => { setOpen(false); router.push(`/chat/${foundUser?.id}`) }}>Open chat</Button></div>
     if (relationship.requester_id === currentUserId) return <span className="ml-auto rounded-full bg-muted px-3 py-1.5 text-xs text-muted-foreground">Request sent</span>
     return <Button className="ml-auto" size="sm" onClick={acceptRequest} disabled={loading}>Accept request</Button>
   }
