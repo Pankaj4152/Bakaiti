@@ -66,6 +66,7 @@
 - [x] Either user can remove a friend without deleting old chat history; removed DMs are hidden and locked
 - [x] Accepted friends can also be removed directly from the friend's profile
 - [x] Social actions are organized into Activity (requests/status), Add friend, and Create group flows
+- [x] Username search shows whether users are friends, a request was sent, or an incoming request can be accepted
 - [x] Help & tips lives in the sidebar footer instead of the primary chat header
 - [x] Vault navigation is temporarily hidden while the route and implementation remain available for later profile integration
 
