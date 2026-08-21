@@ -330,7 +330,9 @@ export function UserList({ onNav }: { onNav?: () => void }) {
                           {convo.lastMessage.isMine ? "You: " : isGroup && convo.lastMessage.senderName ? `${convo.lastMessage.senderName}: ` : ""}
                           {convo.lastMessage.sticker_url ? "sent a sticker" : convo.lastMessage.image_url ? "sent a photo" : convo.lastMessage.audio_url ? "🎤 Voice message" : (convo.lastMessage.content ?? "")}
                         </span>
-                      ) : null}
+                      ) : (
+                        <span className="text-muted-foreground opacity-70 italic">No messages yet</span>
+                      )}
                     </p>
                   </div>
                   {convo.unreadCount > 0 && (
@@ -343,7 +345,6 @@ export function UserList({ onNav }: { onNav?: () => void }) {
             )
           })}
           </div>
-        )}
       </div>
       <div className="border-t p-2">
         <HelpDialog placement="footer" />
