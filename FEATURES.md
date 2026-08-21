@@ -33,7 +33,7 @@
 - [x] Achievements & fun labels
 - [x] Avatar upload
 - [x] Theme selector
-- [x] Lowercase-normalized usernames with application checks and a database unique constraint
+- [x] Lowercase-normalized usernames with application checks and a case-insensitive database unique index
 
 ### Infrastructure
 - [x] Push Notifications (Service Worker + VAPID + Realtime fallback)

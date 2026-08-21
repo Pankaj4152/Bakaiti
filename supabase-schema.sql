@@ -122,6 +122,10 @@ create table if not exists deleted_conversations (
   primary key (user_id, conversation_id)
 );
 
+-- Prevent case variants such as Pankaj and pankaj even outside application APIs.
+create unique index if not exists idx_allowed_users_username_ci
+  on allowed_users (lower(username)) where username is not null;
+
 -- 2b. Conversation participants (for group chats)
 create table if not exists conversation_participants (
   conversation_id uuid not null references conversations(id) on delete cascade,
