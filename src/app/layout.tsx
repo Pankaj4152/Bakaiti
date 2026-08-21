@@ -3,6 +3,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { NotificationProvider } from "@/components/notifications/provider"
 import { RegisterSW } from "@/components/register-sw"
 import { NetworkStatus } from "@/components/network-status"
+import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -44,6 +45,7 @@ export default function RootLayout({
           </NotificationProvider>
           <NetworkStatus />
           <RegisterSW />
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>
