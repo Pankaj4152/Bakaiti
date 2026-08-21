@@ -15,8 +15,13 @@ export function TypingIndicator({
   const supabase = createClient()
 
   useEffect(() => {
+    const topic = `typing:${conversationId}`
+    const existing = supabase.getChannels().find((c) => c.topic === `realtime:${topic}` || c.topic === topic)
+    if (existing) {
+      void supabase.removeChannel(existing)
+    }
     const channel = supabase
-      .channel(`typing:${conversationId}`)
+      .channel(topic)
       .on("broadcast", { event: "typing" }, (payload) => {
         if (payload.payload.userId === otherUserId) {
           setTyping(true)
@@ -27,10 +32,10 @@ export function TypingIndicator({
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      void supabase.removeChannel(channel)
       clearTimeout(timer.current)
     }
-  }, [conversationId, otherUserId])
+  }, [conversationId, otherUserId, supabase])
 
   if (!typing) return null
 

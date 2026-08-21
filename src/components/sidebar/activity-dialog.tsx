@@ -34,7 +34,8 @@ export function ActivityDialog() {
 
   useEffect(() => { void load() }, [load])
   useEffect(() => {
-    const channel = supabase.channel("friend-activity")
+    const channelName = `friend-activity:${Math.random().toString(36).substring(2, 8)}`
+    const channel = supabase.channel(channelName)
       .on("postgres_changes", { event: "*", schema: "public", table: "friend_requests" }, () => void load())
       .subscribe()
     const sync = () => { if (document.visibilityState === "visible") void load() }

@@ -59,8 +59,13 @@ export function PollCard({
 
     // Reload only when a vote belongs to THIS poll (avoids re-fetching every
     // PollCard in the app when a vote happens in another conversation).
+    const topic = `poll:${pollId}`
+    const existing = supabase.getChannels().find((c) => c.topic === `realtime:${topic}` || c.topic === topic)
+    if (existing) {
+      void supabase.removeChannel(existing)
+    }
     const channel = supabase
-      .channel(`poll:${pollId}`)
+      .channel(topic)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "poll_votes" },
@@ -76,8 +81,8 @@ export function PollCard({
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [pollId])
+    return () => { void supabase.removeChannel(channel) }
+  }, [pollId, supabase])
 
   if (loading) return <div className="text-xs text-muted-foreground">Loading poll...</div>
   if (!poll) return null

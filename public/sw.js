@@ -34,7 +34,10 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url)
   if (url.origin === self.location.origin && ["image", "font", "style"].includes(request.destination)) {
     event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok) caches.open(STATIC_CACHE).then((cache) => cache.put(request, response.clone()))
+      if (response.ok) {
+        const responseToCache = response.clone()
+        caches.open(STATIC_CACHE).then((cache) => cache.put(request, responseToCache)).catch(() => {})
+      }
       return response
     })))
   }

@@ -180,8 +180,9 @@ export function UserList({ onNav }: { onNav?: () => void }) {
       if (refreshTimer) clearTimeout(refreshTimer)
       refreshTimer = setTimeout(load, 100)
     }
+    const channelName = `sidebar-sync:${Math.random().toString(36).substring(2, 8)}`
     const channel = supabase
-      .channel("sidebar-conversation-sync")
+      .channel(channelName)
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, scheduleLoad)
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, scheduleLoad)
       .on("postgres_changes", { event: "*", schema: "public", table: "friend_requests" }, scheduleLoad)

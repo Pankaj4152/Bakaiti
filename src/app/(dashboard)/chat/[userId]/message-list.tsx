@@ -308,8 +308,9 @@ export function MessageList({
   }, [loadOlder])
 
   useEffect(() => {
+    const channelName = `messages:${conversationId}:${Math.random().toString(36).substring(2, 8)}`
     const channel = supabase
-      .channel(`messages:${conversationId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -374,8 +375,8 @@ export function MessageList({
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [conversationId, currentUserId])
+    return () => { void supabase.removeChannel(channel) }
+  }, [conversationId, currentUserId, supabase, refreshConversations])
 
   useEffect(() => {
     const updatePageActive = () => setPageActive(document.visibilityState === "visible" && document.hasFocus())
@@ -523,6 +524,11 @@ export function MessageList({
     return Object.values(grouped).sort((a, b) => b.count - a.count)
   }
 
+  const messageIdsRef = useRef(messageIds)
+  useEffect(() => {
+    messageIdsRef.current = messageIds
+  }, [messageIds])
+
   // Keep messageIds in sync with the growing message list
   useEffect(() => {
     setMessageIds(messages.current.map((m) => m.id))
@@ -546,8 +552,9 @@ export function MessageList({
         }
       })
 
+    const channelName = `reactions:${conversationId}:${Math.random().toString(36).substring(2, 8)}`
     const channel = supabase
-      .channel(`reactions:${conversationId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "reactions" },
@@ -557,7 +564,7 @@ export function MessageList({
             const msgId = (payload.new as Reaction)?.message_id ?? (payload.old as Reaction)?.message_id
             if (!msgId) return prev
             // Ignore reactions for messages outside this conversation.
-            if (!ids.includes(msgId)) return prev
+            if (!messageIdsRef.current.includes(msgId)) return prev
             if (payload.eventType === "INSERT") {
               const r = payload.new as Reaction
               next[msgId] = [...(next[msgId] ?? []).filter((x) => !(x.user_id === r.user_id && x.emoji === r.emoji)), r]
@@ -571,8 +578,8 @@ export function MessageList({
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [conversationId, messageIds])
+    return () => { void supabase.removeChannel(channel) }
+  }, [conversationId, supabase])
 
   useEffect(() => {
     if (!pickingEmojiFor) return

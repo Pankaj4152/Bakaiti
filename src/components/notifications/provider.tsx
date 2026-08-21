@@ -106,7 +106,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       // Fallback browser notifications via Realtime (for open background tabs)
       channel = supabase
-        .channel(`notifications-fallback-${profile.id}`)
+        .channel(`notifications-fallback-${profile.id}:${Math.random().toString(36).substring(2, 8)}`)
         .on(
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "messages" },

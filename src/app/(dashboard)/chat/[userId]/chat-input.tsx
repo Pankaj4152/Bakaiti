@@ -129,11 +129,16 @@ export function ChatInput({
   const EFFECTS = ["/confetti", "/fireworks", "/rain", "/glitch"]
 
   useEffect(() => {
-    const channel = supabase.channel(`typing:${conversationId}`)
+    const topic = `typing:${conversationId}`
+    const existing = supabase.getChannels().find((c) => c.topic === `realtime:${topic}` || c.topic === topic)
+    if (existing) {
+      void supabase.removeChannel(existing)
+    }
+    const channel = supabase.channel(topic)
     channel.subscribe()
     typingChannel.current = channel
-    return () => { supabase.removeChannel(channel) }
-  }, [conversationId])
+    return () => { void supabase.removeChannel(channel) }
+  }, [conversationId, supabase])
 
   const broadcastTyping = useCallback(() => {
     if (!typingChannel.current) return
