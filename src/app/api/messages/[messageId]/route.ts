@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getAuthUser } from "@/lib/auth"
 
-const DELETE_WINDOW_MS = 60_000
+const DELETE_WINDOW_MS = 120_000
 
 function storagePath(url: string | null, bucket: string) {
   if (!url) return null
@@ -21,7 +21,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (message.sender_id !== user.id) return NextResponse.json({ error: "You can only delete your own message" }, { status: 403 })
 
   const ageMs = Date.now() - new Date(message.created_at).getTime()
-  if (ageMs < 0 || ageMs > DELETE_WINDOW_MS) return NextResponse.json({ error: "Messages can only be deleted within one minute" }, { status: 410 })
+  if (ageMs < 0 || ageMs > DELETE_WINDOW_MS) return NextResponse.json({ error: "Messages can only be deleted within two minutes" }, { status: 410 })
 
   const { error } = await admin.from("messages").delete().eq("id", message.id).eq("sender_id", user.id)
   if (error) return NextResponse.json({ error: "Failed to delete message" }, { status: 500 })

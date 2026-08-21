@@ -45,7 +45,7 @@
 - [x] Oversized messages become seen after filling at least half of the visible chat viewport
 - [x] Meme generation is limited server-side to one successful send per user every two minutes
 - [x] Instagram-inspired quick reactions with double-click/double-tap heart and realtime counts
-- [x] Senders can delete a message for everyone within one minute, with server-side enforcement
+- [x] Senders can delete a message for everyone within two minutes, with server-side enforcement
 - [x] Vault page (memories, recaps, legendary quotes)
 - [x] PWA (icons, manifest, service worker)
 - [x] Sidebar mobile sheet drawer

@@ -451,6 +451,7 @@ export function MessageList({
   }, [pinned, conversationId, loadPins])
 
   const deleteMessage = useCallback(async (message: Message) => {
+    if (!window.confirm("Delete this message for everyone?")) return
     const previous = messages.current
     messages.current = messages.current.filter((item) => item.id !== message.id)
     setDisplay([...messages.current])
@@ -679,8 +680,8 @@ export function MessageList({
                         <Pin className="h-3 w-3" />
                       </button>
                       <button onClick={() => { void toggleReaction(msg.id, "❤️"); setPickingEmojiFor(null) }} className="text-muted-foreground hover:text-red-500 transition-colors" title="Heart" aria-label="React with heart"><Heart className="h-3.5 w-3.5" /></button>
-                      {isMine && Date.now() - new Date(msg.created_at).getTime() <= 60_000 && (
-                        <button onClick={() => void deleteMessage(msg)} className="text-muted-foreground hover:text-destructive transition-colors" title="Delete for everyone" aria-label="Delete message for everyone"><Trash2 className="h-3.5 w-3.5" /></button>
+                      {isMine && Date.now() - new Date(msg.created_at).getTime() <= 120_000 && (
+                        <button onClick={() => void deleteMessage(msg)} className="flex items-center gap-1 rounded-full px-2 py-1 text-xs text-destructive hover:bg-destructive/10 transition-colors" title="Delete for everyone" aria-label="Delete message for everyone"><Trash2 className="h-3.5 w-3.5" /><span>Delete</span></button>
                       )}
                       {msg.content && !msg.sticker_url && !msg.poll_id && (
                         <TranslateButton text={msg.content} />
