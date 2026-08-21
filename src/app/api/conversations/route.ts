@@ -52,8 +52,9 @@ export async function GET() {
   // Ensure all accepted friends appear in the conversation list
   if (friendRequests) {
     for (const fr of friendRequests) {
-      const friend = fr.requester_id === user.id ? fr.recipient : fr.requester
-      if (friend && !existingOtherUserIds.has(friend.id)) {
+      const rawFriend = fr.requester_id === user.id ? fr.recipient : fr.requester
+      const friend = (Array.isArray(rawFriend) ? rawFriend[0] : rawFriend) as any
+      if (friend && friend.id && !existingOtherUserIds.has(friend.id)) {
         existingOtherUserIds.add(friend.id)
         processedRows.push({
           id: `friend-${friend.id}`,

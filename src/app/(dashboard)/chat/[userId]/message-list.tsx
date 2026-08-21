@@ -11,7 +11,7 @@ import { MessageEffect } from "@/components/chat/message-effects"
 import { PollCard } from "@/components/chat/poll-card"
 import { GlitchEffect } from "@/components/chat/glitch-effect"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
-import { Heart, Pin, SmilePlus, Trash2 } from "lucide-react"
+import { Heart, Pin, Trash2 } from "lucide-react"
 import { TranslateButton } from "@/components/chat/translate-button"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
@@ -42,6 +42,9 @@ export function MessageList({
 }) {
   const messages = useRef<Message[]>(initialMessages)
   const [display, setDisplay] = useState<Message[]>(initialMessages)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  const [hasMore, setHasMore] = useState(initialMessages.length >= 50)
+  const oldestRef = useRef<string | null>(initialMessages[0]?.created_at ?? null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
   const { refreshConversations } = useSidebar()
@@ -110,7 +113,7 @@ export function MessageList({
     if (readOnly) return
     const target = event.target as HTMLElement
     if (target.closest("button, a, input, textarea, select, audio, video, img")) return
-    openMessageActions(messageId)
+    setPickingEmojiFor((prev) => (prev === messageId ? null : messageId))
   }
 
   const handleMessageKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, messageId: string) => {
@@ -133,6 +136,8 @@ export function MessageList({
       longPressTriggered.current = false
       return
     }
+    setPickingEmojiFor((prev) => (prev === messageId ? null : messageId))
+  }
 
   const loadOlder = useCallback(async () => {
     if (loadingOlder || !hasMore || !oldestRef.current) return
@@ -289,6 +294,8 @@ export function MessageList({
         .catch(() => visibleIds.forEach((id) => unreadIds.add(id)))
     }, { root: scrollContainerRef.current, threshold: Array.from({ length: 101 }, (_, index) => index / 100) })
 
+    return () => observer.disconnect()
+  }, [conversationId, currentUserId, display, pageActive, refreshConversations])
 
   useEffect(() => {
     const el = scrollContainerRef.current
@@ -805,77 +812,61 @@ export function MessageList({
                       {g.emoji} {g.count > 1 ? g.count : ""}
                     </button>
                   ))}
-                  {!readOnly && (pickingEmojiFor === msg.id ? (
-                    <div data-emoji-picker className="flex items-center gap-1 bg-popover border rounded-full px-2 py-1 shadow-lg animate-in fade-in zoom-in-95">
+                  {!readOnly && pickingEmojiFor === msg.id && (
+                    <div data-emoji-picker className="flex items-center gap-1 bg-popover border rounded-full px-2.5 py-1 shadow-lg animate-in fade-in zoom-in-95">
                       {EMOJI_LIST.map((emoji) => (
                         <button
                           key={emoji}
                           onClick={() => { toggleReaction(msg.id, emoji); setPickingEmojiFor(null) }}
-                          className="text-sm hover:scale-125 transition-transform"
+                          className="text-base hover:scale-125 transition-transform"
                         >
                           {emoji}
                         </button>
                       ))}
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => setPickingEmojiFor(msg.id)}
-                      className="h-6 w-6 rounded-full border bg-background/90 text-muted-foreground shadow-sm opacity-100 md:opacity-0 md:group-hover/message:opacity-100 focus:opacity-100 hover:text-foreground hover:bg-accent transition-all flex items-center justify-center"
-                      title="React to message"
-                      aria-label="React to message"
-                    >
-                      <SmilePlus className="h-3.5 w-3.5" />
-                    </button>
-                  ))}
-                  {pickingEmojiFor === msg.id && (
-                    <>
-                      <button
-                        onClick={() => togglePin(msg)}
-                        className={`text-xs hover:text-foreground transition-colors ${
-                          pinned.some((p) => p.message_id === msg.id) ? "text-primary" : "text-muted-foreground"
-                        }`}
-                        title={pinned.some((p) => p.message_id === msg.id) ? "Unpin" : "Pin message"}
-                        aria-label={pinned.some((p) => p.message_id === msg.id) ? "Unpin message" : "Pin message"}
-                      >
-                        <Pin className="h-3 w-3" />
-                      </button>
-                      <button onClick={() => { void toggleReaction(msg.id, "❤️"); setPickingEmojiFor(null) }} className="text-muted-foreground hover:text-red-500 transition-colors" title="Heart" aria-label="React with heart"><Heart className="h-3.5 w-3.5" /></button>
-                      {isMine && Date.now() - new Date(msg.created_at).getTime() <= 120_000 && (
-                        <button onClick={() => void deleteMessage(msg)} className="flex items-center gap-1 rounded-full px-2 py-1 text-xs text-destructive hover:bg-destructive/10 transition-colors" title="Delete for everyone" aria-label="Delete message for everyone"><Trash2 className="h-3.5 w-3.5" /><span>Delete</span></button>
-                      )}
-                      {msg.content && !msg.sticker_url && !msg.poll_id && (
-                        <TranslateButton text={msg.content} />
-                      )}
-                    </>
                   )}
                 </div>
               </div>
             </div>
           </div>
         )
-      })}`
+      })}
       <div ref={bottomRef} />
     </div>
     <Dialog open={!!actionMessage} onOpenChange={(open) => { if (!open) setActionMessageId(null) }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Message actions</DialogTitle>
-          <DialogDescription>React or manage this message.</DialogDescription>
+          <DialogTitle>Message details & actions</DialogTitle>
+          <DialogDescription>
+            {actionMessage && `Sent ${formatMessageTime(actionMessage.created_at)}`}
+          </DialogDescription>
         </DialogHeader>
         {actionMessage && (
           <div className="space-y-3">
             <div className="flex items-center justify-center gap-1 rounded-xl bg-muted/60 p-2">
               {EMOJI_LIST.map((emoji) => (
-                <button key={emoji} className="rounded-lg p-2 text-xl transition-transform hover:scale-125 hover:bg-background" onClick={() => { void toggleReaction(actionMessage.id, emoji); setActionMessageId(null) }} aria-label={`React ${emoji}`}>{emoji}</button>
+                <button
+                  key={emoji}
+                  className="rounded-lg p-2 text-xl transition-transform hover:scale-125 hover:bg-background"
+                  onClick={() => { void toggleReaction(actionMessage.id, emoji); setActionMessageId(null) }}
+                  aria-label={`React ${emoji}`}
+                >
+                  {emoji}
+                </button>
               ))}
             </div>
             <div className="grid gap-1">
-              <Button variant="ghost" className="justify-start" onClick={() => { void togglePin(actionMessage); setActionMessageId(null) }}>
-                <Pin /> {pinned.some((pin) => pin.message_id === actionMessage.id) ? "Unpin message" : "Pin message"}
+              <Button variant="ghost" className="justify-start gap-2" onClick={() => { void togglePin(actionMessage); setActionMessageId(null) }}>
+                <Pin className="h-4 w-4" /> {pinned.some((pin) => pin.message_id === actionMessage.id) ? "Unpin message" : "Pin message"}
               </Button>
+              {actionMessage.content && !actionMessage.sticker_url && !actionMessage.poll_id && (
+                <div className="px-2 py-1">
+                  <TranslateButton text={actionMessage.content} />
+                </div>
+              )}
               {actionMessage.sender_id === currentUserId && Date.now() - new Date(actionMessage.created_at).getTime() <= 120_000 && (
-                <Button variant="ghost" className="justify-start text-destructive hover:text-destructive" onClick={() => { setActionMessageId(null); void deleteMessage(actionMessage) }}>
-                  <Trash2 /> Delete for everyone
+                <Button variant="ghost" className="justify-start gap-2 text-destructive hover:text-destructive" onClick={() => { setActionMessageId(null); void deleteMessage(actionMessage) }}>
+                  <Trash2 className="h-4 w-4" /> Delete for everyone
                 </Button>
               )}
             </div>
