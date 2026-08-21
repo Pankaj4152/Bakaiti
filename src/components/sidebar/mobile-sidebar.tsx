@@ -9,10 +9,14 @@ export function MobileSidebar() {
   const swipe = useRef<{ startX: number; startY: number; lastX: number; lastY: number } | null>(null)
 
   useEffect(() => {
-    if (open || window.matchMedia("(min-width: 768px)").matches) return
+    if (window.matchMedia("(min-width: 768px)").matches) return
     const start = (event: TouchEvent) => {
       const touch = event.touches[0]
-      if (!touch || touch.clientX > 48) { swipe.current = null; return }
+      if (!touch) { swipe.current = null; return }
+      if (!open && touch.clientX > Math.max(120, window.innerWidth * 0.35)) {
+        swipe.current = null
+        return
+      }
       swipe.current = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY }
     }
     const move = (event: TouchEvent) => {
@@ -23,7 +27,9 @@ export function MobileSidebar() {
       swipe.current.lastY = touch.clientY
       const horizontal = touch.clientX - swipe.current.startX
       const vertical = Math.abs(touch.clientY - swipe.current.startY)
-      if (horizontal > 8 && horizontal > vertical * 1.25 && event.cancelable) event.preventDefault()
+      if (Math.abs(horizontal) > 8 && Math.abs(horizontal) > vertical * 1.25 && event.cancelable) {
+        event.preventDefault()
+      }
     }
     const finish = () => {
       const gesture = swipe.current
@@ -31,7 +37,11 @@ export function MobileSidebar() {
       if (!gesture) return
       const horizontal = gesture.lastX - gesture.startX
       const vertical = Math.abs(gesture.lastY - gesture.startY)
-      if (horizontal >= 52 && vertical <= 60 && horizontal > vertical * 1.25) setOpen(true)
+      if (!open && horizontal >= 45 && vertical <= 80 && horizontal > vertical * 1.2) {
+        setOpen(true)
+      } else if (open && horizontal <= -45 && vertical <= 80 && Math.abs(horizontal) > vertical * 1.2) {
+        setOpen(false)
+      }
     }
     const cancel = () => { swipe.current = null }
     document.addEventListener("touchstart", start, { passive: true, capture: true })
