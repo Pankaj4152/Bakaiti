@@ -5,14 +5,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button"
 import { HelpCircle } from "lucide-react"
 
-export function HelpDialog() {
+export function HelpDialog({ placement = "icon" }: { placement?: "icon" | "footer" }) {
   const [open, setOpen] = useState(false)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button className="shrink-0 h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors" title="Help & Commands">
+        <button className={placement === "footer" ? "w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors" : "shrink-0 h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors"} title="Help & Commands">
           <HelpCircle className="h-4 w-4" />
+          {placement === "footer" && <span>Help & tips</span>}
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
@@ -70,7 +71,6 @@ export function HelpDialog() {
               <li>Type <strong>/</strong> in the input to browse all commands</li>
               <li>Mention <strong>@Bakait</strong> to chat directly with the AI</li>
               <li>Click <strong>+</strong> to find users or create group chats</li>
-              <li>Visit <strong>The Vault</strong> for AI-generated memories and daily recaps</li>
               <li>Green dot = <strong>online now</strong> (active in last 2 minutes)</li>
               <li>Click profile avatar to see stats and achievements</li>
             </ul>

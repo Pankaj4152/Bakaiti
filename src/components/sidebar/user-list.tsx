@@ -6,7 +6,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { MessageCircle, Archive, LogOut, Users } from "lucide-react"
+import { MessageCircle, LogOut, Users } from "lucide-react"
 import { NewActionsDialog } from "./new-actions-dialog"
 import { ActivityDialog } from "./activity-dialog"
 import { HelpDialog } from "./help-dialog"
@@ -125,10 +125,6 @@ export function UserList({ onNav }: { onNav?: () => void }) {
         </button>
         <h1 className="font-bold text-lg flex-1">Bakaiti</h1>
         <ActivityDialog />
-        <button onClick={() => { onNav?.(); router.push("/vault") }} className="shrink-0 h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors" title="The Vault">
-          <Archive className="h-4 w-4" />
-        </button>
-        <HelpDialog />
         <NewActionsDialog />
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -247,6 +243,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
         )}
       </div>
       <div className="border-t p-2">
+        <HelpDialog placement="footer" />
         <button
           onClick={async () => {
             await supabase.auth.signOut()
