@@ -29,10 +29,12 @@ export function MessageList({
   messages: initialMessages,
   currentUserId,
   conversationId,
+  readOnly = false,
 }: {
   messages: Message[]
   currentUserId: string
   conversationId: string
+  readOnly?: boolean
 }) {
   const messages = useRef<Message[]>(initialMessages)
   const [display, setDisplay] = useState<Message[]>(initialMessages)
@@ -60,6 +62,7 @@ export function MessageList({
   }
 
   const handleLongPressDown = (msgId: string) => {
+    if (readOnly) return
     longPressTimer.current = setTimeout(() => {
       setPickingEmojiFor((prev) => (prev === msgId ? null : msgId))
     }, 500)
@@ -74,6 +77,7 @@ export function MessageList({
 
   const handleTouchEnd = (messageId: string) => {
     handleLongPressUp()
+    if (readOnly) return
     const now = Date.now()
     if (lastTap.current?.messageId === messageId && now - lastTap.current.at < 320) {
       void toggleReaction(messageId, "❤️")
@@ -274,6 +278,7 @@ export function MessageList({
   }, [conversationId])
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (readOnly) return
     const existing = (reactions[messageId] ?? []).find((r) => r.user_id === currentUserId && r.emoji === emoji)
 
     // Optimistic Update
@@ -314,7 +319,7 @@ export function MessageList({
         return next
       })
     }
-  }, [reactions, currentUserId, supabase])
+  }, [readOnly, reactions, currentUserId, supabase])
 
   const groupReactions = (messageId: string) => {
     const msgReactions = reactions[messageId] ?? []
@@ -553,8 +558,8 @@ export function MessageList({
                       onMouseLeave={handleLongPressUp}
                       onTouchStart={() => handleLongPressDown(msg.id)}
                       onTouchEnd={() => handleTouchEnd(msg.id)}
-                      onDoubleClick={() => void toggleReaction(msg.id, "❤️")}
-                      className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words cursor-pointer ${
+                      onDoubleClick={() => { if (!readOnly) void toggleReaction(msg.id, "❤️") }}
+                      className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words ${readOnly ? "cursor-default" : "cursor-pointer"} ${
                         msg.is_ai
                           ? "bg-zinc-900 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px]"
                           : isMine
@@ -596,7 +601,8 @@ export function MessageList({
                   {groupReactions(msg.id).map((g) => (
                     <button
                       key={g.emoji}
-                      onClick={() => toggleReaction(msg.id, g.emoji)}
+                      onClick={() => { if (!readOnly) toggleReaction(msg.id, g.emoji) }}
+                      disabled={readOnly}
                       className={`text-xs px-2 py-0.5 rounded-full border shadow-sm transition-all hover:scale-105 ${
                         g.mine
                           ? "bg-primary/20 border-primary/40 text-primary"
@@ -606,7 +612,7 @@ export function MessageList({
                       {g.emoji} {g.count > 1 ? g.count : ""}
                     </button>
                   ))}
-                  {pickingEmojiFor === msg.id ? (
+                  {!readOnly && (pickingEmojiFor === msg.id ? (
                     <div data-emoji-picker className="flex items-center gap-1 bg-popover border rounded-full px-2 py-1 shadow-lg animate-in fade-in zoom-in-95">
                       {EMOJI_LIST.map((emoji) => (
                         <button
@@ -627,7 +633,7 @@ export function MessageList({
                     >
                       <SmilePlus className="h-3.5 w-3.5" />
                     </button>
-                  )}
+                  ))}
                   {pickingEmojiFor === msg.id && (
                     <>
                       <button

@@ -58,8 +58,6 @@ export default async function ConversationPage({
     .or(`and(requester_id.eq.${user1Id},recipient_id.eq.${user2Id}),and(requester_id.eq.${user2Id},recipient_id.eq.${user1Id})`)
     .maybeSingle()
 
-  if (!friendship) redirect("/chat")
-
   const { data: existingConvo } = await supabase
     .from("conversations")
     .select("id")
@@ -104,11 +102,16 @@ export default async function ConversationPage({
         messages={messages ?? []}
         currentUserId={currentUser.id}
         conversationId={conversationId}
+        readOnly={!friendship}
       />
-      <ChatInput
-        conversationId={conversationId}
-        senderId={currentUser.id}
-      />
+      {friendship ? (
+        <ChatInput conversationId={conversationId} senderId={currentUser.id} />
+      ) : (
+        <div className="border-t bg-muted/40 px-4 py-3 text-center">
+          <p className="text-sm font-medium">You are no longer friends</p>
+          <p className="text-xs text-muted-foreground">You can read this chat history. Send a friend request to start messaging again.</p>
+        </div>
+      )}
     </div>
   )
 }

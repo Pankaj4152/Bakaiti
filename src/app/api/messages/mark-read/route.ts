@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const user = await getAuthUser()
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
 
-  if (!(await isConversationMember(user.id, conversationId))) {
+  if (!(await isConversationMember(user.id, conversationId, false))) {
     return NextResponse.json({ error: "Not a conversation member" }, { status: 403 })
   }
 

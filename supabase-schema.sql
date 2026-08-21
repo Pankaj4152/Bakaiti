@@ -385,16 +385,7 @@ returns json as $$
       and read = false
       and sender_id != my_user_id
   ) uc on true
-  where (
-    c.type = 'dm'
-    and (c.user1_id = my_user_id or c.user2_id = my_user_id)
-    and exists (
-      select 1 from friend_requests f
-      where f.status = 'accepted'
-        and ((f.requester_id = c.user1_id and f.recipient_id = c.user2_id)
-          or (f.requester_id = c.user2_id and f.recipient_id = c.user1_id))
-    )
-  ) or (
+  where (c.type = 'dm' and (c.user1_id = my_user_id or c.user2_id = my_user_id)) or (
     c.type = 'group' and exists (
       select 1 from conversation_participants where conversation_id = c.id and user_id = my_user_id
     )
@@ -801,6 +792,24 @@ as $$
   );
 $$;
 
+-- Previous DM participants retain read-only access to their shared history.
+create or replace function is_conversation_participant(p_conversation_id uuid, p_user_id uuid)
+returns boolean
+language sql stable security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from conversations c
+    where c.id = p_conversation_id and (
+      (c.type = 'dm' and p_user_id in (c.user1_id, c.user2_id))
+      or (c.type = 'group' and exists (
+        select 1 from conversation_participants p
+        where p.conversation_id = c.id and p.user_id = p_user_id
+      ))
+    )
+  );
+$$;
+
 drop policy if exists "users can read own friend requests" on friend_requests;
 create policy "users can read own friend requests" on friend_requests for select to authenticated
   using (requester_id = current_user_id() or recipient_id = current_user_id());
@@ -816,7 +825,7 @@ drop policy if exists "authenticated can read conversations" on conversations;
 drop policy if exists "users can read own conversations" on conversations;
 create policy "users can read own conversations" on conversations for select to authenticated
   using (
-    is_active_conversation_member(id, current_user_id())
+    is_conversation_participant(id, current_user_id())
   );
 
 drop policy if exists "authenticated can insert conversations" on conversations;
@@ -857,7 +866,7 @@ drop policy if exists "can read own conversations messages" on messages;
 create policy "can read own conversations messages"
   on messages for select to authenticated
   using (
-    is_active_conversation_member(conversation_id, current_user_id())
+    is_conversation_participant(conversation_id, current_user_id())
   );
 
 drop policy if exists "authenticated can update messages" on messages;
@@ -865,7 +874,7 @@ drop policy if exists "can update read flag own conversations" on messages;
 create policy "can update read flag own conversations"
   on messages for update to authenticated
   using (
-    is_active_conversation_member(conversation_id, current_user_id())
+    is_conversation_participant(conversation_id, current_user_id())
   );
 
 drop policy if exists "users can delete own recent messages" on messages;
@@ -879,7 +888,7 @@ create policy "can read own conversation reactions"
   on reactions for select to authenticated
   using (
     exists (select 1 from messages m where m.id = reactions.message_id
-      and is_active_conversation_member(m.conversation_id, current_user_id()))
+      and is_conversation_participant(m.conversation_id, current_user_id()))
   );
 
 drop policy if exists "authenticated can insert reactions" on reactions;

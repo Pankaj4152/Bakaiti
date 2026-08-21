@@ -41,7 +41,7 @@ export async function requireAuth() {
 }
 
 // Verify an authenticated user is a participant of a conversation (DM or group).
-export async function isConversationMember(userId: string, conversationId: string): Promise<boolean> {
+export async function isConversationMember(userId: string, conversationId: string, requireActiveFriendship = true): Promise<boolean> {
   const admin = createAdminClient()
   const { data: convo } = await admin
     .from("conversations")
@@ -51,6 +51,7 @@ export async function isConversationMember(userId: string, conversationId: strin
 
   if (!convo) return false
   if (convo.type === "dm" && (convo.user1_id === userId || convo.user2_id === userId)) {
+    if (!requireActiveFriendship) return true
     const { data: friendship } = await admin
       .from("friend_requests")
       .select("id")
