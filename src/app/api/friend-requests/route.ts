@@ -9,7 +9,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const admin = createAdminClient()
   const { data, error } = await admin.from("friend_requests")
-    .select("id, requester_id, recipient_id, status, created_at, requester:allowed_users!requester_id(id,name,username,avatar_url), recipient:allowed_users!recipient_id(id,name,username,avatar_url)")
+    .select("id, requester_id, recipient_id, status, created_at, responded_at, requester:allowed_users!requester_id(id,name,username,avatar_url), recipient:allowed_users!recipient_id(id,name,username,avatar_url)")
     .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`).order("created_at", { ascending: false })
   if (error) return NextResponse.json({ error: "Failed to load friend requests" }, { status: 500 })
   return NextResponse.json({ data: data ?? [], currentUserId: user.id })
@@ -72,15 +72,16 @@ export async function DELETE(request: Request) {
   const admin = createAdminClient()
   const { data: friendship } = await admin
     .from("friend_requests")
-    .select("id")
+    .select("id, requester_id, status")
     .eq("id", body.requestId)
-    .eq("status", "accepted")
     .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
     .maybeSingle()
 
-  if (!friendship) return NextResponse.json({ error: "Friendship not found" }, { status: 404 })
+  if (!friendship || (friendship.status === "pending" && friendship.requester_id !== user.id) || !["accepted", "pending"].includes(friendship.status)) {
+    return NextResponse.json({ error: "Friendship or sent request not found" }, { status: 404 })
+  }
 
   const { error } = await admin.from("friend_requests").delete().eq("id", friendship.id)
-  if (error) return NextResponse.json({ error: "Failed to remove friend" }, { status: 500 })
+  if (error) return NextResponse.json({ error: friendship.status === "pending" ? "Failed to cancel request" : "Failed to remove friend" }, { status: 500 })
   return NextResponse.json({ success: true })
 }
