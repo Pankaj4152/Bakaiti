@@ -14,6 +14,8 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { Heart, Pin, SmilePlus, Trash2 } from "lucide-react"
 import { TranslateButton } from "@/components/chat/translate-button"
 import { format } from "date-fns"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const EMOJI_LIST = ["😂", "🔥", "💀", "❤️", "😭", "🥹"]
 
@@ -45,9 +47,11 @@ export function MessageList({
   const { refreshConversations } = useSidebar()
   const senderCache = useRef<Record<string, any>>({})
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressTriggered = useRef(false)
   const lastTap = useRef<{ messageId: string; at: number } | null>(null)
   const [reactions, setReactions] = useState<Record<string, Reaction[]>>({})
   const [pickingEmojiFor, setPickingEmojiFor] = useState<string | null>(null)
+  const [actionMessageId, setActionMessageId] = useState<string | null>(null)
   const [pinned, setPinned] = useState<Pin[]>([])
   const [messageIds, setMessageIds] = useState<string[]>(initialMessages.map((m) => m.id))
   const [pageActive, setPageActive] = useState(() => typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus())
@@ -65,8 +69,10 @@ export function MessageList({
 
   const handleLongPressDown = (msgId: string) => {
     if (readOnly) return
+    longPressTriggered.current = false
     longPressTimer.current = setTimeout(() => {
-      setPickingEmojiFor((prev) => (prev === msgId ? null : msgId))
+      longPressTriggered.current = true
+      setActionMessageId(msgId)
     }, 500)
   }
 
@@ -79,7 +85,7 @@ export function MessageList({
 
   const openMessageActions = (messageId: string) => {
     if (readOnly) return
-    setPickingEmojiFor((current) => current === messageId ? null : messageId)
+    setActionMessageId(messageId)
   }
 
   const handleMessageClick = (event: React.MouseEvent<HTMLDivElement>, messageId: string) => {
@@ -92,6 +98,7 @@ export function MessageList({
   const handleMessageKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, messageId: string) => {
     if (event.key === "Escape") {
       setPickingEmojiFor(null)
+      setActionMessageId(null)
       return
     }
     if (readOnly) return
@@ -104,6 +111,10 @@ export function MessageList({
   const handleTouchEnd = (messageId: string) => {
     handleLongPressUp()
     if (readOnly) return
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false
+      return
+    }
     const now = Date.now()
     if (lastTap.current?.messageId === messageId && now - lastTap.current.at < 320) {
       void toggleReaction(messageId, "❤️")
@@ -510,8 +521,11 @@ export function MessageList({
   const isSameSender = (i: number) =>
     i > 0 && display[i].sender_id === display[i - 1].sender_id
 
+  const actionMessage = actionMessageId ? display.find((message) => message.id === actionMessageId) ?? null : null
+
   return (
     <TooltipProvider>
+    <>
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1" ref={scrollContainerRef}>
       {pinned.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 pb-2 mb-2 border-b border-dashed border-border">
@@ -589,6 +603,7 @@ export function MessageList({
                       onContextMenu={(event) => { if (!readOnly) { event.preventDefault(); openMessageActions(msg.id) } }}
                       onKeyDown={(event) => handleMessageKeyDown(event, msg.id)}
                       onTouchStart={() => handleLongPressDown(msg.id)}
+                      onTouchMove={handleLongPressUp}
                       onTouchEnd={() => handleTouchEnd(msg.id)}
                       onTouchCancel={handleLongPressUp}
                       onDoubleClick={() => { if (!readOnly) void toggleReaction(msg.id, "❤️") }}
@@ -696,6 +711,34 @@ export function MessageList({
       })}
       <div ref={bottomRef} />
     </div>
+    <Dialog open={!!actionMessage} onOpenChange={(open) => { if (!open) setActionMessageId(null) }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Message actions</DialogTitle>
+          <DialogDescription>React or manage this message.</DialogDescription>
+        </DialogHeader>
+        {actionMessage && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-center gap-1 rounded-xl bg-muted/60 p-2">
+              {EMOJI_LIST.map((emoji) => (
+                <button key={emoji} className="rounded-lg p-2 text-xl transition-transform hover:scale-125 hover:bg-background" onClick={() => { void toggleReaction(actionMessage.id, emoji); setActionMessageId(null) }} aria-label={`React ${emoji}`}>{emoji}</button>
+              ))}
+            </div>
+            <div className="grid gap-1">
+              <Button variant="ghost" className="justify-start" onClick={() => { void togglePin(actionMessage); setActionMessageId(null) }}>
+                <Pin /> {pinned.some((pin) => pin.message_id === actionMessage.id) ? "Unpin message" : "Pin message"}
+              </Button>
+              {actionMessage.sender_id === currentUserId && Date.now() - new Date(actionMessage.created_at).getTime() <= 120_000 && (
+                <Button variant="ghost" className="justify-start text-destructive hover:text-destructive" onClick={() => { setActionMessageId(null); void deleteMessage(actionMessage) }}>
+                  <Trash2 /> Delete for everyone
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
     </TooltipProvider>
   )
 }
