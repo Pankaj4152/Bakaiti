@@ -26,7 +26,7 @@ The `/meme` command can send one generated meme every two minutes per user. If i
 
 React from the smile button beside a message, or double-click/double-tap a message to quickly add a heart. Tap an existing reaction pill to add or remove your own reaction.
 
-Open the action menu on your own message and choose the trash icon to delete it for everyone. The option is available for one minute after sending; the server also enforces the deadline.
+Open the action menu on your own message and choose **Delete for everyone**. The option is available for two minutes after sending, and the server also enforces the deadline.
 
 ## Groups
 
