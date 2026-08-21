@@ -4,6 +4,8 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { MessageCircle, Users } from "lucide-react"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { computeUserStats, getAchievements, getFunLabels, type ComputedStats } from "@/lib/stats"
 import { ProfileBackButton } from "./profile-header"
@@ -47,6 +49,17 @@ export default async function ProfilePage({
       friendshipId = friendship?.id ?? null
     }
   }
+
+  // Fetch accepted friends to display directly in Profile tab
+  const { data: friendsData } = await supabase
+    .from("friend_requests")
+    .select("id, requester_id, recipient_id, requester:allowed_users!requester_id(id, name, username, avatar_url), recipient:allowed_users!recipient_id(id, name, username, avatar_url)")
+    .eq("status", "accepted")
+    .or(`requester_id.eq.${userId},recipient_id.eq.${userId}`)
+
+  const friendsList = (friendsData ?? []).map((item: any) =>
+    item.requester_id === userId ? item.recipient : item.requester
+  ).filter(Boolean)
 
   let stats: ComputedStats
   try {
@@ -99,6 +112,43 @@ export default async function ProfilePage({
                   <Badge key={l.label} variant="secondary" className="text-xs">
                     {l.emoji} {l.label}
                   </Badge>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Friends Card directly on Profile Tab */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Friends ({friendsList.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {friendsList.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2 text-center">No friends added yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {friendsList.map((friend: any) => (
+                  <div key={friend.id} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                    <Link href={`/profile/${friend.id}`} className="flex items-center gap-3 min-w-0 flex-1">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={friend.avatar_url ?? undefined} />
+                        <AvatarFallback>{friend.name[0]?.toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{friend.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
+                      </div>
+                    </Link>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" asChild title={`Chat with ${friend.name}`}>
+                      <Link href={`/chat/${friend.id}`}>
+                        <MessageCircle className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
                 ))}
               </div>
             )}
