@@ -343,6 +343,8 @@ returns json as $$
     'id', c.id,
     'type', c.type,
     'name', c.name,
+    'adminId', c.admin_id,
+    'creatorId', c.user1_id,
     'otherUser', case when c.type = 'group' then null else json_build_object(
       'id', u.id,
       'name', u.name,

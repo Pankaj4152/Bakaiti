@@ -6,7 +6,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { MessageCircle, LogOut, Users } from "lucide-react"
+import { MessageCircle, LogOut, Users, Archive, UserRound, LogOutIcon, Trash2 } from "lucide-react"
 import { NewActionsDialog } from "./new-actions-dialog"
 import { ActivityDialog } from "./activity-dialog"
 import { HelpDialog } from "./help-dialog"
@@ -14,6 +14,8 @@ import { useSidebar } from "./sidebar-context"
 import { useNicknames } from "@/components/chat/use-nicknames"
 import { useOnlineUsers } from "@/lib/realtime-presence"
 import { RoundLoader } from "@/components/ui/round-loader"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface Participant {
   id: string; name: string; avatar_url: string | null
@@ -23,6 +25,8 @@ interface ConversationItem {
   id: string
   type: string
   name: string | null
+  adminId: string | null
+  creatorId: string
   otherUser: { id: string; name: string; username: string; avatar_url: string | null; last_seen: string | null } | null
   participants: Participant[] | null
   lastMessage: { content: string; created_at: string; isMine: boolean; senderName?: string | null; audio_url?: string; image_url?: string; sticker_url?: string } | null
@@ -50,13 +54,84 @@ export function UserList({ onNav }: { onNav?: () => void }) {
   const [conversations, setConversations] = useState<ConversationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [myProfile, setMyProfile] = useState<{ id: string; name: string; username: string; avatar_url: string | null } | null>(null)
+  const [contextConversation, setContextConversation] = useState<ConversationItem | null>(null)
+  const [contextError, setContextError] = useState("")
+  const [contextLoading, setContextLoading] = useState(false)
   const router = useRouter()
   const params = useParams()
   const supabase = useMemo(() => createClient(), [])
   const { refreshKey } = useSidebar()
   const hasLoaded = useRef(false)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const suppressNavigation = useRef(false)
   const nicknames = useNicknames()
   const onlineSet = useOnlineUsers()
+
+  const openContextMenu = (conversation: ConversationItem) => {
+    setContextError("")
+    setContextConversation(conversation)
+  }
+
+  const startLongPress = (conversation: ConversationItem) => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    longPressTimer.current = setTimeout(() => {
+      suppressNavigation.current = true
+      navigator.vibrate?.(25)
+      openContextMenu(conversation)
+    }, 550)
+  }
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
+  }
+
+  const hideConversation = async () => {
+    if (!contextConversation) return
+    setContextLoading(true); setContextError("")
+    const response = await fetch("/api/conversations/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId: contextConversation.id }) })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) setContextError(result.error ?? "Could not hide chat")
+    else {
+      setConversations((items) => items.filter((item) => item.id !== contextConversation.id))
+      setContextConversation(null)
+      router.push("/chat")
+      router.refresh()
+    }
+    setContextLoading(false)
+  }
+
+  const leaveGroup = async () => {
+    if (!contextConversation) return
+    if (!window.confirm(`Leave ${contextConversation.name ?? "this group"}?`)) return
+    setContextLoading(true); setContextError("")
+    const response = await fetch("/api/group/leave", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId: contextConversation.id }) })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) setContextError(result.error ?? "Could not leave group")
+    else {
+      setConversations((items) => items.filter((item) => item.id !== contextConversation.id))
+      setContextConversation(null)
+      router.push("/chat")
+      router.refresh()
+    }
+    setContextLoading(false)
+  }
+
+  const deleteGroup = async () => {
+    if (!contextConversation) return
+    if (!window.confirm(`Delete ${contextConversation.name ?? "this group"} for everyone? This cannot be undone.`)) return
+    setContextLoading(true); setContextError("")
+    const response = await fetch(`/api/group?conversationId=${encodeURIComponent(contextConversation.id)}`, { method: "DELETE" })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) setContextError(result.error ?? "Could not delete group")
+    else {
+      setConversations((items) => items.filter((item) => item.id !== contextConversation.id))
+      setContextConversation(null)
+      router.push("/chat")
+      router.refresh()
+    }
+    setContextLoading(false)
+  }
 
   const load = useCallback(() => {
     fetch("/api/conversations")
@@ -183,7 +258,19 @@ export function UserList({ onNav }: { onNav?: () => void }) {
               <Link
                 key={convo.id}
                 href={href}
-                onClick={() => onNav?.()}
+                onClick={(event) => {
+                  if (suppressNavigation.current) {
+                    event.preventDefault()
+                    suppressNavigation.current = false
+                    return
+                  }
+                  onNav?.()
+                }}
+                onContextMenu={(event) => { event.preventDefault(); openContextMenu(convo) }}
+                onTouchStart={() => startLongPress(convo)}
+                onTouchEnd={cancelLongPress}
+                onTouchCancel={cancelLongPress}
+                onTouchMove={cancelLongPress}
                 prefetch={true}
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left block",
@@ -256,6 +343,34 @@ export function UserList({ onNav }: { onNav?: () => void }) {
           Logout
         </button>
       </div>
+      <Dialog open={!!contextConversation} onOpenChange={(open) => { if (!open) setContextConversation(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{contextConversation?.type === "group" ? contextConversation.name ?? "Group options" : contextConversation?.otherUser?.name ?? "Chat options"}</DialogTitle>
+            <DialogDescription>Choose what you want to do with this conversation.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-1">
+            {contextConversation?.type !== "group" && contextConversation?.otherUser && (
+              <Button variant="ghost" className="justify-start" onClick={() => { const id = contextConversation.otherUser?.id; setContextConversation(null); if (id) router.push(`/profile/${id}`) }}>
+                <UserRound /> View profile
+              </Button>
+            )}
+            <Button variant="ghost" className="justify-start" onClick={hideConversation} disabled={contextLoading}>
+              <Archive /> Hide from chat list
+            </Button>
+            {contextConversation?.type === "group" && myProfile && (contextConversation.adminId === myProfile.id || contextConversation.creatorId === myProfile.id) ? (
+              <Button variant="ghost" className="justify-start text-destructive hover:text-destructive" onClick={deleteGroup} disabled={contextLoading}>
+                <Trash2 /> Delete group
+              </Button>
+            ) : contextConversation?.type === "group" ? (
+              <Button variant="ghost" className="justify-start text-destructive hover:text-destructive" onClick={leaveGroup} disabled={contextLoading}>
+                <LogOutIcon /> Leave group
+              </Button>
+            ) : null}
+            {contextError && <p className="px-3 pt-2 text-sm text-destructive" role="alert">{contextError}</p>}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
