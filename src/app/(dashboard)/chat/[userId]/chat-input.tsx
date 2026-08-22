@@ -252,12 +252,22 @@ export function ChatInput({
     const { error } = await supabase.storage.from("images").upload(fileName, fileToUpload)
     if (error) { setSending(false); return }
     const { data: { publicUrl } } = supabase.storage.from("images").getPublicUrl(fileName)
-    await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: senderId,
-      content: null,
-      image_url: publicUrl,
-    })
+    const { data: inserted } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content: null,
+        image_url: publicUrl,
+      })
+      .select("*")
+      .single()
+
+    if (inserted) {
+      sounds.playSentSound()
+      window.dispatchEvent(new CustomEvent("bakaiti:new-message", { detail: inserted }))
+    }
+
     setSending(false)
     focusInput()
   }

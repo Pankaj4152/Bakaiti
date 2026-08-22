@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Mic, Square, Loader2 } from "lucide-react"
+import { sounds } from "@/lib/sounds"
 
 function getSupportedMimeType(): string | undefined {
   const types = [
@@ -138,10 +139,21 @@ export function AudioRecorder({
       if (uploadError) { setError("Upload failed"); setUploading(false); onDone(); return }
 
       const { data: { publicUrl } } = supabase.storage.from("audio").getPublicUrl(fileName)
-      await supabase.from("messages").insert({
-        conversation_id: conversationId, sender_id: senderId,
-        content: null, audio_url: publicUrl,
-      })
+      const { data: inserted } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: null,
+          audio_url: publicUrl,
+        })
+        .select("*")
+        .single()
+
+      if (inserted) {
+        sounds.playSentSound()
+        window.dispatchEvent(new CustomEvent("bakaiti:new-message", { detail: inserted }))
+      }
 
       fetch("/api/push/send", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -155,7 +167,7 @@ export function AudioRecorder({
     recorder.start(100)
     setRecording(true)
     timer.current = setInterval(() => setDuration((d) => d + 1), 1000)
-  }, [conversationId, senderId, onDone])
+  }, [conversationId, senderId, onDone, supabase])
 
   const stop = useCallback(() => {
     mediaRecorder.current?.stop()
@@ -163,7 +175,12 @@ export function AudioRecorder({
   }, [])
 
   if (uploading) {
-    return <Button size="icon" variant="ghost" disabled><Loader2 className="h-4 w-4 animate-spin" /></Button>
+    return (
+      <Button size="sm" variant="secondary" className="gap-1.5 text-xs text-primary font-medium shrink-0 animate-pulse" disabled>
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Sending audio...
+      </Button>
+    )
   }
 
   if (recording) {
