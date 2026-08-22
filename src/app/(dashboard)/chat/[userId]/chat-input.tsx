@@ -96,6 +96,7 @@ export function ChatInput({
   const [feedback, setFeedback] = useState("")
   const [replyingTo, setReplyingTo] = useState<any>(null)
   const [showPollDialog, setShowPollDialog] = useState(false)
+  const [pollMode, setPollMode] = useState<"standard" | "flash">("standard")
   const [showNicknameDialog, setShowNicknameDialog] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -813,17 +814,22 @@ export function ChatInput({
         />
         <ActionPlusMenu
           onSelectImage={() => fileInputRef.current?.click()}
-          onSelectPoll={() => setShowPollDialog(true)}
+          onSelectPoll={() => {
+            setPollMode("standard")
+            setShowPollDialog(true)
+          }}
           onSelectFlashPoll={() => {
-            setText('/flashpoll "Quick Question?" "Yes 🚀" "No 📚"')
-            inputRef.current?.focus()
+            setPollMode("flash")
+            setShowPollDialog(true)
           }}
           onSelectNicknameBattle={() => setShowNicknameDialog(true)}
         />
         <CreatePollDialog
           conversationId={conversationId}
+          currentUserId={senderId}
           open={showPollDialog}
           onOpenChange={setShowPollDialog}
+          initialMode={pollMode}
         />
         <NicknameBattleDialog
           conversationId={conversationId}

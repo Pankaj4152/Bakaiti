@@ -50,9 +50,29 @@ export function NicknameBattleDialog({
   const [starting, setStarting] = useState(false)
   const [generatingAi, setGeneratingAi] = useState(false)
   const [timeLeft, setTimeLeft] = useState(120)
+  const [memberList, setMemberList] = useState<{ id: string; name: string }[]>(members)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const activeBattleRef = useRef<NicknameBattle | null>(null)
   const supabase = createClient()
+
+  useEffect(() => {
+    if (members.length > 0) {
+      setMemberList(members)
+    }
+  }, [members])
+
+  useEffect(() => {
+    if (open && memberList.length === 0) {
+      fetch(`/api/group?conversationId=${encodeURIComponent(conversationId)}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.group?.members) {
+            setMemberList(data.group.members)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [open, conversationId, memberList.length])
 
   useEffect(() => {
     activeBattleRef.current = activeBattle
@@ -351,18 +371,22 @@ export function NicknameBattleDialog({
             <div className="space-y-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Member to Nominate</label>
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {members.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => setSelectedTarget(m)}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left ${
-                      selectedTarget?.id === m.id ? "border-primary bg-primary/10" : "border-border hover:bg-accent"
-                    }`}
-                  >
-                    <span className="text-sm font-medium">{m.name}</span>
-                    {selectedTarget?.id === m.id && <Sparkles className="h-4 w-4 text-primary" />}
-                  </button>
-                ))}
+                {memberList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-3 text-center">Loading group members...</p>
+                ) : (
+                  memberList.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedTarget(m)}
+                      className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left ${
+                        selectedTarget?.id === m.id ? "border-primary bg-primary/10" : "border-border hover:bg-accent"
+                      }`}
+                    >
+                      <span className="text-sm font-medium">{m.name}</span>
+                      {selectedTarget?.id === m.id && <Sparkles className="h-4 w-4 text-primary" />}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
