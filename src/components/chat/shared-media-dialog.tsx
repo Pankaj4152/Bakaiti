@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { AudioMessage } from "./audio-message"
 import { ImageMessage } from "./image-message"
+import { ImageLightbox } from "./image-lightbox"
 
 type Tab = "media" | "audio" | "links"
 
@@ -29,6 +30,7 @@ export function SharedMediaDialog({
   const [audioFiles, setAudioFiles] = useState<{ url: string; created_at: string }[]>([])
   const [links, setLinks] = useState<{ url: string; text: string }[]>([])
   const [loading, setLoading] = useState(false)
+  const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
@@ -104,7 +106,13 @@ export function SharedMediaDialog({
           ) : tab === "media" ? (
             <div className="grid grid-cols-3 gap-2 p-1">
               {images.map((url, i) => (
-                <ImageMessage key={i} url={url} />
+                <div
+                  key={i}
+                  className="aspect-square bg-muted rounded-lg overflow-hidden cursor-pointer border hover:border-primary transition-all"
+                  onClick={() => setActiveImageIndex(i)}
+                >
+                  <img src={url} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform" />
+                </div>
               ))}
             </div>
           ) : tab === "audio" && audioFiles.length === 0 ? (
@@ -134,6 +142,12 @@ export function SharedMediaDialog({
           )}
         </div>
       </DialogContent>
+      <ImageLightbox
+        images={images}
+        initialIndex={activeImageIndex ?? 0}
+        open={activeImageIndex !== null}
+        onClose={() => setActiveImageIndex(null)}
+      />
     </Dialog>
   )
 }
