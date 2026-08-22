@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Settings, Shield, UserPlus, UserMinus, Crown, Check, Loader2, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useSidebar } from "@/components/sidebar/sidebar-context"
+import { NicknameBattleDialog } from "./nickname-battle-dialog"
 
 interface GroupMember {
   id: string
@@ -185,6 +186,16 @@ export function GroupSettingsDialog({
         ) : (
           <div className="space-y-4 py-2">
             {error && <p className="text-xs text-destructive">{error}</p>}
+
+            <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <div className="space-y-0.5">
+                <p className="text-xs font-semibold text-amber-500 uppercase tracking-wider">
+                  🏆 Nickname Battle
+                </p>
+                <p className="text-xs text-muted-foreground">Vote & crown funny nicknames!</p>
+              </div>
+              <NicknameBattleDialog conversationId={conversationId} currentUserId={adminId ?? ""} members={members} />
+            </div>
 
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Group Name</label>

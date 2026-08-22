@@ -6,6 +6,8 @@ import { ChatInput } from "../../[userId]/chat-input"
 import { MessageList } from "../../[userId]/message-list"
 import { MobileMenuButton } from "../../[userId]/chat-header"
 import { GroupSettingsDialog } from "@/components/chat/group-settings-dialog"
+import { WallpaperDialog } from "@/components/chat/wallpaper-dialog"
+import { NicknameBattleDialog } from "@/components/chat/nickname-battle-dialog"
 
 const getConversation = cache(async (conversationId: string) => {
   const supabase = await createClient()
@@ -103,7 +105,11 @@ export default async function GroupConversationPage({
             </div>
             <span className="font-semibold truncate">{convo.name ?? "Group"}</span>
           </div>
-          <GroupSettingsDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
+          <div className="flex items-center gap-1">
+            <NicknameBattleDialog conversationId={conversationId} currentUserId={senderId} members={allUsers ?? []} />
+            <WallpaperDialog conversationId={conversationId} />
+            <GroupSettingsDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
+          </div>
         </div>
       </div>
       <MessageList
