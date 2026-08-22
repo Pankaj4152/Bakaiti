@@ -32,6 +32,29 @@ interface Pin {
   message?: Message | null
 }
 
+const ANON_PERSONAS = [
+  { name: "Backbench Ninja", emoji: "🥷" },
+  { name: "Canteen Phantom", emoji: "☕" },
+  { name: "Proxy Master", emoji: "🎒" },
+  { name: "Maggi Specialist", emoji: "🍜" },
+  { name: "Lab Bunk Legend", emoji: "🧪" },
+  { name: "Night Owl Coder", emoji: "🦉" },
+  { name: "Library Sleeper", emoji: "😴" },
+  { name: "Chai Sutta Squad", emoji: "🚬" },
+  { name: "Syllabus Explorer", emoji: "📚" },
+  { name: "Attendance Survivor", emoji: "🚨" },
+]
+
+function getAnonPersona(userId: string) {
+  let hash = 0
+  for (let i = 0; i < userId.length; i++) {
+    hash = (hash << 5) - hash + userId.charCodeAt(i)
+    hash |= 0
+  }
+  const index = Math.abs(hash) % ANON_PERSONAS.length
+  return ANON_PERSONAS[index]
+}
+
 export function MessageList({
   messages: initialMessages,
   currentUserId,
@@ -39,6 +62,7 @@ export function MessageList({
   readOnly = false,
   historyCutoff = null,
   isGroup = false,
+  isAnonGroup = false,
 }: {
   messages: Message[]
   currentUserId: string
@@ -46,6 +70,7 @@ export function MessageList({
   readOnly?: boolean
   historyCutoff?: string | null
   isGroup?: boolean
+  isAnonGroup?: boolean
 }) {
   const messages = useRef<Message[]>(initialMessages)
   const [display, setDisplay] = useState<Message[]>(initialMessages)
@@ -764,10 +789,11 @@ export function MessageList({
         const isLastInGroup = i === display.length - 1 || display[i + 1].sender_id !== msg.sender_id
 
         const anonMatch = msg.content?.match(/^\[ANON:([^:]+):([^\]]+)\]\s*([\s\S]*)$/)
-        const isAnon = !!anonMatch
-        const anonEmoji = anonMatch?.[1] ?? "🎭"
-        const anonName = anonMatch?.[2] ?? "Anonymous"
-        const displayContent = isAnon ? anonMatch[3] : msg.content
+        const fallbackPersona = getAnonPersona(msg.sender_id)
+        const isAnon = !!anonMatch || isAnonGroup
+        const anonEmoji = anonMatch?.[1] ?? fallbackPersona.emoji
+        const anonName = anonMatch?.[2] ?? fallbackPersona.name
+        const displayContent = anonMatch ? anonMatch[3] : msg.content
 
         const isSystemNotify =
           msg.content?.startsWith("👋") ||

@@ -87,6 +87,8 @@ export default async function GroupConversationPage({
   const themeClass = currentUser.theme && currentUser.theme !== "default" ? `theme-${currentUser.theme}` : ""
   const senderId = currentUser.id
 
+  const isAnonGroup = convo.name?.startsWith("🎭") || convo.name?.toLowerCase().includes("anon") || convo.type === "anonymous_group"
+
   return (
     <ChatWallpaperWrapper conversationId={conversationId}>
       <div className={`flex flex-col h-full ${themeClass}`}>
@@ -95,13 +97,19 @@ export default async function GroupConversationPage({
           <div className="flex items-center justify-between gap-2 px-2 flex-1 min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               <div className="flex -space-x-2">
-                {allUsers?.slice(0, 4).map((u) => (
-                  <Avatar key={u.id} className="h-7 w-7 border-2 border-background">
-                    <AvatarImage src={u.avatar_url ?? undefined} />
-                    <AvatarFallback className="text-[10px]">{u.name[0]?.toUpperCase()}</AvatarFallback>
+                {isAnonGroup ? (
+                  <Avatar className="h-7 w-7 border-2 border-background bg-purple-950 text-white shadow-sm">
+                    <AvatarFallback className="text-xs">🎭</AvatarFallback>
                   </Avatar>
-                ))}
-                {(allUsers?.length ?? 0) > 4 && (
+                ) : (
+                  allUsers?.slice(0, 4).map((u) => (
+                    <Avatar key={u.id} className="h-7 w-7 border-2 border-background">
+                      <AvatarImage src={u.avatar_url ?? undefined} />
+                      <AvatarFallback className="text-[10px]">{u.name[0]?.toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  ))
+                )}
+                {!isAnonGroup && (allUsers?.length ?? 0) > 4 && (
                   <div className="h-7 w-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium">
                     +{allUsers!.length - 4}
                   </div>
@@ -110,7 +118,9 @@ export default async function GroupConversationPage({
               <ShareGroupDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
             </div>
             <div className="flex items-center gap-1">
-              <NicknameBattleDialog conversationId={conversationId} currentUserId={senderId} members={allUsers ?? []} />
+              {!isAnonGroup && (
+                <NicknameBattleDialog conversationId={conversationId} currentUserId={senderId} members={allUsers ?? []} />
+              )}
               <WallpaperDialog conversationId={conversationId} />
               <GroupSettingsDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
             </div>
@@ -122,6 +132,7 @@ export default async function GroupConversationPage({
           conversationId={conversationId}
           historyCutoff={historyCutoff}
           isGroup={true}
+          isAnonGroup={isAnonGroup}
         />
         <ChatInput
           conversationId={conversationId}
