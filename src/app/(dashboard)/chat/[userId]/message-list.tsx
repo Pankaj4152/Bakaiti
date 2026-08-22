@@ -17,6 +17,7 @@ import { TranslateButton } from "@/components/chat/translate-button"
 import { WallpaperDialog, WALLPAPER_PRESETS, type WallpaperConfig } from "@/components/chat/wallpaper-dialog"
 import { FlashPollCard } from "@/components/chat/flash-poll-card"
 import { NicknameBattleCard } from "@/components/chat/nickname-battle-card"
+import { ProfilePreviewDialog } from "@/components/profile/profile-preview-dialog"
 import { sounds } from "@/lib/sounds"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
@@ -787,14 +788,16 @@ export function MessageList({
                         <AvatarFallback className="text-xs">{anonEmoji}</AvatarFallback>
                       </Avatar>
                     ) : (
-                      <Link href={`/profile/${msg.sender_id}`} title={`View ${msg.sender?.name ?? "user"}'s profile`}>
-                        <Avatar className="h-7 w-7 hover:opacity-80 transition-opacity">
-                          <AvatarImage src={msg.sender?.avatar_url ?? undefined} />
-                          <AvatarFallback className="text-xs">
-                            {msg.sender?.name?.[0]?.toUpperCase() ?? "?"}
-                          </AvatarFallback>
-                        </Avatar>
-                      </Link>
+                      <ProfilePreviewDialog user={{ id: msg.sender_id, name: msg.sender?.name ?? "User", avatar_url: msg.sender?.avatar_url }}>
+                        <button className="h-7 w-7 rounded-full hover:opacity-80 transition-opacity shrink-0 text-left">
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage src={msg.sender?.avatar_url ?? undefined} />
+                            <AvatarFallback className="text-xs">
+                              {msg.sender?.name?.[0]?.toUpperCase() ?? "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                        </button>
+                      </ProfilePreviewDialog>
                     )
                   ) : (
                     <div className="h-7 w-7" />
@@ -831,13 +834,14 @@ export function MessageList({
                         </div>
                       ) : (
                         !isMine && isGroup && msg.sender?.name && !grouped && (
-                          <Link
-                            href={`/profile/${msg.sender_id}`}
-                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                            className="text-[11px] font-bold text-amber-500 dark:text-amber-400 hover:underline mb-0.5 block truncate max-w-full"
-                          >
-                            {msg.sender.name}
-                          </Link>
+                          <ProfilePreviewDialog user={{ id: msg.sender_id, name: msg.sender.name, avatar_url: msg.sender?.avatar_url }}>
+                            <button
+                              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                              className="text-[11px] font-bold text-amber-500 dark:text-amber-400 hover:underline mb-0.5 block truncate max-w-full text-left"
+                            >
+                              {msg.sender.name}
+                            </button>
+                          </ProfilePreviewDialog>
                         )
                       )}
                       {msg.reply_to && (
