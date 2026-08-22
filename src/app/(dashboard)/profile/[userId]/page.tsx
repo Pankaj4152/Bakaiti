@@ -90,6 +90,16 @@ export default async function ProfilePage({
               {profile.username && (
                 <p className="text-sm text-muted-foreground">@{profile.username}</p>
               )}
+              {profile.status_text && (
+                <div className="inline-flex items-center gap-1 mt-1.5 px-3 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-semibold border border-primary/20">
+                  {profile.status_text}
+                </div>
+              )}
+              {profile.bio && (
+                <p className="text-xs text-muted-foreground mt-2 max-w-xs italic">
+                  "{profile.bio}"
+                </p>
+              )}
             </div>
             {isOwn && (
               <div className="flex flex-wrap items-center justify-center gap-2">
@@ -98,6 +108,8 @@ export default async function ProfilePage({
                   currentName={profile.name}
                   currentUsername={profile.username}
                   currentAvatarUrl={profile.avatar_url}
+                  currentStatusText={profile.status_text}
+                  currentBio={profile.bio}
                   currentTheme={profile.theme}
                 />
                 <FriendsDialog />

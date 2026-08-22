@@ -28,16 +28,22 @@ export function EditProfileDialog({
   currentName,
   currentUsername,
   currentAvatarUrl,
+  currentStatusText = "",
+  currentBio = "",
   currentTheme = "default",
 }: {
   email: string
   currentName: string
   currentUsername: string | null
   currentAvatarUrl: string | null
+  currentStatusText?: string | null
+  currentBio?: string | null
   currentTheme?: string
 }) {
   const [name, setName] = useState(currentName)
   const [username, setUsername] = useState(currentUsername ?? "")
+  const [statusText, setStatusText] = useState(currentStatusText ?? "")
+  const [bio, setBio] = useState(currentBio ?? "")
   const [usernameError, setUsernameError] = useState("")
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
@@ -92,6 +98,8 @@ export function EditProfileDialog({
       email,
       name: name.trim(),
       username: username.trim(),
+      status_text: statusText.trim(),
+      bio: bio.trim(),
     }
     if (avatarUrl) body.avatar_url = avatarUrl
 
@@ -170,6 +178,24 @@ export function EditProfileDialog({
             {usernameError && (
               <p className="text-xs text-red-500 mt-1">{usernameError}</p>
             )}
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Custom Status</label>
+            <Input
+              value={statusText}
+              onChange={(e) => setStatusText(e.target.value)}
+              placeholder="🚀 Building Bakaiti"
+              maxLength={40}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">About Me / Bio</label>
+            <Input
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Tell friends about yourself..."
+              maxLength={120}
+            />
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Chat Theme</label>

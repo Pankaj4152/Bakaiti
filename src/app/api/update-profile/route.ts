@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  const { name, username, avatar_url } = body
+  const { name, username, avatar_url, status_text, bio } = body
 
   // Never accept "status" or "email" from the client. Identity is derived from the session.
   const supabase = await createClient()
@@ -33,6 +33,8 @@ export async function POST(request: Request) {
     }
   }
   if (typeof avatar_url === "string" && avatar_url.trim()) row.avatar_url = avatar_url.trim()
+  if (typeof status_text === "string") row.status_text = status_text.trim()
+  if (typeof bio === "string") row.bio = bio.trim()
 
   const adminDb = createAdminClient()
 
@@ -73,6 +75,8 @@ export async function POST(request: Request) {
     if (row.name) userRow.name = row.name
     if ("username" in row) userRow.username = row.username
     if ("avatar_url" in row) userRow.avatar_url = row.avatar_url
+    if ("status_text" in row) userRow.status_text = row.status_text
+    if ("bio" in row) userRow.bio = row.bio
     if (Object.keys(userRow).length === 0) {
       return NextResponse.json({ success: true })
     }

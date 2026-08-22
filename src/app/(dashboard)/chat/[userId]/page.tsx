@@ -101,7 +101,7 @@ export default async function ConversationPage({
           <div className="flex flex-col min-w-0 flex-1">
             <ChatDisplayName userId={userId} name={otherUser.name} />
             <span className="text-[11px] text-muted-foreground leading-tight truncate">
-              <PresenceStatus userId={userId} lastSeen={otherUser.last_seen} />
+              <PresenceStatus userId={userId} lastSeen={otherUser.last_seen} statusText={otherUser.status_text} />
             </span>
           </div>
           <TypingIndicator conversationId={conversationId} otherUserId={userId} />

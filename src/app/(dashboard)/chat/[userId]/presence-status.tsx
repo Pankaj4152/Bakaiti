@@ -9,10 +9,13 @@ export function PresenceDot({ userId, lastSeen }: { userId: string; lastSeen: st
   return <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border-2 border-background" />
 }
 
-export function PresenceStatus({ userId, lastSeen }: { userId: string; lastSeen: string | null }) {
+export function PresenceStatus({ userId, lastSeen, statusText }: { userId: string; lastSeen: string | null; statusText?: string | null }) {
   const onlineSet = useOnlineUsers()
   const online = onlineSet.has(userId) || (!!lastSeen && Date.now() - new Date(lastSeen).getTime() < 120000)
-  if (online) return <span className="text-green-500">● Online</span>
+  if (statusText) {
+    return <span className="text-primary font-medium">{statusText} {online ? "• Online" : ""}</span>
+  }
+  if (online) return <span className="text-green-500 font-medium">● Online</span>
   if (!lastSeen) return null
   const diff = Date.now() - new Date(lastSeen).getTime()
   const mins = Math.floor(diff / 60000)

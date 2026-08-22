@@ -4,6 +4,8 @@ export interface User {
   name: string
   username: string
   avatar_url: string | null
+  status_text?: string | null
+  bio?: string | null
   last_seen: string
   theme: string
   status: string
