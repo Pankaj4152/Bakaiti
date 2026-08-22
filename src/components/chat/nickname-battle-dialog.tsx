@@ -30,12 +30,20 @@ export function NicknameBattleDialog({
   conversationId,
   currentUserId,
   members = [],
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = false,
 }: {
   conversationId: string
   currentUserId: string
   members?: { id: string; name: string }[]
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  showTrigger?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = onOpenChange ?? setInternalOpen
   const [selectedTarget, setSelectedTarget] = useState<{ id: string; name: string } | null>(null)
   const [activeBattle, setActiveBattle] = useState<NicknameBattle | null>(null)
   const [customSuggestion, setCustomSuggestion] = useState("")
@@ -262,11 +270,13 @@ export function NicknameBattleDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="gap-1.5 border-amber-500/40 text-amber-500 hover:bg-amber-500/10">
-          <Trophy className="h-4 w-4" /> Nickname Battle
-        </Button>
-      </DialogTrigger>
+      {showTrigger && (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline" className="gap-1.5 border-amber-500/40 text-amber-500 hover:bg-amber-500/10">
+            <Trophy className="h-4 w-4" /> Nickname Battle
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-amber-500">
