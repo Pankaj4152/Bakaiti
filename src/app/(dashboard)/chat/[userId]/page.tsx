@@ -11,6 +11,7 @@ import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { MediaButton } from "./media-button"
 import { PresenceDot, PresenceStatus } from "./presence-status"
 import { WallpaperDialog } from "@/components/chat/wallpaper-dialog"
+import { AnonymousToggleDialog } from "@/components/chat/anonymous-toggle-dialog"
 
 const getCurrentUser = cache(async (email: string) => {
   const supabase = await createClient()
@@ -106,6 +107,7 @@ export default async function ConversationPage({
           </div>
           <TypingIndicator conversationId={conversationId} otherUserId={userId} />
         </Link>
+        <AnonymousToggleDialog conversationId={conversationId} />
         <WallpaperDialog conversationId={conversationId} />
         <MediaButton conversationId={conversationId} historyCutoff={historyCutoff} />
       </div>

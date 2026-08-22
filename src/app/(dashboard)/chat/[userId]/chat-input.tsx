@@ -639,10 +639,16 @@ export function ChatInput({
     setSending(true)
     setText("")
 
+    let activeAnon = null
+    try {
+      const saved = localStorage.getItem(`bakaiti_anon_mode_${conversationId}`)
+      if (saved) activeAnon = JSON.parse(saved)
+    } catch {}
+
     const payload: any = {
       conversation_id: conversationId,
       sender_id: senderId,
-      content,
+      content: activeAnon && content ? `[ANON:${activeAnon.emoji}:${activeAnon.name}] ${content}` : content,
     }
     if (replyingTo) {
       payload.reply_to_id = replyingTo.id

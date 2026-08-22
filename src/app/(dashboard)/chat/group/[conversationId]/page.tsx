@@ -8,6 +8,7 @@ import { MobileMenuButton } from "../../[userId]/chat-header"
 import { GroupSettingsDialog } from "@/components/chat/group-settings-dialog"
 import { WallpaperDialog } from "@/components/chat/wallpaper-dialog"
 import { NicknameBattleDialog } from "@/components/chat/nickname-battle-dialog"
+import { AnonymousToggleDialog } from "@/components/chat/anonymous-toggle-dialog"
 
 const getConversation = cache(async (conversationId: string) => {
   const supabase = await createClient()
@@ -106,6 +107,7 @@ export default async function GroupConversationPage({
             <span className="font-semibold truncate">{convo.name ?? "Group"}</span>
           </div>
           <div className="flex items-center gap-1">
+            <AnonymousToggleDialog conversationId={conversationId} />
             <NicknameBattleDialog conversationId={conversationId} currentUserId={senderId} members={allUsers ?? []} />
             <WallpaperDialog conversationId={conversationId} />
             <GroupSettingsDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />

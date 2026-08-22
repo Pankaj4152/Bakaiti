@@ -756,6 +756,12 @@ export function MessageList({
         const grouped = isSameSender(i)
         const isLastInGroup = i === display.length - 1 || display[i + 1].sender_id !== msg.sender_id
 
+        const anonMatch = msg.content?.match(/^\[ANON:([^:]+):([^\]]+)\]\s*([\s\S]*)$/)
+        const isAnon = !!anonMatch
+        const anonEmoji = anonMatch?.[1] ?? "🎭"
+        const anonName = anonMatch?.[2] ?? "Anonymous"
+        const displayContent = isAnon ? anonMatch[3] : msg.content
+
         return (
           <div key={msg.id} id={`msg-${msg.id}`} data-message-id={msg.id}>
             {showUnreadSeparator && (
@@ -769,10 +775,10 @@ export function MessageList({
               {!isMine && (
                 <div className="w-7 flex-shrink-0">
                   {isLastInGroup ? (
-                    <Avatar className="h-7 w-7">
-                      <AvatarImage src={msg.sender?.avatar_url ?? undefined} />
+                    <Avatar className={`h-7 w-7 ${isAnon ? "ring-2 ring-purple-500/60 bg-purple-950 text-white" : ""}`}>
+                      {!isAnon && <AvatarImage src={msg.sender?.avatar_url ?? undefined} />}
                       <AvatarFallback className="text-xs">
-                        {msg.sender?.name?.[0]?.toUpperCase() ?? "?"}
+                        {isAnon ? anonEmoji : (msg.sender?.name?.[0]?.toUpperCase() ?? "?")}
                       </AvatarFallback>
                     </Avatar>
                   ) : (
@@ -785,7 +791,7 @@ export function MessageList({
                       tabIndex={0}
                       title={formatMessageTime(msg.created_at)}
                       role={readOnly ? undefined : "button"}
-                      aria-label={`Message from ${isMine ? "you" : msg.sender?.name ?? "user"}. ${readOnly ? "Read only" : "Open message actions"}`}
+                      aria-label={`Message from ${isMine ? "you" : isAnon ? anonName : msg.sender?.name ?? "user"}. ${readOnly ? "Read only" : "Open message actions"}`}
                       onClick={(event) => handleMessageClick(event, msg.id)}
                       onContextMenu={(event) => { if (!readOnly) { event.preventDefault(); event.stopPropagation(); openMessageActions(msg.id) } }}
                       onKeyDown={(event) => handleMessageKeyDown(event, msg.id)}
@@ -802,6 +808,13 @@ export function MessageList({
                             : "bg-muted rounded-[18px] rounded-bl-[6px]"
                       } ${grouped ? (isMine ? "rounded-br-[18px]" : "rounded-bl-[18px]") : ""}`}
                     >
+                      {isAnon && (
+                        <div className="text-[10px] font-bold text-purple-400 mb-1 flex items-center gap-1 border-b border-purple-500/20 pb-0.5">
+                          <span>{anonEmoji}</span>
+                          <span>{anonName}</span>
+                          <span className="opacity-60 text-[9px] font-normal font-sans">(Anonymous)</span>
+                        </div>
+                      )}
                       {msg.reply_to && (
                         <div
                           onClick={(e) => {
@@ -821,17 +834,17 @@ export function MessageList({
                         <img src={msg.sticker_url} alt="" className="max-w-[180px] max-h-[180px] object-contain" />
                       ) : msg.poll_id ? (
                         <div>
-                          <p className="text-sm mb-2">{msg.content}</p>
+                          <p className="text-sm mb-2">{displayContent}</p>
                           <PollCard pollId={msg.poll_id} currentUserId={currentUserId} />
                         </div>
                       ) : msg.image_url ? (
                         <ImageMessage url={msg.image_url} />
                       ) : msg.audio_url ? (
                         <AudioMessage url={msg.audio_url} />
-                      ) : msg.content && EFFECT_MESSAGES.includes(msg.content.toLowerCase().split(" ")[0]) ? (
-                        <span className="text-lg">{msg.content.match(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu)?.[0] ?? (msg.content.startsWith("confetti") ? "🎉" : msg.content.startsWith("fireworks") ? "🎆" : "🌧️")}</span>
+                      ) : displayContent && EFFECT_MESSAGES.includes(displayContent.toLowerCase().split(" ")[0]) ? (
+                        <span className="text-lg">{displayContent.match(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu)?.[0] ?? (displayContent.startsWith("confetti") ? "🎉" : displayContent.startsWith("fireworks") ? "🎆" : "🌧️")}</span>
                       ) : (
-                        msg.content
+                        displayContent
                       )}
                     </div>
                 {isMine && (
