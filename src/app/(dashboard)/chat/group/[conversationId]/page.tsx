@@ -108,7 +108,6 @@ export default async function GroupConversationPage({
             <ShareGroupDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
           </div>
           <div className="flex items-center gap-1">
-            <AnonymousToggleDialog conversationId={conversationId} />
             <NicknameBattleDialog conversationId={conversationId} currentUserId={senderId} members={allUsers ?? []} />
             <WallpaperDialog conversationId={conversationId} />
             <GroupSettingsDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
