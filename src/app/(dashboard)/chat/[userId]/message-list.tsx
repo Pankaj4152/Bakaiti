@@ -40,12 +40,35 @@ const ANON_PERSONAS = [
   { name: "Lab Bunk Legend", emoji: "🧪" },
   { name: "Night Owl Coder", emoji: "🦉" },
   { name: "Library Sleeper", emoji: "😴" },
-  { name: "Chai Sutta Squad", emoji: "🚬" },
+  { name: "Chai Tapri Don", emoji: "☕" },
   { name: "Syllabus Explorer", emoji: "📚" },
   { name: "Attendance Survivor", emoji: "🚨" },
+  { name: "Assignment Copycat", emoji: "📝" },
+  { name: "Viva Escape Artist", emoji: "🏃" },
+  { name: "Front Row Scholar", emoji: "🤓" },
+  { name: "Placement Hero", emoji: "💼" },
+  { name: "Dean's Nightmare", emoji: "😈" },
+  { name: "Gully Cricket Captain", emoji: "🏏" },
+  { name: "Momo Hunter", emoji: "🥟" },
+  { name: "Hostel Warden's Enemy", emoji: "🚪" },
+  { name: "Internship Hustler", emoji: "🚀" },
+  { name: "CR (Class Rep) Pro", emoji: "📢" },
+  { name: "One-Night Studier", emoji: "⚡" },
+  { name: "Sessional Topper", emoji: "🏅" },
+  { name: "Gaming Room Pro", emoji: "🎮" },
+  { name: "Samosa Critic", emoji: "🥟" },
+  { name: "Fest Coordinator", emoji: "🎉" },
+  { name: "Sports Secretary", emoji: "⚽" },
+  { name: "PDF Collector", emoji: "📁" },
+  { name: "Group Project Ghost", emoji: "👻" },
+  { name: "Backlog Clearing God", emoji: "🔥" },
+  { name: "Campus Influencer", emoji: "📸" },
 ]
 
-function getAnonPersona(userId: string) {
+function getAnonPersona(userId: string, senderIndex?: number) {
+  if (typeof senderIndex === "number" && senderIndex >= 0) {
+    return ANON_PERSONAS[senderIndex % ANON_PERSONAS.length]
+  }
   let hash = 0
   for (let i = 0; i < userId.length; i++) {
     hash = (hash << 5) - hash + userId.charCodeAt(i)
@@ -782,18 +805,21 @@ export function MessageList({
         if (name === "glitch") return <GlitchEffect />
         return <MessageEffect effect={name} customEmoji={rest.join(" ")} />
       })()}
-      {display.map((msg, i) => {
-        const isMine = msg.sender_id === currentUserId
-        const showUnreadSeparator = i === firstUnreadIndex
-        const grouped = isSameSender(i)
-        const isLastInGroup = i === display.length - 1 || display[i + 1].sender_id !== msg.sender_id
+      {(() => {
+        const distinctSenders = Array.from(new Set(display.map((m) => m.sender_id)))
+        return display.map((msg, i) => {
+          const isMine = msg.sender_id === currentUserId
+          const showUnreadSeparator = i === firstUnreadIndex
+          const grouped = isSameSender(i)
+          const isLastInGroup = i === display.length - 1 || display[i + 1].sender_id !== msg.sender_id
 
-        const anonMatch = msg.content?.match(/^\[ANON:([^:]+):([^\]]+)\]\s*([\s\S]*)$/)
-        const fallbackPersona = getAnonPersona(msg.sender_id)
-        const isAnon = !!anonMatch || isAnonGroup
-        const anonEmoji = anonMatch?.[1] ?? fallbackPersona.emoji
-        const anonName = anonMatch?.[2] ?? fallbackPersona.name
-        const displayContent = anonMatch ? anonMatch[3] : msg.content
+          const senderIndex = distinctSenders.indexOf(msg.sender_id)
+          const anonMatch = msg.content?.match(/^\[ANON:([^:]+):([^\]]+)\]\s*([\s\S]*)$/)
+          const fallbackPersona = getAnonPersona(msg.sender_id, senderIndex)
+          const isAnon = !!anonMatch || isAnonGroup
+          const anonEmoji = anonMatch?.[1] ?? fallbackPersona.emoji
+          const anonName = anonMatch?.[2] ?? fallbackPersona.name
+          const displayContent = anonMatch ? anonMatch[3] : msg.content
 
         const isSystemNotify =
           msg.content?.startsWith("👋") ||
@@ -956,7 +982,8 @@ export function MessageList({
             </div>
           </div>
         )
-      })}
+      })
+      })()}
       <div ref={bottomRef} />
     </div>
     <Dialog open={!!actionMessage} onOpenChange={(open) => { if (!open) setActionMessageId(null) }}>

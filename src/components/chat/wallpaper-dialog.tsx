@@ -128,19 +128,33 @@ export function WallpaperDialog({
             <div className="flex gap-2">
               <Input
                 placeholder="https://example.com/wallpaper.jpg"
-                value={customUrl}
+                value={
+                  customUrl.startsWith("data:")
+                    ? "📷 Custom Image Uploaded"
+                    : customUrl.includes("/storage/v1/")
+                    ? "📷 Storage Wallpaper Applied"
+                    : customUrl
+                }
                 onChange={(e) => setCustomUrl(e.target.value)}
                 className="text-xs"
               />
-              <Button size="sm" onClick={applyCustomUrl} disabled={!customUrl.trim()}>
+              <Button size="sm" onClick={applyCustomUrl} disabled={!customUrl.trim() || customUrl.startsWith("📷")}>
                 Apply
               </Button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
               <label className="cursor-pointer inline-flex items-center gap-2 text-xs font-medium text-primary hover:underline">
                 <ImageIcon className="h-4 w-4" /> Upload Custom Image
                 <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
               </label>
+              {selected === "custom" && (
+                <button
+                  onClick={() => applyPreset("default")}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  Reset Wallpaper
+                </button>
+              )}
             </div>
           </div>
         </div>
