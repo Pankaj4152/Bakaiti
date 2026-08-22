@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Users } from "lucide-react"
+import { Users, Ghost, Lock, Globe, Key } from "lucide-react"
 
 interface UserItem {
   id: string
@@ -26,6 +26,9 @@ export function CreateGroupDialog({ open: controlledOpen, onOpenChange, showTrig
   const open = controlledOpen ?? internalOpen
   const setOpen = onOpenChange ?? setInternalOpen
   const [name, setName] = useState("")
+  const [isAnonGroup, setIsAnonGroup] = useState(false)
+  const [isPrivate, setIsPrivate] = useState(false)
+  const [password, setPassword] = useState("")
   const [search, setSearch] = useState("")
   const [users, setUsers] = useState<UserItem[]>([])
   const [selected, setSelected] = useState<string[]>([])
@@ -58,13 +61,19 @@ export function CreateGroupDialog({ open: controlledOpen, onOpenChange, showTrig
   })
 
   const create = async () => {
-    if (!name.trim() || selected.length < 2) return
+    if (!name.trim() || (selected.length < 1 && !isPrivate)) return
     setLoading(true)
     setError("")
     const res = await fetch("/api/group", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), participantIds: selected }),
+      body: JSON.stringify({
+        name: isAnonGroup ? `🎭 ${name.trim()}` : name.trim(),
+        participantIds: selected,
+        isAnon: isAnonGroup,
+        isPrivate,
+        password: isPrivate ? password.trim() : undefined,
+      }),
     })
     const data = await res.json()
     if (!res.ok) {
@@ -79,28 +88,86 @@ export function CreateGroupDialog({ open: controlledOpen, onOpenChange, showTrig
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {showTrigger && <DialogTrigger asChild>
-        <button className="shrink-0 h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors" title="Create Group">
-          <Users className="h-4 w-4" />
-        </button>
-      </DialogTrigger>}
-      <DialogContent>
+      {showTrigger && (
+        <DialogTrigger asChild>
+          <button className="shrink-0 h-8 w-8 flex items-center justify-center hover:bg-accent rounded-md transition-colors" title="Create Group">
+            <Users className="h-4 w-4" />
+          </button>
+        </DialogTrigger>
+      )}
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Group</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" /> Create New Group
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <Input
-            placeholder="Group name"
+            placeholder="Group name (e.g. Canteen Bakchodi)"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setIsAnonGroup(false)}
+              className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                !isAnonGroup ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-accent text-muted-foreground"
+              }`}
+            >
+              <Users className="h-4 w-4" /> Standard Group
+            </button>
+            <button
+              onClick={() => setIsAnonGroup(true)}
+              className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                isAnonGroup ? "border-purple-500 bg-purple-500/15 text-purple-400" : "border-border hover:bg-accent text-muted-foreground"
+              }`}
+            >
+              <Ghost className="h-4 w-4" /> Anonymous Group 🎭
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/40">
+            <div className="flex items-center gap-2">
+              {isPrivate ? <Lock className="h-4 w-4 text-amber-500" /> : <Globe className="h-4 w-4 text-emerald-500" />}
+              <div>
+                <p className="text-xs font-semibold">{isPrivate ? "Private Group (Password)" : "Public Group"}</p>
+                <p className="text-[10px] text-muted-foreground">{isPrivate ? "Requires password to join via link" : "Anyone with link can join"}</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsPrivate(!isPrivate)}
+              className="h-7 text-xs"
+            >
+              {isPrivate ? "Make Public" : "Make Private"}
+            </Button>
+          </div>
+
+          {isPrivate && (
+            <div className="space-y-1 animate-in fade-in">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Set Group Join Password</label>
+              <div className="flex items-center gap-2">
+                <Key className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  placeholder="Enter group password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+            </div>
+          )}
+
           <Input
             placeholder="Search people to add..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <div className="space-y-1 max-h-60 overflow-y-auto">
-            <p className="text-xs text-muted-foreground">Add members (select at least 2)</p>
+          <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+            <p className="text-xs text-muted-foreground">Add initial members</p>
             {filtered.map((u) => {
               const isSelected = selected.includes(u.id)
               return (
@@ -131,13 +198,10 @@ export function CreateGroupDialog({ open: controlledOpen, onOpenChange, showTrig
                 </button>
               )
             })}
-            {filtered.length === 0 && (
-              <p className="text-sm text-muted-foreground py-4 text-center">No matching people</p>
-            )}
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <Button className="w-full" onClick={create} disabled={loading || !name.trim() || selected.length < 2}>
-            {loading ? "Creating..." : "Create Group"}
+          <Button className="w-full font-bold" onClick={create} disabled={loading || !name.trim()}>
+            {loading ? "Creating Group..." : `Create ${isAnonGroup ? "Anonymous" : ""} Group`}
           </Button>
         </div>
       </DialogContent>
