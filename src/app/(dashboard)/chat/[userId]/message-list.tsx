@@ -11,7 +11,7 @@ import { MessageEffect } from "@/components/chat/message-effects"
 import { PollCard } from "@/components/chat/poll-card"
 import { GlitchEffect } from "@/components/chat/glitch-effect"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
-import { Heart, Pin, Trash2 } from "lucide-react"
+import { Heart, Pin, Trash2, Reply } from "lucide-react"
 import { TranslateButton } from "@/components/chat/translate-button"
 import { WallpaperDialog, WALLPAPER_PRESETS, type WallpaperConfig } from "@/components/chat/wallpaper-dialog"
 import { format } from "date-fns"
@@ -797,6 +797,18 @@ export function MessageList({
                             : "bg-muted rounded-[18px] rounded-bl-[6px]"
                       } ${grouped ? (isMine ? "rounded-br-[18px]" : "rounded-bl-[18px]") : ""}`}
                     >
+                      {msg.reply_to && (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            document.getElementById(`msg-${msg.reply_to?.id}`)?.scrollIntoView({ behavior: "smooth" })
+                          }}
+                          className="mb-1.5 p-1.5 rounded bg-black/20 dark:bg-white/15 border-l-2 border-primary cursor-pointer text-xs transition-opacity hover:opacity-90 max-w-full overflow-hidden"
+                        >
+                          <p className="text-[10px] font-bold opacity-90 truncate">{msg.reply_to.sender_name ?? "Replied message"}</p>
+                          <p className="truncate text-[11px] opacity-80">{msg.reply_to.content || "Attachment"}</p>
+                        </div>
+                      )}
                       {msg.is_ai && (
                         <span className="text-[10px] opacity-70 mr-1.5">🤖</span>
                       )}
@@ -881,6 +893,16 @@ export function MessageList({
               ))}
             </div>
             <div className="grid gap-1">
+              <Button
+                variant="ghost"
+                className="justify-start gap-2 text-primary hover:text-primary font-medium"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent("bakaiti:reply-message", { detail: actionMessage }))
+                  setActionMessageId(null)
+                }}
+              >
+                <Reply className="h-4 w-4" /> Reply to message
+              </Button>
               <Button variant="ghost" className="justify-start gap-2" onClick={() => { void togglePin(actionMessage); setActionMessageId(null) }}>
                 <Pin className="h-4 w-4" /> {pinned.some((pin) => pin.message_id === actionMessage.id) ? "Unpin message" : "Pin message"}
               </Button>

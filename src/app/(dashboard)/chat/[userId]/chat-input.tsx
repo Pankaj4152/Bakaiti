@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Send, Image } from "lucide-react"
+import { Send, Image, X } from "lucide-react"
 import { AudioRecorder } from "@/components/chat/audio-recorder"
 import { StickerPicker } from "@/components/chat/stickers/sticker-picker"
 import { CommandSuggestions } from "@/components/chat/command-suggestions"
@@ -90,11 +90,21 @@ export function ChatInput({
   const [recordingActive, setRecordingActive] = useState(false)
   const [showCommands, setShowCommands] = useState(false)
   const [feedback, setFeedback] = useState("")
+  const [replyingTo, setReplyingTo] = useState<any>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const typingChannel = useRef<ReturnType<typeof supabase.channel>>(undefined)
   const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  useEffect(() => {
+    const handleReply = (e: CustomEvent) => {
+      setReplyingTo(e.detail)
+      inputRef.current?.focus()
+    }
+    window.addEventListener("bakaiti:reply-message" as any, handleReply)
+    return () => window.removeEventListener("bakaiti:reply-message" as any, handleReply)
+  }, [])
 
   const focusInput = useCallback(() => {
     requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }))
@@ -618,13 +628,24 @@ export function ChatInput({
     setSending(true)
     setText("")
 
+    const payload: any = {
+      conversation_id: conversationId,
+      sender_id: senderId,
+      content,
+    }
+    if (replyingTo) {
+      payload.reply_to_id = replyingTo.id
+      payload.reply_to = {
+        id: replyingTo.id,
+        content: replyingTo.content,
+        sender_name: replyingTo.sender?.name ?? "user",
+      }
+      setReplyingTo(null)
+    }
+
     const { data: inserted } = await supabase
       .from("messages")
-      .insert({
-        conversation_id: conversationId,
-        sender_id: senderId,
-        content,
-      })
+      .insert(payload)
       .select("*")
       .single()
 
@@ -682,7 +703,22 @@ export function ChatInput({
   }
 
   return (
-    <div className="relative flex items-center gap-2 p-4 border-t">
+    <div className="relative flex flex-col gap-1 p-3 border-t bg-background">
+      {replyingTo && (
+        <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-muted/70 border-l-4 border-primary rounded-md text-xs animate-in fade-in slide-in-from-bottom-1">
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="font-semibold text-primary text-[11px]">
+              Replying to {replyingTo.sender?.name ?? "message"}
+            </span>
+            <span className="truncate text-muted-foreground text-[11px]">
+              {replyingTo.content || (replyingTo.image_url ? "📷 Photo" : replyingTo.audio_url ? "🎤 Voice note" : replyingTo.sticker_url ? "📌 Sticker" : "Attachment")}
+            </span>
+          </div>
+          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 hover:bg-background/80" onClick={() => setReplyingTo(null)}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
       {feedback && <p role="status" className="absolute bottom-full left-4 right-4 mb-2 rounded-md border bg-popover px-3 py-2 text-center text-sm shadow-md">{feedback}</p>}
       {showCommands && (
         <CommandSuggestions
@@ -691,45 +727,47 @@ export function ChatInput({
           onClose={() => setShowCommands(false)}
         />
       )}
-      <textarea
-        ref={inputRef}
-        placeholder="Type a message..."
-        value={text}
-        onChange={handleInputChange}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault()
-            send()
-          }
-        }}
-        onPaste={handlePaste}
-        rows={1}
-        className="flex-1 min-h-[38px] max-h-[200px] resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto"
-        readOnly={sending}
-        aria-busy={sending}
-      />
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,video/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) { uploadFile(file); e.target.value = "" }
-        }}
-      />
-      <Button size="icon" variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={sending}>
-        <Image className="h-4 w-4" />
-      </Button>
-      <StickerPicker onSelect={handleStickerSelect} />
-      <AudioRecorder
-        conversationId={conversationId}
-        senderId={senderId}
-        onDone={() => setRecordingActive(false)}
-      />
-      <Button size="icon" onClick={() => send()} disabled={!text.trim() || sending}>
-        <Send className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center gap-2">
+        <textarea
+          ref={inputRef}
+          placeholder="Type a message..."
+          value={text}
+          onChange={handleInputChange}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault()
+              send()
+            }
+          }}
+          onPaste={handlePaste}
+          rows={1}
+          className="flex-1 min-h-[38px] max-h-[200px] resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto"
+          readOnly={sending}
+          aria-busy={sending}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) { uploadFile(file); e.target.value = "" }
+          }}
+        />
+        <Button size="icon" variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={sending}>
+          <Image className="h-4 w-4" />
+        </Button>
+        <StickerPicker onSelect={handleStickerSelect} />
+        <AudioRecorder
+          conversationId={conversationId}
+          senderId={senderId}
+          onDone={() => setRecordingActive(false)}
+        />
+        <Button size="icon" onClick={() => send()} disabled={!text.trim() || sending}>
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   )
 }

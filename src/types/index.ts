@@ -31,6 +31,12 @@ export interface Message {
   is_ai: boolean
   read: boolean
   created_at: string
+  reply_to_id?: string | null
+  reply_to?: {
+    id: string
+    content: string | null
+    sender_name?: string
+  } | null
   sender?: User
 }
 
