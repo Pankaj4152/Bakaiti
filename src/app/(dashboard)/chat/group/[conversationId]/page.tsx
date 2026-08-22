@@ -90,7 +90,7 @@ export default async function GroupConversationPage({
   return (
     <ChatWallpaperWrapper conversationId={conversationId}>
       <div className={`flex flex-col h-full ${themeClass}`}>
-        <div className="sticky top-0 z-30 flex items-center gap-1 px-2 h-14 border-b bg-background/80 backdrop-blur-md flex-shrink-0 min-w-0">
+        <div className="sticky top-0 z-30 flex items-center gap-1 px-2 h-14 border-b border-border/40 bg-background/60 backdrop-blur-md flex-shrink-0 min-w-0">
           <MobileMenuButton />
           <div className="flex items-center justify-between gap-2 px-2 flex-1 min-w-0">
             <div className="flex items-center gap-2 min-w-0">

@@ -13,7 +13,6 @@ import { PollCard } from "@/components/chat/poll-card"
 import { GlitchEffect } from "@/components/chat/glitch-effect"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { Heart, Pin, Trash2, Reply } from "lucide-react"
-import { TranslateButton } from "@/components/chat/translate-button"
 import { WallpaperDialog, WALLPAPER_PRESETS, type WallpaperConfig } from "@/components/chat/wallpaper-dialog"
 import { FlashPollCard } from "@/components/chat/flash-poll-card"
 import { NicknameBattleCard } from "@/components/chat/nickname-battle-card"
@@ -953,11 +952,6 @@ export function MessageList({
               <Button variant="ghost" className="justify-start gap-2" onClick={() => { void togglePin(actionMessage); setActionMessageId(null) }}>
                 <Pin className="h-4 w-4" /> {pinned.some((pin) => pin.message_id === actionMessage.id) ? "Unpin message" : "Pin message"}
               </Button>
-              {actionMessage.content && !actionMessage.sticker_url && !actionMessage.poll_id && (
-                <div className="px-2 py-1">
-                  <TranslateButton text={actionMessage.content} />
-                </div>
-              )}
               {actionMessage.sender_id === currentUserId && Date.now() - new Date(actionMessage.created_at).getTime() <= 120_000 && (
                 <Button variant="ghost" className="justify-start gap-2 text-destructive hover:text-destructive" onClick={() => { setActionMessageId(null); void deleteMessage(actionMessage) }}>
                   <Trash2 className="h-4 w-4" /> Delete for everyone
