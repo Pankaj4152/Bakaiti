@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useRef, useState, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -779,12 +780,20 @@ export function MessageList({
               {!isMine && (
                 <div className="w-7 flex-shrink-0">
                   {isLastInGroup ? (
-                    <Avatar className={`h-7 w-7 ${isAnon ? "ring-2 ring-purple-500/60 bg-purple-950 text-white" : ""}`}>
-                      {!isAnon && <AvatarImage src={msg.sender?.avatar_url ?? undefined} />}
-                      <AvatarFallback className="text-xs">
-                        {isAnon ? anonEmoji : (msg.sender?.name?.[0]?.toUpperCase() ?? "?")}
-                      </AvatarFallback>
-                    </Avatar>
+                    isAnon ? (
+                      <Avatar className="h-7 w-7 ring-2 ring-purple-500/60 bg-purple-950 text-white">
+                        <AvatarFallback className="text-xs">{anonEmoji}</AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <Link href={`/profile/${msg.sender_id}`} title={`View ${msg.sender?.name ?? "user"}'s profile`}>
+                        <Avatar className="h-7 w-7 hover:opacity-80 transition-opacity">
+                          <AvatarImage src={msg.sender?.avatar_url ?? undefined} />
+                          <AvatarFallback className="text-xs">
+                            {msg.sender?.name?.[0]?.toUpperCase() ?? "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Link>
+                    )
                   ) : (
                     <div className="h-7 w-7" />
                   )}
@@ -812,12 +821,22 @@ export function MessageList({
                             : "bg-muted rounded-[18px] rounded-bl-[6px]"
                       } ${grouped ? (isMine ? "rounded-br-[18px]" : "rounded-bl-[18px]") : ""}`}
                     >
-                      {isAnon && (
+                      {isAnon ? (
                         <div className="text-[10px] font-bold text-purple-400 mb-1 flex items-center gap-1 border-b border-purple-500/20 pb-0.5">
                           <span>{anonEmoji}</span>
                           <span>{anonName}</span>
                           <span className="opacity-60 text-[9px] font-normal font-sans">(Anonymous)</span>
                         </div>
+                      ) : (
+                        !isMine && msg.sender?.name && !grouped && (
+                          <Link
+                            href={`/profile/${msg.sender_id}`}
+                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                            className="text-[11px] font-bold text-amber-500 dark:text-amber-400 hover:underline mb-0.5 block truncate max-w-full"
+                          >
+                            {msg.sender.name}
+                          </Link>
+                        )
                       )}
                       {msg.reply_to && (
                         <div
