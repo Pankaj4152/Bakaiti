@@ -19,9 +19,11 @@ interface GroupMember {
 export function GroupSettingsDialog({
   conversationId,
   groupName,
+  isAnonGroup = false,
 }: {
   conversationId: string
   groupName: string
+  isAnonGroup?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -35,7 +37,7 @@ export function GroupSettingsDialog({
   const router = useRouter()
   const { refreshConversations } = useSidebar()
 
-  const isAnonGroup = groupName.startsWith("🎭") || groupName.toLowerCase().includes("anon")
+
 
   const loadData = async () => {
     setLoading(true)

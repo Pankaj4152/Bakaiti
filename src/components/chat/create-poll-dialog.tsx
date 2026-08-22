@@ -32,6 +32,16 @@ export function CreatePollDialog({
     setMode(initialMode)
   }, [initialMode, open])
 
+  // Reset form state whenever dialog closes
+  useEffect(() => {
+    if (!open) {
+      setQuestion("")
+      setOptions(["", ""])
+      setError("")
+      setLoading(false)
+    }
+  }, [open])
+
   const addOption = () => {
     if (options.length < 6) {
       setOptions([...options, ""])
@@ -81,13 +91,15 @@ export function CreatePollDialog({
 
         localStorage.setItem(`bakaiti_flash_poll_${conversationId}`, JSON.stringify(flashPollData))
 
-        const channel = supabase.channel(`flash-poll-sync:${conversationId}`)
+        const channelName = `flash-poll-sync:${conversationId}:${currentUserId}`
+        const channel = supabase.channel(channelName)
         await channel.subscribe()
         await channel.send({
           type: "broadcast",
           event: "new-flash-poll",
           payload: { poll: flashPollData },
         })
+        void supabase.removeChannel(channel)
         window.dispatchEvent(new Event(`bakaiti_flash_poll_update_${conversationId}`))
 
         const messageContent = `⚡ FLASH POLL (5 Mins): ${cleanQuestion}`

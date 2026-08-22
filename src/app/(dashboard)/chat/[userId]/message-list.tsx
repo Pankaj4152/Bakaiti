@@ -257,123 +257,6 @@ export function MessageList({
     return () => el.removeEventListener("scroll", onScroll)
   }, [loadOlder])
 
-  useEffect(() => {
-    const channel = supabase
-      .channel(`messages:${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        async (payload) => {
-          const newMsg = payload.new as Message
-          const cached = senderCache.current[newMsg.sender_id]
-          if (cached) {
-            newMsg.sender = cached
-          } else if (!newMsg.sender) {
-            const { data: sender } = await supabase
-              .from("allowed_users")
-              .select("*")
-              .eq("id", newMsg.sender_id)
-              .maybeSingle()
-            newMsg.sender = sender ?? undefined
-            if (sender) senderCache.current[newMsg.sender_id] = sender
-          }
-
-          if (messages.current.some((m) => m.id === newMsg.id)) return
-          if (newMsg.sender_id !== currentUserId) {
-            sounds.playReceivedSound()
-          }
-          messages.current = [...messages.current, newMsg]
-          setDisplay([...messages.current])
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const updated = payload.new as Message
-          let changed = false
-          messages.current = messages.current.map((m) => {
-            if (m.id === updated.id && m.read !== updated.read) {
-              changed = true
-              return { ...m, read: updated.read }
-            }
-            return m
-          })
-          if (changed) {
-            setDisplay([...messages.current])
-            refreshConversations()
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "messages" },
-        (payload) => {
-          const deleted = payload.old as Pick<Message, "id">
-          messages.current = messages.current.filter((message) => message.id !== deleted.id)
-          setDisplay([...messages.current])
-          refreshConversations()
-        }
-      )
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [conversationId, currentUserId])
-
-  useEffect(() => {
-    const updatePageActive = () => setPageActive(document.visibilityState === "visible" && document.hasFocus())
-    window.addEventListener("focus", updatePageActive)
-    window.addEventListener("blur", updatePageActive)
-    document.addEventListener("visibilitychange", updatePageActive)
-    return () => {
-      window.removeEventListener("focus", updatePageActive)
-      window.removeEventListener("blur", updatePageActive)
-      document.removeEventListener("visibilitychange", updatePageActive)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!pageActive || !scrollContainerRef.current) return
-    const unreadIds = new Set(display.filter((message) => !message.read && message.sender_id !== currentUserId).map((message) => message.id))
-    if (unreadIds.size === 0) return
-
-    const observer = new IntersectionObserver((entries) => {
-      if (document.visibilityState !== "visible" || !document.hasFocus()) return
-      const visibleIds = entries
-        .filter((entry) => {
-          if (!entry.isIntersecting) return false
-          const viewportHeight = entry.rootBounds?.height ?? window.innerHeight
-          const messageHeight = entry.boundingClientRect.height
-          return messageHeight > viewportHeight
-            ? entry.intersectionRect.height >= viewportHeight * 0.5
-            : entry.intersectionRatio >= 0.6
-        })
-        .map((entry) => (entry.target as HTMLElement).dataset.messageId)
-        .filter((id): id is string => !!id && unreadIds.has(id))
-      if (visibleIds.length === 0) return
-      visibleIds.forEach((id) => unreadIds.delete(id))
-      fetch("/api/messages/mark-read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, messageIds: visibleIds }) })
-        .then((response) => {
-          if (!response.ok) throw new Error("Failed to mark messages read")
-          messages.current = messages.current.map((message) => visibleIds.includes(message.id) ? { ...message, read: true } : message)
-          setDisplay([...messages.current])
-          refreshConversations()
-        })
-        .catch(() => visibleIds.forEach((id) => unreadIds.add(id)))
-    }, { root: scrollContainerRef.current, threshold: Array.from({ length: 101 }, (_, index) => index / 100) })
-
-    return () => observer.disconnect()
-  }, [conversationId, currentUserId, display, pageActive, refreshConversations])
 
   useEffect(() => {
     const el = scrollContainerRef.current
@@ -894,11 +777,14 @@ export function MessageList({
                             : "bg-muted/85 backdrop-blur-sm rounded-[18px] rounded-bl-[6px] shadow-sm"
                       } ${grouped ? (isMine ? "rounded-br-[18px]" : "rounded-bl-[18px]") : ""}`}
                     >
-                      {isAnon ? (
+                      {isAnon && !isMine && !grouped ? (
                         <div className="text-[10px] font-bold text-purple-400 mb-1 flex items-center gap-1 border-b border-purple-500/20 pb-0.5">
                           <span>{anonEmoji}</span>
                           <span>{anonName}</span>
-                          <span className="opacity-60 text-[9px] font-normal font-sans">(Anonymous)</span>
+                        </div>
+                      ) : isAnon && isMine && !grouped ? (
+                        <div className="text-[10px] font-bold text-purple-400/60 mb-1 text-right">
+                          You (Anonymous)
                         </div>
                       ) : (
                         !isMine && isGroup && msg.sender?.name && !grouped && (
@@ -982,7 +868,7 @@ export function MessageList({
             </div>
           </div>
         )
-      })
+        })
       })()}
       <div ref={bottomRef} />
     </div>

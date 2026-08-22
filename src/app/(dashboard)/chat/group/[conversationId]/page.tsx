@@ -8,7 +8,6 @@ import { MobileMenuButton } from "../../[userId]/chat-header"
 import { GroupSettingsDialog } from "@/components/chat/group-settings-dialog"
 import { WallpaperDialog } from "@/components/chat/wallpaper-dialog"
 import { ChatWallpaperWrapper } from "@/components/chat/chat-wallpaper-wrapper"
-import { NicknameBattleDialog } from "@/components/chat/nickname-battle-dialog"
 import { AnonymousToggleDialog } from "@/components/chat/anonymous-toggle-dialog"
 import { ShareGroupDialog } from "@/components/chat/share-group-dialog"
 
@@ -87,7 +86,8 @@ export default async function GroupConversationPage({
   const themeClass = currentUser.theme && currentUser.theme !== "default" ? `theme-${currentUser.theme}` : ""
   const senderId = currentUser.id
 
-  const isAnonGroup = convo.name?.startsWith("🎭") || convo.name?.toLowerCase().includes("anon") || convo.type === "anonymous_group"
+  const isAnonGroup = convo.type === "anonymous_group" || convo.name?.startsWith("🎭")
+  const displayGroupName = isAnonGroup ? "🎭 Anonymous Group" : (convo.name ?? "Group")
 
   return (
     <ChatWallpaperWrapper conversationId={conversationId}>
@@ -115,11 +115,11 @@ export default async function GroupConversationPage({
                   </div>
                 )}
               </div>
-              <ShareGroupDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
+              <ShareGroupDialog conversationId={conversationId} groupName={displayGroupName} />
             </div>
             <div className="flex items-center gap-1">
               <WallpaperDialog conversationId={conversationId} />
-              <GroupSettingsDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
+              <GroupSettingsDialog conversationId={conversationId} groupName={displayGroupName} isAnonGroup={isAnonGroup} />
             </div>
           </div>
         </div>

@@ -53,25 +53,32 @@ export function NicknameBattleDialog({
   const [memberList, setMemberList] = useState<{ id: string; name: string }[]>(members)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const activeBattleRef = useRef<NicknameBattle | null>(null)
+  const membersFetchedRef = useRef(false)
   const supabase = createClient()
 
   useEffect(() => {
     if (members.length > 0) {
       setMemberList(members)
+      membersFetchedRef.current = true
     }
   }, [members])
 
+  // Reset fetch gate when dialog opens, fetch once if no members yet
   useEffect(() => {
-    if (open && memberList.length === 0) {
-      fetch(`/api/group?conversationId=${encodeURIComponent(conversationId)}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data?.group?.members) {
-            setMemberList(data.group.members)
-          }
-        })
-        .catch(() => {})
+    if (!open) {
+      membersFetchedRef.current = false
+      return
     }
+    if (membersFetchedRef.current || memberList.length > 0) return
+    membersFetchedRef.current = true
+    fetch(`/api/group?conversationId=${encodeURIComponent(conversationId)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.group?.members?.length > 0) {
+          setMemberList(data.group.members)
+        }
+      })
+      .catch(() => {})
   }, [open, conversationId, memberList.length])
 
   useEffect(() => {
