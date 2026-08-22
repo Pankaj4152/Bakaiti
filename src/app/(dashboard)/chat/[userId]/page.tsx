@@ -106,7 +106,7 @@ export default async function ConversationPage({
           </div>
           <TypingIndicator conversationId={conversationId} otherUserId={userId} />
         </Link>
-        <WallpaperDialog conversationId={conversationId} onWallpaperChange={() => {}} />
+        <WallpaperDialog conversationId={conversationId} />
         <MediaButton conversationId={conversationId} historyCutoff={historyCutoff} />
       </div>
       <MessageList

@@ -25,7 +25,7 @@ export function WallpaperDialog({
   onWallpaperChange,
 }: {
   conversationId: string
-  onWallpaperChange: (config: WallpaperConfig) => void
+  onWallpaperChange?: (config: WallpaperConfig) => void
 }) {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<string>("default")
