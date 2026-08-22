@@ -12,7 +12,7 @@ export interface WallpaperConfig {
 }
 
 export const WALLPAPER_PRESETS = [
-  { id: "default", name: "Default Dark", class: "bg-background" },
+  { id: "default", name: "Default Dark", class: "bg-gradient-to-br from-zinc-950 via-slate-900 to-zinc-950" },
   { id: "gradient-midnight", name: "Midnight Purple", class: "bg-gradient-to-br from-slate-950 via-purple-950/80 to-slate-950" },
   { id: "gradient-emerald", name: "Emerald Forest", class: "bg-gradient-to-br from-zinc-950 via-emerald-950/80 to-slate-950" },
   { id: "gradient-synthwave", name: "Neon Synthwave", class: "bg-gradient-to-br from-slate-950 via-fuchsia-950/70 to-cyan-950/80" },

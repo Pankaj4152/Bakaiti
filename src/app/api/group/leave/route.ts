@@ -41,9 +41,15 @@ export async function POST(request: Request) {
     .eq("conversation_id", conversationId)
     .eq("user_id", user.id)
 
-  if (error) {
-    return NextResponse.json({ error: "Failed to leave group" }, { status: 500 })
-  }
+  // Insert WhatsApp-style leave notification
+  const { data: allowedUser } = await admin.from("allowed_users").select("name").eq("id", user.id).maybeSingle()
+  const displayName = allowedUser?.name || "Someone"
+
+  await admin.from("messages").insert({
+    conversation_id: conversationId,
+    sender_id: user.id,
+    content: `🚪 ${displayName} left the group`,
+  })
 
   return NextResponse.json({ ok: true })
 }

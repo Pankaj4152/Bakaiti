@@ -769,6 +769,23 @@ export function MessageList({
         const anonName = anonMatch?.[2] ?? "Anonymous"
         const displayContent = isAnon ? anonMatch[3] : msg.content
 
+        const isSystemNotify =
+          msg.content?.startsWith("👋") ||
+          msg.content?.startsWith("🚪") ||
+          msg.content?.startsWith("✨") ||
+          msg.content?.includes("joined the group") ||
+          msg.content?.includes("left the group")
+
+        if (isSystemNotify) {
+          return (
+            <div key={msg.id} id={`msg-${msg.id}`} data-message-id={msg.id} className="flex justify-center my-2.5">
+              <div className="bg-muted/70 backdrop-blur-md border border-border/40 text-muted-foreground text-[11px] px-3.5 py-1 rounded-full font-medium shadow-sm flex items-center gap-1.5 max-w-[85%] text-center">
+                <span>{msg.content}</span>
+              </div>
+            </div>
+          )
+        }
+
         return (
           <div key={msg.id} id={`msg-${msg.id}`} data-message-id={msg.id}>
             {showUnreadSeparator && (

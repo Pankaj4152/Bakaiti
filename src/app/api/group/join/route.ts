@@ -42,9 +42,15 @@ export async function POST(request: Request) {
     .from("conversation_participants")
     .upsert({ conversation_id: convo.id, user_id: user.id }, { onConflict: "conversation_id,user_id" })
 
-  if (error) {
-    return NextResponse.json({ error: "Failed to join group" }, { status: 500 })
-  }
+  // Insert WhatsApp-style join notification
+  const { data: allowedUser } = await admin.from("allowed_users").select("name").eq("id", user.id).maybeSingle()
+  const displayName = allowedUser?.name || "Someone"
+
+  await admin.from("messages").insert({
+    conversation_id: convo.id,
+    sender_id: user.id,
+    content: `👋 ${displayName} joined the group`,
+  })
 
   return NextResponse.json({ success: true, conversationId: convo.id, groupName: convo.name })
 }
