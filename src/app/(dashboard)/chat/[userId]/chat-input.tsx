@@ -755,7 +755,7 @@ export function ChatInput({
   }
 
   return (
-    <div className="relative flex flex-col gap-1 p-3 border-t bg-background">
+    <div className="relative flex flex-col gap-1 p-3 border-t bg-background/80 backdrop-blur-md">
       {replyingTo && (
         <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-muted/70 border-l-4 border-primary rounded-md text-xs animate-in fade-in slide-in-from-bottom-1">
           <div className="flex flex-col min-w-0 flex-1">

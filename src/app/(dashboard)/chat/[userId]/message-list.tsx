@@ -815,10 +815,10 @@ export function MessageList({
                       onDoubleClick={() => { if (!readOnly) void toggleReaction(msg.id, "❤️") }}
                       className={`px-3.5 py-2 text-sm whitespace-pre-wrap break-words outline-none select-none [webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${readOnly ? "cursor-default" : "cursor-pointer"} ${
                         msg.is_ai
-                          ? "bg-zinc-900 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px]"
+                          ? "bg-zinc-900/90 text-zinc-100 border border-amber-500/40 rounded-[18px] rounded-br-[6px] backdrop-blur-sm shadow-sm"
                           : isMine
-                            ? "bg-primary text-primary-foreground rounded-[18px] rounded-br-[6px]"
-                            : "bg-muted rounded-[18px] rounded-bl-[6px]"
+                            ? "bg-primary/90 text-primary-foreground rounded-[18px] rounded-br-[6px] backdrop-blur-sm shadow-sm"
+                            : "bg-muted/85 backdrop-blur-sm rounded-[18px] rounded-bl-[6px] shadow-sm"
                       } ${grouped ? (isMine ? "rounded-br-[18px]" : "rounded-bl-[18px]") : ""}`}
                     >
                       {isAnon ? (
