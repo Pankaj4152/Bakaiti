@@ -8,6 +8,7 @@ import { Send, Image, X } from "lucide-react"
 import { AudioRecorder } from "@/components/chat/audio-recorder"
 import { StickerPicker } from "@/components/chat/stickers/sticker-picker"
 import { ActionPlusMenu } from "@/components/chat/action-plus-menu"
+import { CreatePollDialog } from "@/components/chat/create-poll-dialog"
 import { CommandSuggestions } from "@/components/chat/command-suggestions"
 import { COMMANDS, type Command } from "@/lib/commands"
 import { sounds } from "@/lib/sounds"
@@ -93,6 +94,7 @@ export function ChatInput({
   const [showCommands, setShowCommands] = useState(false)
   const [feedback, setFeedback] = useState("")
   const [replyingTo, setReplyingTo] = useState<any>(null)
+  const [showPollDialog, setShowPollDialog] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
@@ -809,10 +811,7 @@ export function ChatInput({
         />
         <ActionPlusMenu
           onSelectImage={() => fileInputRef.current?.click()}
-          onSelectPoll={() => {
-            setText('/poll "Your Question?" "Option 1" "Option 2"')
-            inputRef.current?.focus()
-          }}
+          onSelectPoll={() => setShowPollDialog(true)}
           onSelectFlashPoll={() => {
             setText('/flashpoll "Quick Question?" "Yes 🚀" "No 📚"')
             inputRef.current?.focus()
@@ -821,6 +820,11 @@ export function ChatInput({
             const btn = document.querySelector<HTMLButtonElement>('button:has(.lucide-trophy)')
             if (btn) btn.click()
           }}
+        />
+        <CreatePollDialog
+          conversationId={conversationId}
+          open={showPollDialog}
+          onOpenChange={setShowPollDialog}
         />
         <AudioRecorder
           conversationId={conversationId}
