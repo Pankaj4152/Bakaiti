@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import type { Message, Reaction } from "@/types"
@@ -647,6 +647,12 @@ export function MessageList({
   const presetClass = wallpaper.type === "preset" ? WALLPAPER_PRESETS.find((p) => p.id === wallpaper.value)?.class ?? "" : ""
   const imageStyle = wallpaper.type === "image" ? { backgroundImage: `url(${wallpaper.value})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined
 
+  // Compute distinct senders ONCE — used to assign unique anon personas per user
+  const distinctSenders = useMemo(
+    () => Array.from(new Set(display.map((m) => m.sender_id))),
+    [display]
+  )
+
   return (
     <TooltipProvider>
     <>
@@ -688,21 +694,19 @@ export function MessageList({
         if (name === "glitch") return <GlitchEffect />
         return <MessageEffect effect={name} customEmoji={rest.join(" ")} />
       })()}
-      {(() => {
-        const distinctSenders = Array.from(new Set(display.map((m) => m.sender_id)))
-        return display.map((msg, i) => {
-          const isMine = msg.sender_id === currentUserId
-          const showUnreadSeparator = i === firstUnreadIndex
-          const grouped = isSameSender(i)
-          const isLastInGroup = i === display.length - 1 || display[i + 1].sender_id !== msg.sender_id
+      {display.map((msg, i) => {
+        const isMine = msg.sender_id === currentUserId
+        const showUnreadSeparator = i === firstUnreadIndex
+        const grouped = isSameSender(i)
+        const isLastInGroup = i === display.length - 1 || display[i + 1].sender_id !== msg.sender_id
 
-          const senderIndex = distinctSenders.indexOf(msg.sender_id)
-          const anonMatch = msg.content?.match(/^\[ANON:([^:]+):([^\]]+)\]\s*([\s\S]*)$/)
-          const fallbackPersona = getAnonPersona(msg.sender_id, senderIndex)
-          const isAnon = !!anonMatch || isAnonGroup
-          const anonEmoji = anonMatch?.[1] ?? fallbackPersona.emoji
-          const anonName = anonMatch?.[2] ?? fallbackPersona.name
-          const displayContent = anonMatch ? anonMatch[3] : msg.content
+        const senderIndex = distinctSenders.indexOf(msg.sender_id)
+        const anonMatch = msg.content?.match(/^\[ANON:([^:]+):([^\]]+)\]\s*([\s\S]*)$/)
+        const fallbackPersona = getAnonPersona(msg.sender_id, senderIndex)
+        const isAnon = !!anonMatch || isAnonGroup
+        const anonEmoji = anonMatch?.[1] ?? fallbackPersona.emoji
+        const anonName = anonMatch?.[2] ?? fallbackPersona.name
+        const displayContent = anonMatch ? anonMatch[3] : msg.content
 
         const isSystemNotify =
           msg.content?.startsWith("👋") ||
@@ -868,8 +872,7 @@ export function MessageList({
             </div>
           </div>
         )
-        })
-      })()}
+      })}
       <div ref={bottomRef} />
     </div>
     <Dialog open={!!actionMessage} onOpenChange={(open) => { if (!open) setActionMessageId(null) }}>
