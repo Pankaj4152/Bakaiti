@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Trophy, Vote, Plus, Clock, Crown, Sparkles } from "lucide-react"
+import { Trophy, Vote, Plus, Clock, Crown, Sparkles, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { sounds } from "@/lib/sounds"
 
@@ -26,16 +26,6 @@ export interface NicknameBattle {
   finalized: boolean
 }
 
-const MEME_PRESETS = [
-  "Canteen Chor ☕",
-  "Padhaku Maggu 📚",
-  "Late Latif ⏰",
-  "Backbench King 👑",
-  "Proxy Master 🎒",
-  "One-Sided Lover 💔",
-  "Mass Recruiter Target 🎯",
-]
-
 export function NicknameBattleDialog({
   conversationId,
   currentUserId,
@@ -49,32 +39,90 @@ export function NicknameBattleDialog({
   const [selectedTarget, setSelectedTarget] = useState<{ id: string; name: string } | null>(null)
   const [activeBattle, setActiveBattle] = useState<NicknameBattle | null>(null)
   const [customSuggestion, setCustomSuggestion] = useState("")
+  const [generatingAi, setGeneratingAi] = useState(false)
   const [timeLeft, setTimeLeft] = useState(120)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const activeBattleRef = useRef<NicknameBattle | null>(null)
   const supabase = createClient()
 
-  // Sync active battle from localStorage / Realtime state per conversation
+  useEffect(() => {
+    activeBattleRef.current = activeBattle
+  }, [activeBattle])
+
   const battleStorageKey = `bakaiti_nickname_battle_${conversationId}`
 
+  // Broadcast battle update over Supabase Realtime channel to ALL group members
+  const syncBattle = useCallback((battle: NicknameBattle | null) => {
+    setActiveBattle(battle)
+    try {
+      if (battle) {
+        localStorage.setItem(battleStorageKey, JSON.stringify(battle))
+      } else {
+        localStorage.removeItem(battleStorageKey)
+      }
+    } catch {}
+    window.dispatchEvent(new CustomEvent("bakaiti:active-battle", { detail: { conversationId, hasActive: !!battle && !battle.finalized } }))
+  }, [battleStorageKey, conversationId])
+
+  // Supabase Realtime Channel for instant live updates across ALL group members
   useEffect(() => {
-    const loadBattle = () => {
-      try {
-        const raw = localStorage.getItem(battleStorageKey)
-        if (raw) {
-          const battle: NicknameBattle = JSON.parse(raw)
-          if (Date.now() < battle.ends_at && !battle.finalized) {
-            setActiveBattle(battle)
-          } else if (Date.now() >= battle.ends_at && !battle.finalized) {
-            finalizeBattle(battle)
-          }
+    const channelName = `battle-sync:${conversationId}:${Math.random().toString(36).substring(2, 6)}`
+    const channel = supabase.channel(channelName)
+
+    channel
+      .on("broadcast", { event: "battle-update" }, ({ payload }) => {
+        if (payload?.battle) {
+          syncBattle(payload.battle)
+        } else if (payload?.clear) {
+          syncBattle(null)
         }
-      } catch {}
+      })
+      .on("broadcast", { event: "request-sync" }, () => {
+        if (activeBattleRef.current && !activeBattleRef.current.finalized) {
+          channel.send({
+            type: "broadcast",
+            event: "battle-update",
+            payload: { battle: activeBattleRef.current },
+          }).catch(() => {})
+        }
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          // Request active battle state from any online group member
+          channel.send({
+            type: "broadcast",
+            event: "request-sync",
+            payload: { requestedBy: currentUserId },
+          }).catch(() => {})
+        }
+      })
+
+    // Also check local cache on mount
+    try {
+      const raw = localStorage.getItem(battleStorageKey)
+      if (raw) {
+        const battle: NicknameBattle = JSON.parse(raw)
+        if (Date.now() < battle.ends_at && !battle.finalized) {
+          setActiveBattle(battle)
+        }
+      }
+    } catch {}
+
+    return () => {
+      void supabase.removeChannel(channel)
     }
-    loadBattle()
-    const handleSync = () => loadBattle()
-    window.addEventListener(`bakaiti_battle_update_${conversationId}`, handleSync)
-    return () => window.removeEventListener(`bakaiti_battle_update_${conversationId}`, handleSync)
-  }, [conversationId])
+  }, [conversationId, currentUserId, supabase, battleStorageKey, syncBattle])
+
+  // Broadcast battle state helper
+  const broadcastBattle = (battle: NicknameBattle | null) => {
+    syncBattle(battle)
+    const channelName = `battle-sync:${conversationId}`
+    supabase.channel(channelName).send({
+      type: "broadcast",
+      event: "battle-update",
+      payload: battle ? { battle } : { clear: true },
+    }).catch(() => {})
+  }
 
   // Timer countdown
   useEffect(() => {
@@ -93,13 +141,6 @@ export function NicknameBattleDialog({
     }
   }, [activeBattle])
 
-  const broadcastBattleUpdate = (battle: NicknameBattle) => {
-    try {
-      localStorage.setItem(battleStorageKey, JSON.stringify(battle))
-    } catch {}
-    window.dispatchEvent(new Event(`bakaiti_battle_update_${conversationId}`))
-  }
-
   const startTournament = (target: { id: string; name: string }) => {
     const battle: NicknameBattle = {
       id: `battle_${Date.now()}`,
@@ -108,17 +149,46 @@ export function NicknameBattleDialog({
       target_user_name: target.name,
       started_by: currentUserId,
       ends_at: Date.now() + 120 * 1000, // 2 minutes
-      candidates: MEME_PRESETS.slice(0, 3).map((p, i) => ({
-        id: `cand_${i}`,
-        name: p,
-        suggested_by: "system",
-        votes: [],
-      })),
+      candidates: [],
       finalized: false,
     }
-    setActiveBattle(battle)
-    broadcastBattleUpdate(battle)
+    broadcastBattle(battle)
     sounds.playSentSound()
+  }
+
+  const generateAiNicknames = async () => {
+    if (!activeBattle) return
+    setGeneratingAi(true)
+    try {
+      const res = await fetch("/api/nickname-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId,
+          targetUserId: activeBattle.target_user_id,
+          targetUserName: activeBattle.target_user_name,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && Array.isArray(data.suggestions)) {
+        const newCandidates = data.suggestions.map((s: string, i: number) => ({
+          id: `ai_${Date.now()}_${i}`,
+          name: s,
+          suggested_by: "Bakait AI ✨",
+          votes: [],
+        }))
+
+        const updated: NicknameBattle = {
+          ...activeBattle,
+          candidates: [...activeBattle.candidates, ...newCandidates.filter((nc: NicknameCandidate) => !activeBattle.candidates.some(c => c.name === nc.name))],
+        }
+        broadcastBattle(updated)
+        sounds.playSentSound()
+      }
+    } catch {
+    } finally {
+      setGeneratingAi(false)
+    }
   }
 
   const addCandidate = (name: string) => {
@@ -135,8 +205,7 @@ export function NicknameBattleDialog({
       ...activeBattle,
       candidates: [...activeBattle.candidates, newCand],
     }
-    setActiveBattle(updated)
-    broadcastBattleUpdate(updated)
+    broadcastBattle(updated)
     setCustomSuggestion("")
     sounds.playSentSound()
   }
@@ -154,8 +223,7 @@ export function NicknameBattleDialog({
       return c
     })
     const updated: NicknameBattle = { ...activeBattle, candidates: updatedCandidates }
-    setActiveBattle(updated)
-    broadcastBattleUpdate(updated)
+    broadcastBattle(updated)
     sounds.playReactionSound()
   }
 
@@ -163,13 +231,9 @@ export function NicknameBattleDialog({
     if (battle.finalized) return
     const sorted = [...battle.candidates].sort((a, b) => b.votes.length - a.votes.length)
     const winner = sorted[0]
-    const finalizedBattle: NicknameBattle = { ...battle, finalized: true }
-    setActiveBattle(null)
-    localStorage.removeItem(battleStorageKey)
-    window.dispatchEvent(new Event(`bakaiti_battle_update_${conversationId}`))
+    broadcastBattle(null)
 
     if (winner && winner.name) {
-      // Save winning nickname officially for target user
       try {
         await fetch("/api/nickname", {
           method: "POST",
@@ -179,7 +243,6 @@ export function NicknameBattleDialog({
         window.dispatchEvent(new Event("bakaiti:nickname-updated"))
       } catch {}
 
-      // Insert announcement message into group chat
       const announcement = `👑 NICKNAME BATTLE FINISHED! ${battle.target_user_name} is officially crowned "${winner.name}" with ${winner.votes.length} votes! 🎉`
       try {
         await supabase.from("messages").insert({
@@ -225,36 +288,61 @@ export function NicknameBattleDialog({
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Candidate Nicknames</label>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {activeBattle.candidates.map((c) => {
-                  const hasVoted = c.votes.includes(currentUserId)
-                  return (
-                    <div
-                      key={c.id}
-                      onClick={() => voteCandidate(c.id)}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                        hasVoted ? "border-amber-500 bg-amber-500/15" : "border-border hover:bg-accent"
-                      }`}
-                    >
-                      <span className="text-sm font-medium">{c.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-muted-foreground">{c.votes.length} votes</span>
-                        <Button size="sm" variant={hasVoted ? "default" : "outline"} className="h-7 px-2.5 text-xs">
-                          <Vote className="h-3.5 w-3.5 mr-1" /> {hasVoted ? "Voted" : "Vote"}
-                        </Button>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Candidate Nicknames</label>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={generateAiNicknames}
+                  disabled={generatingAi}
+                  className="h-7 text-xs text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                >
+                  {generatingAi ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                  AI Generate Names
+                </Button>
               </div>
+
+              {activeBattle.candidates.length === 0 ? (
+                <div className="text-center p-6 border border-dashed rounded-xl space-y-2">
+                  <p className="text-xs text-muted-foreground">No candidate nicknames added yet!</p>
+                  <Button size="sm" variant="secondary" onClick={generateAiNicknames} disabled={generatingAi} className="text-xs gap-1">
+                    <Sparkles className="h-3.5 w-3.5 text-purple-400" /> Generate AI Nicknames from Chat
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {activeBattle.candidates.map((c) => {
+                    const hasVoted = c.votes.includes(currentUserId)
+                    return (
+                      <div
+                        key={c.id}
+                        onClick={() => voteCandidate(c.id)}
+                        className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                          hasVoted ? "border-amber-500 bg-amber-500/15" : "border-border hover:bg-accent"
+                        }`}
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{c.name}</p>
+                          <p className="text-[10px] text-muted-foreground">by {c.suggested_by}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-muted-foreground">{c.votes.length} votes</span>
+                          <Button size="sm" variant={hasVoted ? "default" : "outline"} className="h-7 px-2.5 text-xs">
+                            <Vote className="h-3.5 w-3.5 mr-1" /> {hasVoted ? "Voted" : "Vote"}
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="pt-2 border-t space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Add Candidate Suggestion</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Suggest Candidate Nickname</label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g. Canteen Maggi, Padhaku..."
+                  placeholder="e.g. Canteen Chor, Late Latif..."
                   value={customSuggestion}
                   onChange={(e) => setCustomSuggestion(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addCandidate(customSuggestion)}
@@ -270,7 +358,7 @@ export function NicknameBattleDialog({
         ) : (
           <div className="space-y-4 py-2">
             <p className="text-xs text-muted-foreground">
-              Nominate a group member for a 2-minute Nickname Tournament! Everyone votes on funny candidates, and the winner gets officially named in group chat!
+              Nominate a group member for a 2-minute Nickname Tournament! Everyone votes on funny candidates (or AI-generated roasts), and the winner gets officially named in group chat!
             </p>
 
             <div className="space-y-2">

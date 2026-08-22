@@ -66,6 +66,17 @@ export function UserList({ onNav }: { onNav?: () => void }) {
     setSoundEnabled(next)
     if (next) sounds.playSentSound()
   }
+  const [activeBattles, setActiveBattles] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    const handleActive = (e: any) => {
+      if (e.detail?.conversationId) {
+        setActiveBattles((prev) => ({ ...prev, [e.detail.conversationId]: e.detail.hasActive }))
+      }
+    }
+    window.addEventListener("bakaiti:active-battle", handleActive)
+    return () => window.removeEventListener("bakaiti:active-battle", handleActive)
+  }, [])
   const router = useRouter()
   const params = useParams()
   const supabase = useMemo(() => createClient(), [])
@@ -326,6 +337,9 @@ export function UserList({ onNav }: { onNav?: () => void }) {
                       <span className="text-sm font-medium truncate">
                         {displayName}
                       </span>
+                      {activeBattles[convo.id] && (
+                        <span className="text-xs shrink-0 animate-bounce" title="Active Nickname Battle Live!">🏆</span>
+                      )}
                       {convo.unreadCount > 0 && (
                         <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
                       )}
