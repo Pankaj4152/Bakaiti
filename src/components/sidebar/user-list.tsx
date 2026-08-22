@@ -178,7 +178,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
     let refreshTimer: ReturnType<typeof setTimeout> | undefined
     const scheduleLoad = () => {
       if (refreshTimer) clearTimeout(refreshTimer)
-      refreshTimer = setTimeout(load, 100)
+      refreshTimer = setTimeout(load, 400)
     }
     const channelName = `sidebar-sync:${Math.random().toString(36).substring(2, 8)}`
     const channel = supabase

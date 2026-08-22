@@ -418,7 +418,7 @@ export function MessageList({
           refreshConversations()
         })
         .catch(() => visibleIds.forEach((id) => unreadIds.add(id)))
-    }, { root: scrollContainerRef.current, threshold: Array.from({ length: 101 }, (_, index) => index / 100) })
+    }, { root: scrollContainerRef.current, threshold: [0.6] })
 
     unreadIds.forEach((id) => {
       const element = document.getElementById(`msg-${id}`)
@@ -752,10 +752,9 @@ export function MessageList({
                 </div>
               )}
               <div className="flex flex-col items-end gap-0.5 max-w-[75%]">
-                <Tooltip>
-                  <TooltipTrigger asChild>
                     <div
                       tabIndex={0}
+                      title={formatMessageTime(msg.created_at)}
                       role={readOnly ? undefined : "button"}
                       aria-label={`Message from ${isMine ? "you" : msg.sender?.name ?? "user"}. ${readOnly ? "Read only" : "Open message actions"}`}
                       onClick={(event) => handleMessageClick(event, msg.id)}
@@ -794,11 +793,6 @@ export function MessageList({
                         msg.content
                       )}
                     </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align={isMine ? "end" : "start"}>
-                    {formatMessageTime(msg.created_at)}
-                  </TooltipContent>
-                </Tooltip>
                 {isMine && (
                   <span className={`text-[10px] px-1 leading-none ${msg.read ? "text-blue-400" : "text-muted-foreground"}`}>
                     {msg.read ? "✓✓" : "✓"}
