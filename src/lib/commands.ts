@@ -10,6 +10,7 @@ export const COMMANDS: Command[] = [
   { command: "/chaos", label: "Chaos", description: "Turn chat into dramatic breaking news (add text to send context first)", aliases: ["/news"] },
   { command: "/remember", label: "Remember", description: "Recall memories and quotes", aliases: ["/recall"] },
   { command: "/poll", label: "Poll", description: "Create a poll" },
+  { command: "/flashpoll", label: "Flash Poll", description: "Create a 5-minute instant pop-up poll (/flashpoll Bunk? Yes No)", aliases: ["/flash"] },
   { command: "/ghost-meter", label: "Ghost Meter", description: "Who leaves on read the most" },
   { command: "/fortune", label: "Fortune", description: "Bakait tells your fortune" },
   { command: "/simps", label: "Simps", description: "Who replies fastest to whom" },

@@ -408,6 +408,39 @@ export function ChatInput({
       return
     }
 
+    if (content.startsWith("/flashpoll") || content.startsWith("/flash")) {
+      const parts = content.split(" ").slice(1)
+      const question = parts[0] ? parts[0].replace(/"/g, "") : "Bunk 9 AM lecture?"
+      const optionsRaw = parts.slice(1).map((p) => p.replace(/"/g, ""))
+      const options = optionsRaw.length >= 2 ? optionsRaw : ["Yes 🚀", "No 📚"]
+
+      const flashPollData = {
+        id: `flash_${Date.now()}`,
+        conversation_id: conversationId,
+        question,
+        created_at: new Date().toISOString(),
+        created_by: senderId,
+        expires_at: Date.now() + 5 * 60 * 1000,
+        options: options.map((optText, i) => ({ id: `opt_${i}`, text: optText, votes: [] })),
+      }
+
+      try {
+        localStorage.setItem(`bakaiti_flash_poll_${conversationId}`, JSON.stringify(flashPollData))
+      } catch {}
+      window.dispatchEvent(new Event(`bakaiti_flash_poll_update_${conversationId}`))
+
+      setText("")
+      setSending(true)
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content: `⚡ 5-MIN FLASH POLL: ${question}`,
+      })
+      setSending(false)
+      focusInput()
+      return
+    }
+
     if (content.startsWith("/poll")) {
       setText("")
       setSending(true)

@@ -14,6 +14,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { Heart, Pin, Trash2, Reply } from "lucide-react"
 import { TranslateButton } from "@/components/chat/translate-button"
 import { WallpaperDialog, WALLPAPER_PRESETS, type WallpaperConfig } from "@/components/chat/wallpaper-dialog"
+import { FlashPollCard } from "@/components/chat/flash-poll-card"
 import { sounds } from "@/lib/sounds"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
@@ -714,6 +715,7 @@ export function MessageList({
   return (
     <TooltipProvider>
     <>
+    <FlashPollCard conversationId={conversationId} currentUserId={currentUserId} />
     <div className={`flex-1 overflow-y-auto px-4 py-3 space-y-1 transition-all ${presetClass}`} style={imageStyle} ref={scrollContainerRef}>
       {pinned.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 pb-2 mb-2 border-b border-dashed border-border">
