@@ -76,7 +76,38 @@ export async function POST(request: Request) {
   return NextResponse.json({ id: convo.id })
 }
 
-// PATCH: rename group / add / remove members. Owner (admin_id) only.
+// GET: load group details & members
+export async function GET(request: Request) {
+  const url = new URL(request.url)
+  const conversationId = url.searchParams.get("conversationId")
+  if (!conversationId) return NextResponse.json({ error: "Missing conversationId" }, { status: 400 })
+
+  const user = await getAuthUser()
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+
+  const admin = createAdminClient()
+  const { data: convo } = await loadGroup(admin, conversationId)
+  if (!convo || convo.type !== "group") return NextResponse.json({ error: "Group not found" }, { status: 404 })
+
+  const { data: participants } = await admin
+    .from("conversation_participants")
+    .select("user_id, allowed_users:user_id(id, name, username, avatar_url)")
+    .eq("conversation_id", conversationId)
+
+  const members = (participants ?? []).map((p: any) => p.allowed_users).filter(Boolean)
+
+  return NextResponse.json({
+    group: {
+      id: convo.id,
+      name: convo.name,
+      adminId: convo.admin_id || convo.user1_id,
+      isOwner: (convo.admin_id || convo.user1_id) === user.id,
+      members,
+    },
+  })
+}
+
+// PATCH: rename group / add / remove members / transfer admin. Owner (admin_id) only.
 export async function PATCH(request: Request) {
   let body: Record<string, unknown>
   try {
@@ -111,9 +142,20 @@ export async function PATCH(request: Request) {
     updates.name = name.trim().slice(0, MAX_GROUP_NAME)
   }
 
-  const { error: updateError } = await admin.from("conversations").update(updates).eq("id", conversationId)
-  if (updateError) {
-    return NextResponse.json({ error: "Failed to update group" }, { status: 500 })
+  const newAdminId = body.newAdminId as string | undefined
+  if (newAdminId !== undefined && typeof newAdminId === "string") {
+    const valid = await validateUsers(admin, [newAdminId])
+    if (!valid.has(newAdminId)) {
+      return NextResponse.json({ error: "Invalid new admin user" }, { status: 400 })
+    }
+    updates.admin_id = newAdminId
+  }
+
+  if (Object.keys(updates).length > 0) {
+    const { error: updateError } = await admin.from("conversations").update(updates).eq("id", conversationId)
+    if (updateError) {
+      return NextResponse.json({ error: "Failed to update group" }, { status: 500 })
+    }
   }
 
   const addIds = body.addIds as string[] | undefined

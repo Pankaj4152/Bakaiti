@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChatInput } from "../../[userId]/chat-input"
 import { MessageList } from "../../[userId]/message-list"
 import { MobileMenuButton } from "../../[userId]/chat-header"
+import { GroupSettingsDialog } from "@/components/chat/group-settings-dialog"
 
 const getConversation = cache(async (conversationId: string) => {
   const supabase = await createClient()
@@ -85,21 +86,24 @@ export default async function GroupConversationPage({
     <div className={`flex flex-col h-full ${themeClass}`}>
       <div className="flex items-center gap-1 px-2 h-14 border-b flex-shrink-0">
         <MobileMenuButton />
-        <div className="flex items-center gap-2 px-2 flex-1">
-          <div className="flex -space-x-2">
-            {allUsers?.slice(0, 4).map((u) => (
-              <Avatar key={u.id} className="h-7 w-7 border-2 border-background">
-                <AvatarImage src={u.avatar_url ?? undefined} />
-                <AvatarFallback className="text-[10px]">{u.name[0]?.toUpperCase()}</AvatarFallback>
-              </Avatar>
-            ))}
-            {(allUsers?.length ?? 0) > 4 && (
-              <div className="h-7 w-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium">
-                +{allUsers!.length - 4}
-              </div>
-            )}
+        <div className="flex items-center justify-between gap-2 px-2 flex-1 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex -space-x-2">
+              {allUsers?.slice(0, 4).map((u) => (
+                <Avatar key={u.id} className="h-7 w-7 border-2 border-background">
+                  <AvatarImage src={u.avatar_url ?? undefined} />
+                  <AvatarFallback className="text-[10px]">{u.name[0]?.toUpperCase()}</AvatarFallback>
+                </Avatar>
+              ))}
+              {(allUsers?.length ?? 0) > 4 && (
+                <div className="h-7 w-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium">
+                  +{allUsers!.length - 4}
+                </div>
+              )}
+            </div>
+            <span className="font-semibold truncate">{convo.name ?? "Group"}</span>
           </div>
-          <span className="font-semibold">{convo.name ?? "Group"}</span>
+          <GroupSettingsDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
         </div>
       </div>
       <MessageList
