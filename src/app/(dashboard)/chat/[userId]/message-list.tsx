@@ -13,6 +13,7 @@ import { GlitchEffect } from "@/components/chat/glitch-effect"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { Heart, Pin, Trash2 } from "lucide-react"
 import { TranslateButton } from "@/components/chat/translate-button"
+import { WallpaperDialog, WALLPAPER_PRESETS, type WallpaperConfig } from "@/components/chat/wallpaper-dialog"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -61,6 +62,26 @@ export function MessageList({
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const lastScrollBottom = useRef(true)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
+
+  const [wallpaper, setWallpaper] = useState<WallpaperConfig>(() => {
+    if (typeof window === "undefined") return { type: "preset", value: "default" }
+    try {
+      const saved = localStorage.getItem(`bakaiti_wallpaper_${conversationId}`)
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return { type: "preset", value: "default" }
+  })
+
+  useEffect(() => {
+    const sync = () => {
+      try {
+        const saved = localStorage.getItem(`bakaiti_wallpaper_${conversationId}`)
+        if (saved) setWallpaper(JSON.parse(saved))
+      } catch {}
+    }
+    window.addEventListener(`bakaiti_wallpaper_update_${conversationId}`, sync)
+    return () => window.removeEventListener(`bakaiti_wallpaper_update_${conversationId}`, sync)
+  }, [conversationId])
 
   const formatMessageTime = (createdAt: string) => {
     const date = new Date(createdAt)
@@ -682,10 +703,13 @@ export function MessageList({
 
   const actionMessage = actionMessageId ? display.find((message) => message.id === actionMessageId) ?? null : null
 
+  const presetClass = wallpaper.type === "preset" ? WALLPAPER_PRESETS.find((p) => p.id === wallpaper.value)?.class ?? "" : ""
+  const imageStyle = wallpaper.type === "image" ? { backgroundImage: `url(${wallpaper.value})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined
+
   return (
     <TooltipProvider>
     <>
-    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1" ref={scrollContainerRef}>
+    <div className={`flex-1 overflow-y-auto px-4 py-3 space-y-1 transition-all ${presetClass}`} style={imageStyle} ref={scrollContainerRef}>
       {pinned.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 pb-2 mb-2 border-b border-dashed border-border">
           <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">

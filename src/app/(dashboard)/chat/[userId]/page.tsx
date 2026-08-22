@@ -10,6 +10,7 @@ import { ChatDisplayName } from "./chat-display-name"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { MediaButton } from "./media-button"
 import { PresenceDot, PresenceStatus } from "./presence-status"
+import { WallpaperDialog } from "@/components/chat/wallpaper-dialog"
 
 const getCurrentUser = cache(async (email: string) => {
   const supabase = await createClient()
@@ -88,23 +89,24 @@ export default async function ConversationPage({
         <MobileMenuButton />
         <Link
           href={`/profile/${userId}`}
-          className="flex items-center gap-3 px-2 h-full flex-1 hover:bg-accent transition-colors rounded"
+          className="flex items-center gap-3 px-2 h-full flex-1 hover:bg-accent transition-colors rounded min-w-0"
         >
-          <div className="relative">
+          <div className="relative shrink-0">
             <Avatar className="h-8 w-8">
               <AvatarImage src={otherUser.avatar_url ?? undefined} />
               <AvatarFallback>{otherUser.name[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
             <PresenceDot userId={userId} lastSeen={otherUser.last_seen} />
           </div>
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 flex-1">
             <ChatDisplayName userId={userId} name={otherUser.name} />
-            <span className="text-[11px] text-muted-foreground leading-tight">
+            <span className="text-[11px] text-muted-foreground leading-tight truncate">
               <PresenceStatus userId={userId} lastSeen={otherUser.last_seen} />
             </span>
           </div>
           <TypingIndicator conversationId={conversationId} otherUserId={userId} />
         </Link>
+        <WallpaperDialog conversationId={conversationId} onWallpaperChange={() => {}} />
         <MediaButton conversationId={conversationId} historyCutoff={historyCutoff} />
       </div>
       <MessageList
