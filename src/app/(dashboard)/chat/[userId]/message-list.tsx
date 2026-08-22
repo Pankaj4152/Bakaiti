@@ -38,12 +38,14 @@ export function MessageList({
   conversationId,
   readOnly = false,
   historyCutoff = null,
+  isGroup = false,
 }: {
   messages: Message[]
   currentUserId: string
   conversationId: string
   readOnly?: boolean
   historyCutoff?: string | null
+  isGroup?: boolean
 }) {
   const messages = useRef<Message[]>(initialMessages)
   const [display, setDisplay] = useState<Message[]>(initialMessages)
@@ -828,7 +830,7 @@ export function MessageList({
                           <span className="opacity-60 text-[9px] font-normal font-sans">(Anonymous)</span>
                         </div>
                       ) : (
-                        !isMine && msg.sender?.name && !grouped && (
+                        !isMine && isGroup && msg.sender?.name && !grouped && (
                           <Link
                             href={`/profile/${msg.sender_id}`}
                             onClick={(e: React.MouseEvent) => e.stopPropagation()}

@@ -119,6 +119,7 @@ export default async function GroupConversationPage({
         currentUserId={currentUser.id}
         conversationId={conversationId}
         historyCutoff={historyCutoff}
+        isGroup={true}
       />
       <ChatInput
         conversationId={conversationId}
