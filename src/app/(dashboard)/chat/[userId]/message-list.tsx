@@ -722,7 +722,7 @@ export function MessageList({
     <>
     <NicknameBattleCard conversationId={conversationId} currentUserId={currentUserId} />
     <FlashPollCard conversationId={conversationId} currentUserId={currentUserId} />
-    <div className={`flex-1 overflow-y-auto px-4 py-3 space-y-1 transition-all ${presetClass}`} style={imageStyle} ref={scrollContainerRef}>
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1 transition-all bg-transparent" ref={scrollContainerRef}>
       {pinned.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 pb-2 mb-2 border-b border-dashed border-border">
           <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">

@@ -11,6 +11,7 @@ import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { MediaButton } from "./media-button"
 import { PresenceDot, PresenceStatus } from "./presence-status"
 import { WallpaperDialog } from "@/components/chat/wallpaper-dialog"
+import { ChatWallpaperWrapper } from "@/components/chat/chat-wallpaper-wrapper"
 import { AnonymousToggleDialog } from "@/components/chat/anonymous-toggle-dialog"
 
 const getCurrentUser = cache(async (email: string) => {
@@ -85,46 +86,48 @@ export default async function ConversationPage({
   const themeClass = currentUser.theme && currentUser.theme !== "default" ? `theme-${currentUser.theme}` : ""
 
   return (
-    <div className={`flex flex-col h-full ${themeClass}`}>
-      <div className="sticky top-0 z-30 flex items-center gap-1 px-2 h-14 border-b bg-background/95 backdrop-blur flex-shrink-0 min-w-0">
-        <MobileMenuButton />
-        <Link
-          href={`/profile/${userId}`}
-          className="flex items-center gap-3 px-2 h-full flex-1 hover:bg-accent transition-colors rounded min-w-0"
-        >
-          <div className="relative shrink-0">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={otherUser.avatar_url ?? undefined} />
-              <AvatarFallback>{otherUser.name[0]?.toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <PresenceDot userId={userId} lastSeen={otherUser.last_seen} />
-          </div>
-          <div className="flex flex-col min-w-0 flex-1">
-            <ChatDisplayName userId={userId} name={otherUser.name} />
-            <span className="text-[11px] text-muted-foreground leading-tight truncate">
-              <PresenceStatus userId={userId} lastSeen={otherUser.last_seen} statusText={otherUser.status_text} />
-            </span>
-          </div>
-          <TypingIndicator conversationId={conversationId} otherUserId={userId} />
-        </Link>
-        <WallpaperDialog conversationId={conversationId} />
-        <MediaButton conversationId={conversationId} historyCutoff={historyCutoff} />
-      </div>
-      <MessageList
-        messages={messages ?? []}
-        currentUserId={currentUser.id}
-        conversationId={conversationId}
-        readOnly={!friendship}
-        historyCutoff={historyCutoff}
-      />
-      {friendship ? (
-        <ChatInput conversationId={conversationId} senderId={currentUser.id} />
-      ) : (
-        <div className="border-t bg-muted/40 px-4 py-3 text-center">
-          <p className="text-sm font-medium">You are no longer friends</p>
-          <p className="text-xs text-muted-foreground">You can read this chat history. Send a friend request to start messaging again.</p>
+    <ChatWallpaperWrapper conversationId={conversationId}>
+      <div className={`flex flex-col h-full ${themeClass}`}>
+        <div className="sticky top-0 z-30 flex items-center gap-1 px-2 h-14 border-b bg-background/80 backdrop-blur-md flex-shrink-0 min-w-0">
+          <MobileMenuButton />
+          <Link
+            href={`/profile/${userId}`}
+            className="flex items-center gap-3 px-2 h-full flex-1 hover:bg-accent/60 transition-colors rounded min-w-0"
+          >
+            <div className="relative shrink-0">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={otherUser.avatar_url ?? undefined} />
+                <AvatarFallback>{otherUser.name[0]?.toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <PresenceDot userId={userId} lastSeen={otherUser.last_seen} />
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <ChatDisplayName userId={userId} name={otherUser.name} />
+              <span className="text-[11px] text-muted-foreground leading-tight truncate">
+                <PresenceStatus userId={userId} lastSeen={otherUser.last_seen} statusText={otherUser.status_text} />
+              </span>
+            </div>
+            <TypingIndicator conversationId={conversationId} otherUserId={userId} />
+          </Link>
+          <WallpaperDialog conversationId={conversationId} />
+          <MediaButton conversationId={conversationId} historyCutoff={historyCutoff} />
         </div>
-      )}
-    </div>
+        <MessageList
+          messages={messages ?? []}
+          currentUserId={currentUser.id}
+          conversationId={conversationId}
+          readOnly={!friendship}
+          historyCutoff={historyCutoff}
+        />
+        {friendship ? (
+          <ChatInput conversationId={conversationId} senderId={currentUser.id} />
+        ) : (
+          <div className="border-t bg-muted/80 backdrop-blur-md px-4 py-3 text-center">
+            <p className="text-sm font-medium">You are no longer friends</p>
+            <p className="text-xs text-muted-foreground">You can read this chat history. Send a friend request to start messaging again.</p>
+          </div>
+        )}
+      </div>
+    </ChatWallpaperWrapper>
   )
 }

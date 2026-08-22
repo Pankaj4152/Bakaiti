@@ -141,37 +141,6 @@ export function NicknameBattleDialog({
 
   const startTournament = async (target: { id: string; name: string }) => {
     setStarting(true)
-    let aiCandidates: NicknameCandidate[] = []
-
-    // 1. Fetch AI generated nicknames from target user's chat history
-    try {
-      const res = await fetch("/api/nickname-ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conversationId,
-          targetUserId: target.id,
-          targetUserName: target.name,
-        }),
-      })
-      const data = await res.json()
-      if (res.ok && Array.isArray(data.suggestions)) {
-        aiCandidates = data.suggestions.map((s: string, i: number) => ({
-          id: `ai_${Date.now()}_${i}`,
-          name: s,
-          suggested_by: "Bakait AI ✨",
-          votes: [],
-        }))
-      }
-    } catch {}
-
-    if (aiCandidates.length === 0) {
-      aiCandidates = [
-        { id: `c1_${Date.now()}`, name: "Canteen Chor ☕", suggested_by: "System", votes: [] },
-        { id: `c2_${Date.now()}`, name: "Backbench Legend 😴", suggested_by: "System", votes: [] },
-        { id: `c3_${Date.now()}`, name: "Proxy Master 🎒", suggested_by: "System", votes: [] },
-      ]
-    }
 
     const battle: NicknameBattle = {
       id: `battle_${Date.now()}`,
@@ -180,21 +149,24 @@ export function NicknameBattleDialog({
       target_user_name: target.name,
       started_by: currentUserId,
       ends_at: Date.now() + 120 * 1000,
-      candidates: aiCandidates,
+      candidates: [],
       finalized: false,
     }
 
     broadcastBattle(battle)
     sounds.playSentSound()
 
-    // 2. INSERT REAL CHAT MESSAGE SO ALL USERS RECEIVE NORMAL CHAT NOTIFICATION & UNREAD BADGE
     try {
-      const messageContent = `🏆 NICKNAME BATTLE: Vote on a nickname for ${target.name}! Options: ${aiCandidates.map(c => c.name).join(", ")}`
-      const { data: inserted } = await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: currentUserId,
-        content: messageContent,
-      }).select("*").single()
+      const messageContent = `🏆 NICKNAME BATTLE: Vote on a nickname for ${target.name}! Tap to suggest a nickname or generate AI names!`
+      const { data: inserted } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          content: messageContent,
+        })
+        .select("*")
+        .single()
 
       if (inserted) {
         window.dispatchEvent(new CustomEvent("bakaiti:new-message", { detail: inserted }))

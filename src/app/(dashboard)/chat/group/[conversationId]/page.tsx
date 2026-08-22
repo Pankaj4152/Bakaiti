@@ -7,6 +7,7 @@ import { MessageList } from "../../[userId]/message-list"
 import { MobileMenuButton } from "../../[userId]/chat-header"
 import { GroupSettingsDialog } from "@/components/chat/group-settings-dialog"
 import { WallpaperDialog } from "@/components/chat/wallpaper-dialog"
+import { ChatWallpaperWrapper } from "@/components/chat/chat-wallpaper-wrapper"
 import { NicknameBattleDialog } from "@/components/chat/nickname-battle-dialog"
 import { AnonymousToggleDialog } from "@/components/chat/anonymous-toggle-dialog"
 import { ShareGroupDialog } from "@/components/chat/share-group-dialog"
@@ -87,44 +88,46 @@ export default async function GroupConversationPage({
   const senderId = currentUser.id
 
   return (
-    <div className={`flex flex-col h-full ${themeClass}`}>
-      <div className="sticky top-0 z-30 flex items-center gap-1 px-2 h-14 border-b bg-background/95 backdrop-blur flex-shrink-0 min-w-0">
-        <MobileMenuButton />
-        <div className="flex items-center justify-between gap-2 px-2 flex-1 min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex -space-x-2">
-              {allUsers?.slice(0, 4).map((u) => (
-                <Avatar key={u.id} className="h-7 w-7 border-2 border-background">
-                  <AvatarImage src={u.avatar_url ?? undefined} />
-                  <AvatarFallback className="text-[10px]">{u.name[0]?.toUpperCase()}</AvatarFallback>
-                </Avatar>
-              ))}
-              {(allUsers?.length ?? 0) > 4 && (
-                <div className="h-7 w-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium">
-                  +{allUsers!.length - 4}
-                </div>
-              )}
+    <ChatWallpaperWrapper conversationId={conversationId}>
+      <div className={`flex flex-col h-full ${themeClass}`}>
+        <div className="sticky top-0 z-30 flex items-center gap-1 px-2 h-14 border-b bg-background/80 backdrop-blur-md flex-shrink-0 min-w-0">
+          <MobileMenuButton />
+          <div className="flex items-center justify-between gap-2 px-2 flex-1 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex -space-x-2">
+                {allUsers?.slice(0, 4).map((u) => (
+                  <Avatar key={u.id} className="h-7 w-7 border-2 border-background">
+                    <AvatarImage src={u.avatar_url ?? undefined} />
+                    <AvatarFallback className="text-[10px]">{u.name[0]?.toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                ))}
+                {(allUsers?.length ?? 0) > 4 && (
+                  <div className="h-7 w-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-medium">
+                    +{allUsers!.length - 4}
+                  </div>
+                )}
+              </div>
+              <ShareGroupDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
             </div>
-            <ShareGroupDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
-          </div>
-          <div className="flex items-center gap-1">
-            <NicknameBattleDialog conversationId={conversationId} currentUserId={senderId} members={allUsers ?? []} />
-            <WallpaperDialog conversationId={conversationId} />
-            <GroupSettingsDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
+            <div className="flex items-center gap-1">
+              <NicknameBattleDialog conversationId={conversationId} currentUserId={senderId} members={allUsers ?? []} />
+              <WallpaperDialog conversationId={conversationId} />
+              <GroupSettingsDialog conversationId={conversationId} groupName={convo.name ?? "Group"} />
+            </div>
           </div>
         </div>
+        <MessageList
+          messages={messages ?? []}
+          currentUserId={currentUser.id}
+          conversationId={conversationId}
+          historyCutoff={historyCutoff}
+          isGroup={true}
+        />
+        <ChatInput
+          conversationId={conversationId}
+          senderId={senderId}
+        />
       </div>
-      <MessageList
-        messages={messages ?? []}
-        currentUserId={currentUser.id}
-        conversationId={conversationId}
-        historyCutoff={historyCutoff}
-        isGroup={true}
-      />
-      <ChatInput
-        conversationId={conversationId}
-        senderId={senderId}
-      />
-    </div>
+    </ChatWallpaperWrapper>
   )
 }
