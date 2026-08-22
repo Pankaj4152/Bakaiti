@@ -14,6 +14,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { Heart, Pin, Trash2, Reply } from "lucide-react"
 import { TranslateButton } from "@/components/chat/translate-button"
 import { WallpaperDialog, WALLPAPER_PRESETS, type WallpaperConfig } from "@/components/chat/wallpaper-dialog"
+import { sounds } from "@/lib/sounds"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -230,6 +231,9 @@ export function MessageList({
           }
 
           if (messages.current.some((m) => m.id === newMsg.id)) return
+          if (newMsg.sender_id !== currentUserId) {
+            sounds.playReceivedSound()
+          }
           messages.current = [...messages.current, newMsg]
           setDisplay([...messages.current])
         }
@@ -493,6 +497,7 @@ export function MessageList({
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     if (readOnly) return
+    sounds.playReactionSound()
     const existing = (reactions[messageId] ?? []).find((r) => r.user_id === currentUserId && r.emoji === emoji)
 
     setReactions((prev) => {

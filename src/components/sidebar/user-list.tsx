@@ -6,7 +6,8 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { MessageCircle, LogOut, Users, Archive, UserRound, LogOutIcon, Trash2 } from "lucide-react"
+import { MessageCircle, LogOut, Users, Archive, UserRound, LogOutIcon, Trash2, Volume2, VolumeX } from "lucide-react"
+import { sounds } from "@/lib/sounds"
 import { NewActionsDialog } from "./new-actions-dialog"
 import { ActivityDialog } from "./activity-dialog"
 import { HelpDialog } from "./help-dialog"
@@ -57,6 +58,14 @@ export function UserList({ onNav }: { onNav?: () => void }) {
   const [contextConversation, setContextConversation] = useState<ConversationItem | null>(null)
   const [contextError, setContextError] = useState("")
   const [contextLoading, setContextLoading] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(() => sounds.isEnabled())
+
+  const toggleSound = () => {
+    const next = !soundEnabled
+    sounds.setEnabled(next)
+    setSoundEnabled(next)
+    if (next) sounds.playSentSound()
+  }
   const router = useRouter()
   const params = useParams()
   const supabase = useMemo(() => createClient(), [])
@@ -348,8 +357,19 @@ export function UserList({ onNav }: { onNav?: () => void }) {
           </div>
         )}
       </div>
-      <div className="border-t p-2">
+      <div className="border-t p-2 space-y-1">
         <HelpDialog placement="footer" />
+        <button
+          onClick={toggleSound}
+          className="w-full flex items-center justify-between px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+          title="Toggle UI sound effects"
+        >
+          <span className="flex items-center gap-2">
+            {soundEnabled ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4" />}
+            Sound Effects
+          </span>
+          <span className="text-[11px] font-mono opacity-80">{soundEnabled ? "ON" : "OFF"}</span>
+        </button>
         <button
           onClick={async () => {
             await supabase.auth.signOut()

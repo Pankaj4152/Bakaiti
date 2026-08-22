@@ -9,6 +9,7 @@ import { AudioRecorder } from "@/components/chat/audio-recorder"
 import { StickerPicker } from "@/components/chat/stickers/sticker-picker"
 import { CommandSuggestions } from "@/components/chat/command-suggestions"
 import { COMMANDS, type Command } from "@/lib/commands"
+import { sounds } from "@/lib/sounds"
 import * as chrono from "chrono-node"
 
 const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<File> => {
@@ -652,6 +653,7 @@ export function ChatInput({
     // Optimistically deliver the message to the current view immediately (the
     // realtime INSERT will dedupe by id so nothing posts twice).
     if (inserted) {
+      sounds.playSentSound()
       window.dispatchEvent(new CustomEvent("bakaiti:new-message", { detail: inserted }))
     }
 
