@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Send, Image, X } from "lucide-react"
 import { AudioRecorder } from "@/components/chat/audio-recorder"
 import { StickerPicker } from "@/components/chat/stickers/sticker-picker"
+import { ActionPlusMenu } from "@/components/chat/action-plus-menu"
 import { CommandSuggestions } from "@/components/chat/command-suggestions"
 import { COMMANDS, type Command } from "@/lib/commands"
 import { sounds } from "@/lib/sounds"
@@ -806,10 +807,21 @@ export function ChatInput({
             if (file) { uploadFile(file); e.target.value = "" }
           }}
         />
-        <Button size="icon" variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={sending}>
-          <Image className="h-4 w-4" />
-        </Button>
-        <StickerPicker onSelect={handleStickerSelect} />
+        <ActionPlusMenu
+          onSelectImage={() => fileInputRef.current?.click()}
+          onSelectPoll={() => {
+            setText('/poll "Your Question?" "Option 1" "Option 2"')
+            inputRef.current?.focus()
+          }}
+          onSelectFlashPoll={() => {
+            setText('/flashpoll "Quick Question?" "Yes 🚀" "No 📚"')
+            inputRef.current?.focus()
+          }}
+          onSelectNicknameBattle={() => {
+            const btn = document.querySelector<HTMLButtonElement>('button:has(.lucide-trophy)')
+            if (btn) btn.click()
+          }}
+        />
         <AudioRecorder
           conversationId={conversationId}
           senderId={senderId}
