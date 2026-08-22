@@ -10,6 +10,7 @@ import { MessageCircle, LogOut, Users, Archive, UserRound, LogOutIcon, Trash2, V
 import { sounds } from "@/lib/sounds"
 import { NewActionsDialog } from "./new-actions-dialog"
 import { ActivityDialog } from "./activity-dialog"
+import { JoinGroupDialog } from "./join-group-dialog"
 import { HelpDialog } from "./help-dialog"
 import { useSidebar } from "./sidebar-context"
 import { useNicknames } from "@/components/chat/use-nicknames"
@@ -237,6 +238,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
         </button>
         <h1 className="font-bold text-lg flex-1">Bakaiti</h1>
         <ActivityDialog />
+        <JoinGroupDialog />
         <NewActionsDialog />
       </div>
       <div className="flex-1 overflow-y-auto">
