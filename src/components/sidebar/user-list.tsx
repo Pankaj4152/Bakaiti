@@ -225,7 +225,19 @@ export function UserList({ onNav }: { onNav?: () => void }) {
     .map((c) => c.otherUser!)
     .filter((u, i, arr) => arr.findIndex((a) => a.id === u.id) === i)
     .slice(0, 6)
-  const visibleConversations = conversations.filter((conversation) => conversation.type === "group" || !!conversation.otherUser?.id)
+  const visibleConversations = conversations
+    .filter((conversation) => conversation.type === "group" || !!conversation.otherUser?.id)
+    .sort((a, b) => {
+      // Unread messages float to the top first
+      if (a.unreadCount > 0 && b.unreadCount === 0) return -1
+      if (b.unreadCount > 0 && a.unreadCount === 0) return 1
+      if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount
+
+      // Otherwise sort by newest activity / message timestamp
+      const timeA = a.lastMessage?.created_at ? new Date(a.lastMessage.created_at).getTime() : 0
+      const timeB = b.lastMessage?.created_at ? new Date(b.lastMessage.created_at).getTime() : 0
+      return timeB - timeA
+    })
 
   return (
     <div className="flex flex-col h-full">
