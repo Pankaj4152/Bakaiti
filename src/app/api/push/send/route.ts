@@ -89,7 +89,9 @@ export async function POST(request: Request) {
   const payload = JSON.stringify({
     title,
     body: (content ?? "New message").slice(0, 100),
-    url: `/chat/${convo.type === "group" ? `group/${conversationId}` : senderId}`,
+    url: `/chat/${convo.type === "group" || convo.type === "anonymous_group" ? `group/${conversationId}` : senderId}`,
+    conversationId,
+    tag: conversationId, // one notification slot per conversation
   })
 
   let sent = 0

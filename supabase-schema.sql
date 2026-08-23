@@ -787,6 +787,19 @@ create or replace function current_allowed_user_id() returns uuid as $$
   select current_user_id();
 $$ language sql stable set search_path = public;
 
+-- Migration: reply_to_id on messages (for threaded/reply UI)
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'messages' and column_name = 'reply_to_id'
+  ) then
+    alter table messages
+      add column reply_to_id uuid references messages(id) on delete set null;
+
+    create index if not exists idx_messages_reply_to on messages(reply_to_id);
+  end if;
+end; $$;
+
 -- A removed friend must not retain DM access merely because an old conversation exists.
 create or replace function is_active_conversation_member(p_conversation_id uuid, p_user_id uuid)
 returns boolean

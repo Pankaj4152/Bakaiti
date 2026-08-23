@@ -37,6 +37,7 @@ export interface Message {
   reply_to?: {
     id: string
     content: string | null
+    sender?: { name: string } | null
     sender_name?: string
   } | null
   sender?: User

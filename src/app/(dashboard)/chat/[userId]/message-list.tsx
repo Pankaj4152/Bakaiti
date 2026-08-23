@@ -220,7 +220,7 @@ export function MessageList({
     try {
       let query = supabase
         .from("messages")
-        .select("*, sender:allowed_users(*)")
+        .select("*, sender:allowed_users(*), reply_to:messages!reply_to_id(id, content, sender:allowed_users(name))")
         .eq("conversation_id", conversationId)
         .lt("created_at", oldestRef.current)
       if (historyCutoff) query = query.gt("created_at", historyCutoff)
@@ -296,6 +296,26 @@ export function MessageList({
           }
 
           if (messages.current.some((m) => m.id === newMsg.id)) return
+
+          // If this message is a reply, fetch the replied-to message details
+          if (newMsg.reply_to_id && !newMsg.reply_to) {
+            const { data: replied } = await supabase
+              .from("messages")
+              .select("id, content, sender:allowed_users(name)")
+              .eq("id", newMsg.reply_to_id)
+              .maybeSingle()
+            if (replied) {
+              newMsg.reply_to = {
+                id: replied.id,
+                content: replied.content,
+                sender_name: (replied.sender as any)?.name ?? undefined,
+              }
+            }
+          }
+
+          if (newMsg.sender_id !== currentUserId) {
+            sounds.playReceivedSound()
+          }
           messages.current = [...messages.current, newMsg]
           setDisplay([...messages.current])
         }
@@ -810,7 +830,9 @@ export function MessageList({
                           }}
                           className="mb-1.5 p-1.5 rounded bg-black/20 dark:bg-white/15 border-l-2 border-primary cursor-pointer text-xs transition-opacity hover:opacity-90 max-w-full overflow-hidden"
                         >
-                          <p className="text-[10px] font-bold opacity-90 truncate">{msg.reply_to.sender_name ?? "Replied message"}</p>
+                          <p className="text-[10px] font-bold opacity-90 truncate">
+                            {msg.reply_to.sender?.name ?? msg.reply_to.sender_name ?? "Replied message"}
+                          </p>
                           <p className="truncate text-[11px] opacity-80">{msg.reply_to.content || "Attachment"}</p>
                         </div>
                       )}

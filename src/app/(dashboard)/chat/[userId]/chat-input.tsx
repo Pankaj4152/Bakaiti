@@ -691,11 +691,6 @@ export function ChatInput({
     }
     if (replyingTo) {
       payload.reply_to_id = replyingTo.id
-      payload.reply_to = {
-        id: replyingTo.id,
-        content: replyingTo.content,
-        sender_name: replyingTo.sender?.name ?? "user",
-      }
       setReplyingTo(null)
     }
 
