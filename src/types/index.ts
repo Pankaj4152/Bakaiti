@@ -37,6 +37,9 @@ export interface Message {
   reply_to?: {
     id: string
     content: string | null
+    image_url?: string | null
+    audio_url?: string | null
+    sticker_url?: string | null
     sender?: { name: string } | null
     sender_name?: string
   } | null

@@ -220,7 +220,7 @@ export function MessageList({
     try {
       let query = supabase
         .from("messages")
-        .select("*, sender:allowed_users(*), reply_to:messages!reply_to_id(id, content, sender:allowed_users(name))")
+        .select("*, sender:allowed_users(*), reply_to:messages!reply_to_id(id, content, image_url, audio_url, sticker_url, sender:allowed_users(name))")
         .eq("conversation_id", conversationId)
         .lt("created_at", oldestRef.current)
       if (historyCutoff) query = query.gt("created_at", historyCutoff)
@@ -301,13 +301,16 @@ export function MessageList({
           if (newMsg.reply_to_id && !newMsg.reply_to) {
             const { data: replied } = await supabase
               .from("messages")
-              .select("id, content, sender:allowed_users(name)")
+              .select("id, content, image_url, audio_url, sticker_url, sender:allowed_users(name)")
               .eq("id", newMsg.reply_to_id)
               .maybeSingle()
             if (replied) {
               newMsg.reply_to = {
                 id: replied.id,
                 content: replied.content,
+                image_url: replied.image_url,
+                audio_url: replied.audio_url,
+                sticker_url: replied.sticker_url,
                 sender_name: (replied.sender as any)?.name ?? undefined,
               }
             }
@@ -837,7 +840,9 @@ export function MessageList({
                           <p className="text-[10px] font-bold opacity-90 truncate">
                             {msg.reply_to.sender?.name ?? msg.reply_to.sender_name ?? "Replied message"}
                           </p>
-                          <p className="truncate text-[11px] opacity-80">{msg.reply_to.content || "Attachment"}</p>
+                          <p className="truncate text-[11px] opacity-80">
+                            {msg.reply_to.content || (msg.reply_to.image_url ? "📷 Photo" : msg.reply_to.audio_url ? "🎤 Voice message" : msg.reply_to.sticker_url ? "📌 Sticker" : "Attachment")}
+                          </p>
                         </div>
                       )}
                       {msg.is_ai && (

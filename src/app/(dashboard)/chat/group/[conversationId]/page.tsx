@@ -32,7 +32,7 @@ const getMessages = cache(async (conversationId: string, historyCutoff: string |
   const supabase = await createClient()
   let query = supabase
     .from("messages")
-    .select("*, sender:allowed_users(*), reply_to:messages!reply_to_id(id, content, sender:allowed_users(name))")
+    .select("*, sender:allowed_users(*), reply_to:messages!reply_to_id(id, content, image_url, audio_url, sticker_url, sender:allowed_users(name))")
     .eq("conversation_id", conversationId)
   if (historyCutoff) query = query.gt("created_at", historyCutoff)
   return query
