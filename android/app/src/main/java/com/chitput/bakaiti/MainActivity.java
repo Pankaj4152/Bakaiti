@@ -98,6 +98,18 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        try {
+            WebView webView = this.getBridge().getWebView();
+            if (webView != null && webView.canGoBack()) {
+                webView.goBack();
+                return;
+            }
+        } catch (Exception ignored) {}
+        super.onBackPressed();
+    }
+
+    @Override
     public void onPause() {
         super.onPause();
         try {
