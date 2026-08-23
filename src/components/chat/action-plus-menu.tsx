@@ -45,7 +45,7 @@ export function ActionPlusMenu({
       </Button>
 
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-56 p-1.5 bg-popover/95 backdrop-blur-md border rounded-xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-2 space-y-1">
+        <div className="absolute bottom-full right-0 mb-2 w-56 p-1.5 bg-popover/95 backdrop-blur-md border rounded-xl shadow-xl z-50 animate-in fade-in slide-in-from-bottom-2 space-y-1">
           <button
             onClick={() => { setOpen(false); onSelectImage() }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg hover:bg-accent transition-colors text-left"
