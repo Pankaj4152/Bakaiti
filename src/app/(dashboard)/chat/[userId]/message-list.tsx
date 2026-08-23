@@ -101,7 +101,7 @@ export function MessageList({
   const [hasMore, setHasMore] = useState(initialMessages.length >= 50)
   const oldestRef = useRef<string | null>(initialMessages[0]?.created_at ?? null)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { refreshConversations } = useSidebar()
   const senderCache = useRef<Record<string, any>>({})
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
