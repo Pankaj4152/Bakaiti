@@ -6,11 +6,10 @@ export const revalidate = 0
 export async function GET() {
   return NextResponse.json(
     {
-      version: "1.0.0",
-      // Set type: "apk_update" to prompt users to download new APK, "major" for web update, or "minor" for silent update
-      type: "minor",
-      apkUrl: "https://github.com/Pankaj4152/Bakaiti/releases/latest",
-      changeNotes: "Bug fixes and performance improvements",
+      version: "1.0.1",
+      type: "apk_update",
+      apkUrl: "https://bakaiti-ten.vercel.app/downloads/bakaiti-latest.apk",
+      changeNotes: "Fixed image upload gallery picker, native performance and stability improvements",
       updatedAt: new Date().toISOString(),
     },
     {
