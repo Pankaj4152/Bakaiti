@@ -806,31 +806,15 @@ export function ChatInput({
             if (file) { uploadFile(file); e.target.value = "" }
           }}
         />
-        <ActionPlusMenu
-          onSelectImage={() => fileInputRef.current?.click()}
-          onSelectPoll={() => {
-            setPollMode("standard")
-            setShowPollDialog(true)
-          }}
-          onSelectFlashPoll={() => {
-            setPollMode("flash")
-            setShowPollDialog(true)
-          }}
-          onSelectNicknameBattle={() => setShowNicknameDialog(true)}
-        />
-        <CreatePollDialog
-          conversationId={conversationId}
-          currentUserId={senderId}
-          open={showPollDialog}
-          onOpenChange={setShowPollDialog}
-          initialMode={pollMode}
-        />
-        <NicknameBattleDialog
-          conversationId={conversationId}
-          currentUserId={senderId}
-          open={showNicknameDialog}
-          onOpenChange={setShowNicknameDialog}
-        />
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => fileInputRef.current?.click()}
+          className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full shrink-0"
+          title="Send Photo / Video"
+        >
+          <Image className="h-5 w-5 text-emerald-500" />
+        </Button>
         <AudioRecorder
           conversationId={conversationId}
           senderId={senderId}
