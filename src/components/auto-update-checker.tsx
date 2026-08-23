@@ -16,6 +16,14 @@ export function AutoUpdateChecker() {
   const [changeNotes, setChangeNotes] = useState<string | null>(null)
 
   useEffect(() => {
+    // Only check and display updates inside the Native APK / Mobile App, NOT on regular web browsers
+    const isNativeApp =
+      typeof window !== "undefined" &&
+      ((window as any).Capacitor?.isNativePlatform?.() ||
+        /Capacitor|BakaitiNative|Android/i.test(navigator.userAgent))
+
+    if (!isNativeApp) return
+
     // Check for updates periodically & on focus
     const checkVersion = async () => {
       try {
