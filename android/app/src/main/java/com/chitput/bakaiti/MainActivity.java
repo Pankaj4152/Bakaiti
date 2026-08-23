@@ -61,7 +61,28 @@ public class MainActivity extends BridgeActivity {
                 settings.setDatabaseEnabled(true);
                 settings.setMediaPlaybackRequiresUserGesture(false);
 
-                // 3. Dynamic on-demand permission handler (Ask ONLY when user taps mic, camera, etc.)
+                // 3. Native Download Manager Listener for APK and files
+                webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
+                    try {
+                        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+                        intent.setData(android.net.Uri.parse(url));
+                        startActivity(intent);
+                    } catch (Exception e) {
+                        try {
+                            android.app.DownloadManager.Request request = new android.app.DownloadManager.Request(android.net.Uri.parse(url));
+                            request.setMimeType(mimetype);
+                            request.addRequestHeader("User-Agent", userAgent);
+                            request.setDescription("Downloading update...");
+                            request.setTitle("Bakaiti Update.apk");
+                            request.setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                            request.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, "bakaiti-update.apk");
+                            android.app.DownloadManager dm = (android.app.DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                            if (dm != null) dm.enqueue(request);
+                        } catch (Exception ignored) {}
+                    }
+                });
+
+                // 4. Dynamic on-demand permission handler (Ask ONLY when user taps mic, camera, etc.)
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
                     public boolean onShowFileChooser(WebView webView, android.webkit.ValueCallback<android.net.Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams) {

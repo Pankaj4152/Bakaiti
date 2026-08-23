@@ -7,9 +7,7 @@ export async function GET() {
   return NextResponse.json(
     {
       version: "1.0.2",
-      type: "apk_update",
-      apkUrl: "https://bakaiti-ten.vercel.app/downloads/bakaiti-latest.apk",
-      changeNotes: "Fixed notification drawer, image picker, and chat improvements",
+      type: "major",
       updatedAt: new Date().toISOString(),
     },
     {
