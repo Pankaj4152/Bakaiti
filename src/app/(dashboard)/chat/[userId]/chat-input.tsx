@@ -173,57 +173,22 @@ export function ChatInput({
 
   const handleCommandSelect = (cmd: Command) => {
     setShowCommands(false)
+    let fillText = `${cmd.command} `
     if (cmd.command === "/poll") {
-      setText('/poll "Question" "Option 1" "Option 2" ')
+      fillText = '/poll "Question" "Option 1" "Option 2"'
+    } else if (cmd.command === "/flashpoll") {
+      fillText = '/flashpoll "Bunk 9 AM lecture?" "Yes" "No"'
+    } else if (cmd.command === "/expose") {
+      fillText = "/expose @"
+    }
+    setText(fillText)
+    requestAnimationFrame(() => {
       inputRef.current?.focus()
-      return
-    }
-    if (cmd.command === "/roast") {
-      setText("/roast ")
-      inputRef.current?.focus()
-      return
-    }
-    if (cmd.command === "/spam") {
-      setText("/spam  ")
-      inputRef.current?.focus()
-      return
-    }
-    if (cmd.command === "/chaos") {
-      setText("/chaos ")
-      inputRef.current?.focus()
-      return
-    }
-    if (cmd.command === "/meme") {
-      setText("/meme ")
-      inputRef.current?.focus()
-      return
-    }
-    if (cmd.command === "/remember") {
-      setText("/remember ")
-      inputRef.current?.focus()
-      return
-    }
-    if (cmd.command === "/expose") {
-      setText("/expose @")
-      inputRef.current?.focus()
-      return
-    }
-    if (cmd.command === "/calc") {
-      setText("/calc ")
-      inputRef.current?.focus()
-      return
-    }
-    if (cmd.command === "/help") {
-      setText("")
-      send("/help")
-      return
-    }
-    if (cmd.command === "/remind") {
-      setText("/remind me ")
-      inputRef.current?.focus()
-      return
-    }
-    sendCommand(cmd.command)
+      if (inputRef.current) {
+        inputRef.current.selectionStart = inputRef.current.value.length
+        inputRef.current.selectionEnd = inputRef.current.value.length
+      }
+    })
   }
 
   const sendCommand = async (command: string) => {
