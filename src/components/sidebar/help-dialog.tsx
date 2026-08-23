@@ -33,33 +33,14 @@ export function HelpDialog({ placement = "icon" }: { placement?: "icon" | "foote
           </section>
 
           <section>
-            <h3 className="font-semibold text-base mb-1">🤖 AI Fun</h3>
+            <h3 className="font-semibold text-base mb-1">🤖 AI Fun & Commands</h3>
             <div className="grid grid-cols-2 gap-1 text-muted-foreground">
-              <span><strong>/roast</strong> — Roast someone</span>
-              <span><strong>/expose @user</strong> — Expose embarrassing messages</span>
-              <span><strong>/chaos</strong> — Dramatic breaking news</span>
-              <span><strong>/remember @user</strong> — Recall memories & quotes</span>
-              <span><strong>/fortune</strong> — Random fortune</span>
-              <span><strong>/mood</strong> — Analyze chat mood</span>
-              <span><strong>/ghost-meter</strong> — Ghosting leaderboard</span>
-              <span><strong>/simps</strong> — Reply speed leaderboard</span>
+              <span><strong>/roast</strong> — Roast the chat</span>
               <span><strong>/meme</strong> — Generate a meme caption</span>
-            </div>
-          </section>
-
-          <section>
-            <h3 className="font-semibold text-base mb-1">🎮 Effects</h3>
-            <p className="text-muted-foreground"><strong>/confetti, /fireworks, /rain, /glitch</strong> — Trigger fun animations in the chat</p>
-          </section>
-
-          <section>
-            <h3 className="font-semibold text-base mb-1">🔧 Utilities</h3>
-            <div className="grid grid-cols-2 gap-1 text-muted-foreground">
-              <span><strong>/calc &lt;expr&gt;</strong> — Calculator</span>
-              <span><strong>/remind @user|me</strong> — Set a reminder</span>
-              <span><strong>/poll "Q" "A" "B"</strong> — Create a poll</span>
-              <span><strong>/spam &lt;msg&gt; &lt;N&gt;</strong> — Repeat a message</span>
-              <span><strong>/help</strong> — Show this help</span>
+              <span><strong>/expose @user</strong> — Expose funny chat moments</span>
+              <span><strong>/glitch</strong> — Trigger glitch effect</span>
+              <span><strong>/rain</strong> — Trigger rain effect</span>
+              <span><strong>/poll</strong> — Create interactive poll</span>
             </div>
           </section>
 
