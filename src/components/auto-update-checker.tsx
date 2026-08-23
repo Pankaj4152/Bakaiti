@@ -1,39 +1,50 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Sparkles, RefreshCw, X } from "lucide-react"
+import { Sparkles, Download, RefreshCw, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-const CURRENT_VERSION = "1.0.1"
+const CURRENT_NATIVE_VERSION = "1.0.0"
 
 export function AutoUpdateChecker() {
   const [updateAvailable, setUpdateAvailable] = useState(false)
+  const [isApkUpdate, setIsApkUpdate] = useState(false)
+  const [apkUrl, setApkUrl] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
   const [newVersion, setNewVersion] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check for app updates every 5 minutes or on app foreground focus
+    // Check for updates periodically & on focus
     const checkVersion = async () => {
       try {
         const res = await fetch(`/api/app-version?t=${Date.now()}`, { cache: "no-store" })
         if (res.ok) {
           const data = await res.json()
-          if (data.version && data.version !== CURRENT_VERSION) {
+          if (data.version && data.version !== CURRENT_NATIVE_VERSION) {
             setNewVersion(data.version)
 
-            // Silent auto-update for MINOR fixes (default)
-            if (data.type !== "major") {
-              if ("serviceWorker" in navigator) {
-                const registrations = await navigator.serviceWorker.getRegistrations()
-                for (const reg of registrations) {
-                  await reg.update()
-                }
-              }
+            // 1. Direct Native APK Rebuild Update
+            if (data.type === "apk_update" && data.apkUrl) {
+              setIsApkUpdate(true)
+              setApkUrl(data.apkUrl)
+              setUpdateAvailable(true)
               return
             }
 
-            // MAJOR feature updates show the 'Update Now' prompt banner
-            setUpdateAvailable(true)
+            // 2. Major Web Update
+            if (data.type === "major") {
+              setIsApkUpdate(false)
+              setUpdateAvailable(true)
+              return
+            }
+
+            // 3. Silent Web Update
+            if ("serviceWorker" in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations()
+              for (const reg of registrations) {
+                await reg.update()
+              }
+            }
           }
         }
       } catch {}
@@ -49,7 +60,12 @@ export function AutoUpdateChecker() {
     }
   }, [])
 
-  const handleUpdateNow = async () => {
+  const handleUpdate = async () => {
+    if (isApkUpdate && apkUrl) {
+      window.open(apkUrl, "_blank")
+      return
+    }
+
     setUpdating(true)
     try {
       if ("serviceWorker" in navigator) {
@@ -73,10 +89,15 @@ export function AutoUpdateChecker() {
           </div>
           <div className="min-w-0">
             <p className="text-xs font-bold flex items-center gap-1.5 text-purple-200">
-              New Update Ready! {newVersion && <span className="text-[10px] bg-purple-500/30 px-1.5 py-0.2 rounded-full border border-purple-400/30">v{newVersion}</span>}
+              {isApkUpdate ? "New App Version Available!" : "New Update Ready!"}{" "}
+              {newVersion && (
+                <span className="text-[10px] bg-purple-500/30 px-1.5 py-0.2 rounded-full border border-purple-400/30">
+                  v{newVersion}
+                </span>
+              )}
             </p>
             <p className="text-[11px] text-muted-foreground truncate opacity-85">
-              Tap Update to get latest Bakaiti features
+              {isApkUpdate ? "Download the new APK to continue" : "Tap Update to get latest features"}
             </p>
           </div>
         </div>
@@ -84,12 +105,21 @@ export function AutoUpdateChecker() {
         <div className="flex items-center gap-1 shrink-0">
           <Button
             size="sm"
-            onClick={handleUpdateNow}
+            onClick={handleUpdate}
             disabled={updating}
             className="h-8 text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md gap-1.5 px-3 rounded-xl"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${updating ? "animate-spin" : ""}`} />
-            {updating ? "Updating..." : "Update Now"}
+            {isApkUpdate ? (
+              <>
+                <Download className="h-3.5 w-3.5" />
+                Download
+              </>
+            ) : (
+              <>
+                <RefreshCw className={`h-3.5 w-3.5 ${updating ? "animate-spin" : ""}`} />
+                {updating ? "Updating..." : "Update Now"}
+              </>
+            )}
           </Button>
           <Button
             size="icon"
