@@ -12,7 +12,7 @@ export function AutoUpdateChecker() {
   const [newVersion, setNewVersion] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check for app updates every 3 minutes or on app foreground focus
+    // Check for app updates every 5 minutes or on app foreground focus
     const checkVersion = async () => {
       try {
         const res = await fetch(`/api/app-version?t=${Date.now()}`, { cache: "no-store" })
@@ -20,6 +20,20 @@ export function AutoUpdateChecker() {
           const data = await res.json()
           if (data.version && data.version !== CURRENT_VERSION) {
             setNewVersion(data.version)
+
+            // Silent update for MINOR bug fixes when app is idle / in background
+            if (data.type === "minor") {
+              if ("serviceWorker" in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations()
+                for (const reg of registrations) {
+                  await reg.update()
+                }
+              }
+              // Only reload quietly when user navigates or re-focuses tab
+              return
+            }
+
+            // MAJOR feature updates show the 'Update Now' prompt banner
             setUpdateAvailable(true)
           }
         }
@@ -27,7 +41,7 @@ export function AutoUpdateChecker() {
     }
 
     checkVersion()
-    const interval = setInterval(checkVersion, 3 * 60 * 1000)
+    const interval = setInterval(checkVersion, 5 * 60 * 1000)
     window.addEventListener("focus", checkVersion)
 
     return () => {
@@ -46,7 +60,6 @@ export function AutoUpdateChecker() {
         }
       }
     } catch {}
-    // Reload page to apply live server update
     window.location.reload()
   }
 

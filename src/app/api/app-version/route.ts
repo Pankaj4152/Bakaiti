@@ -7,6 +7,8 @@ export async function GET() {
   return NextResponse.json(
     {
       version: "1.0.1",
+      // Set type: "major" to show prompt banner, or "minor" for silent background update
+      type: "minor",
       updatedAt: new Date().toISOString(),
     },
     {
