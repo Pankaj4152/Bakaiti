@@ -127,6 +127,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               body: msg.content || "🎤 Voice message",
               icon: "/android-chrome-192x192.png",
               badge: "/favicon-32x32.png",
+              tag: msg.conversation_id,
               data: { url: `/chat/${msg.sender_id}` },
             }
 
@@ -141,23 +142,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             }
 
             try {
-              const notif = new Notification(name, notifOptions)
-              notif.onclick = () => {
-                window.focus()
-                supabase
-                  .from("conversations")
-                  .select("user1_id, user2_id")
-                  .eq("id", msg.conversation_id)
-                  .maybeSingle()
-                  .then(({ data: convo }) => {
-                    if (convo) {
-                      const otherId = convo.user1_id === profile.id ? convo.user2_id : convo.user1_id
-                      window.location.href = `/chat/${otherId}`
-                    }
-                  })
+              if (Notification.permission === "granted") {
+                const notif = new Notification(name, notifOptions)
+                notif.onclick = () => {
+                  window.focus()
+                  window.location.href = `/chat/${msg.sender_id}`
+                }
               }
             } catch (e) {
-              console.warn("Desktop notification fallback ignored:", e)
+              console.warn("Notification drawer error:", e)
             }
           }
         )
