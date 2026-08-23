@@ -21,15 +21,14 @@ export function AutoUpdateChecker() {
           if (data.version && data.version !== CURRENT_VERSION) {
             setNewVersion(data.version)
 
-            // Silent update for MINOR bug fixes when app is idle / in background
-            if (data.type === "minor") {
+            // Silent auto-update for MINOR fixes (default)
+            if (data.type !== "major") {
               if ("serviceWorker" in navigator) {
                 const registrations = await navigator.serviceWorker.getRegistrations()
                 for (const reg of registrations) {
                   await reg.update()
                 }
               }
-              // Only reload quietly when user navigates or re-focuses tab
               return
             }
 
