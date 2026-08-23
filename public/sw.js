@@ -1,58 +1,14 @@
-const STATIC_CACHE = "bakaiti-static-v3"
-const OFFLINE_URL = "/offline.html"
+const STATIC_CACHE = "bakaiti-v4-" + Date.now()
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => cache.addAll([OFFLINE_URL, "/favicon-32x32.png", "/android-chrome-192x192.png"]))
-      .then(() => self.skipWaiting())
-  )
+  self.skipWaiting()
 })
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== STATIC_CACHE).map((key) => caches.delete(key))))
+    caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
       .then(() => clients.claim())
   )
-})
-
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-
-self.addEventListener("fetch", (event) => {
-  const request = event.request
-  if (request.method !== "GET") return
-
-  if (request.mode === "navigate") {
-    event.respondWith((async () => {
-      try {
-        return await fetch(request)
-      } catch {
-        await wait(650)
-        try {
-          return await fetch(request)
-        } catch {
-          return (await caches.match(OFFLINE_URL)) || Response.error()
-        }
-      }
-    })())
-    return
-  }
-
-  const url = new URL(request.url)
-  if (url.origin === self.location.origin && ["image", "font", "style"].includes(request.destination)) {
-    event.respondWith(
-      caches.match(request).then((cached) =>
-        cached || fetch(request).then((response) => {
-          if (response.ok) {
-            const responseToCache = response.clone()
-            caches.open(STATIC_CACHE).then((cache) => cache.put(request, responseToCache)).catch(() => {})
-          }
-          return response
-        })
-      )
-    )
-  }
 })
 
 self.addEventListener("push", (event) => {
