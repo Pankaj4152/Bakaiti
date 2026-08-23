@@ -645,12 +645,16 @@ export function MessageList({
 
   useEffect(() => {
     const lastMsg = display[display.length - 1]
-    if (lastMsg?.content) {
-      const [effectName, ...rest] = lastMsg.content.toLowerCase().split(" ")
-      if (EFFECT_MESSAGES.includes(effectName)) {
-        setActiveEffect(lastMsg.content)
-        const timer = setTimeout(() => setActiveEffect(null), 4500)
-        return () => clearTimeout(timer)
+    if (lastMsg?.content && lastMsg.created_at) {
+      const msgAgeMs = Date.now() - new Date(lastMsg.created_at).getTime()
+      // Only play trigger effect if the message was sent in the last 15 seconds (prevents refresh loop)
+      if (msgAgeMs < 15000) {
+        const [effectName, ...rest] = lastMsg.content.toLowerCase().split(" ")
+        if (EFFECT_MESSAGES.includes(effectName)) {
+          setActiveEffect(lastMsg.content)
+          const timer = setTimeout(() => setActiveEffect(null), 4500)
+          return () => clearTimeout(timer)
+        }
       }
     }
   }, [display])
