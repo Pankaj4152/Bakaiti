@@ -829,32 +829,43 @@ export function MessageList({
                           </ProfilePreviewDialog>
                         )
                       )}
-                      {msg.reply_to_id && (
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            const targetId = msg.reply_to?.id || msg.reply_to_id
-                            if (!targetId) return
-                            const targetEl = document.getElementById(`msg-${targetId}`)
-                            if (targetEl) {
-                              targetEl.scrollIntoView({ behavior: "smooth", block: "center" })
-                              targetEl.classList.add("ring-2", "ring-primary", "bg-primary/20", "transition-all", "duration-500", "rounded-2xl")
-                              setTimeout(() => {
-                                targetEl.classList.remove("ring-2", "ring-primary", "bg-primary/20")
-                              }, 1500)
-                            }
-                          }}
-                          className="mb-1.5 p-2 rounded-lg bg-black/25 dark:bg-white/10 border-l-4 border-primary cursor-pointer text-xs transition-all hover:bg-black/35 dark:hover:bg-white/20 active:scale-[0.98] max-w-full overflow-hidden shadow-sm"
-                        >
-                          <p className="text-[10px] font-bold text-primary dark:text-primary-foreground opacity-95 truncate flex items-center gap-1">
-                            <Reply className="h-3 w-3 inline shrink-0" />
-                            {msg.reply_to?.sender?.name ?? msg.reply_to?.sender_name ?? "Replied message"}
-                          </p>
-                          <p className="truncate text-[11px] opacity-80 mt-0.5">
-                            {msg.reply_to?.content || (msg.reply_to?.image_url ? "📷 Photo" : msg.reply_to?.audio_url ? "🎤 Voice message" : msg.reply_to?.sticker_url ? "📌 Sticker" : "Attachment")}
-                          </p>
-                        </div>
-                      )}
+                      {msg.reply_to_id && (() => {
+                        const targetId = msg.reply_to?.id || msg.reply_to_id
+                        const targetMsg = targetId ? display.find((m) => m.id === targetId) : null
+                        const repliedSenderName = msg.reply_to?.sender?.name ?? msg.reply_to?.sender_name ?? targetMsg?.sender?.name ?? "Replied message"
+                        const repliedContent = msg.reply_to?.content || targetMsg?.content || (
+                          (msg.reply_to?.image_url || targetMsg?.image_url) ? "📷 Photo" :
+                          (msg.reply_to?.audio_url || targetMsg?.audio_url) ? "🎤 Voice message" :
+                          (msg.reply_to?.sticker_url || targetMsg?.sticker_url) ? "📌 Sticker" :
+                          targetMsg ? (targetMsg.poll_id ? "📊 Poll" : "Message") : "Attachment"
+                        )
+
+                        return (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (!targetId) return
+                              const targetEl = document.getElementById(`msg-${targetId}`)
+                              if (targetEl) {
+                                targetEl.scrollIntoView({ behavior: "smooth", block: "center" })
+                                targetEl.classList.add("ring-2", "ring-primary", "bg-primary/20", "transition-all", "duration-500", "rounded-2xl")
+                                setTimeout(() => {
+                                  targetEl.classList.remove("ring-2", "ring-primary", "bg-primary/20")
+                                }, 1500)
+                              }
+                            }}
+                            className="mb-1.5 p-2 rounded-lg bg-black/25 dark:bg-white/10 border-l-4 border-primary cursor-pointer text-xs transition-all hover:bg-black/35 dark:hover:bg-white/20 active:scale-[0.98] max-w-full overflow-hidden shadow-sm"
+                          >
+                            <p className="text-[10px] font-bold text-primary dark:text-primary-foreground opacity-95 truncate flex items-center gap-1">
+                              <Reply className="h-3 w-3 inline shrink-0" />
+                              {repliedSenderName}
+                            </p>
+                            <p className="truncate text-[11px] opacity-80 mt-0.5">
+                              {repliedContent}
+                            </p>
+                          </div>
+                        )
+                      })()}
                       {msg.is_ai && (
                         <span className="text-[10px] opacity-70 mr-1.5">🤖</span>
                       )}
