@@ -689,6 +689,7 @@ export function ChatInput({
       sender_id: senderId,
       content: activeAnon && content ? `[ANON:${activeAnon.emoji}:${activeAnon.name}] ${content}` : content,
     }
+    const replyTarget = replyingTo ? { ...replyingTo } : null
     if (replyingTo) {
       payload.reply_to_id = replyingTo.id
       setReplyingTo(null)
@@ -697,7 +698,7 @@ export function ChatInput({
     const { data: inserted } = await supabase
       .from("messages")
       .insert(payload)
-      .select("*")
+      .select("*, sender:allowed_users(*), reply_to:messages!reply_to_id(id, content, sender:allowed_users(name))")
       .single()
 
     // Optimistically deliver the message to the current view immediately (the
@@ -710,7 +711,14 @@ export function ChatInput({
     fetch("/api/push/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId, senderId, content }),
+      body: JSON.stringify({
+        conversationId,
+        senderId,
+        content,
+        replyToId: replyTarget?.id,
+        replyToContent: replyTarget?.content,
+        replyToSenderName: replyTarget?.sender?.name,
+      }),
     }).catch(() => {})
 
     setSending(false)

@@ -17,6 +17,10 @@ export async function POST(request: Request) {
   let senderId: string | undefined = body.senderId
   let content: string | undefined = body.content
 
+  let replyToContent: string | undefined = body.replyToContent
+  let replyToSenderName: string | undefined = body.replyToSenderName
+  const replyToId: string | undefined = body.replyToId
+
   if (!conversationId && body.record) {
     conversationId = body.record.conversation_id
     senderId = body.record.sender_id
@@ -41,6 +45,19 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
+  // If replying but reply content wasn't passed, fetch it
+  if (replyToId && (!replyToContent || !replyToSenderName)) {
+    const { data: parentMsg } = await admin
+      .from("messages")
+      .select("content, sender:allowed_users(name)")
+      .eq("id", replyToId)
+      .maybeSingle()
+    if (parentMsg) {
+      replyToContent = parentMsg.content || undefined
+      replyToSenderName = (parentMsg.sender as any)?.name || undefined
+    }
+  }
+
   // 1. Find conversation details
   const { data: convo } = await admin
     .from("conversations")
@@ -53,7 +70,7 @@ export async function POST(request: Request) {
   // 2. Identify target recipient user IDs (DM or Group)
   let recipientUserIds: string[] = []
 
-  if (convo.type === "group") {
+  if (convo.type === "group" || convo.type === "anonymous_group") {
     const { data: participants } = await admin
       .from("conversation_participants")
       .select("user_id")
@@ -76,7 +93,13 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   const senderName = sender?.name ?? "Someone"
-  const title = convo.type === "group" && convo.name ? `${senderName} (${convo.name})` : senderName
+  const title = (convo.type === "group" || convo.type === "anonymous_group") && convo.name ? `${senderName} (${convo.name})` : senderName
+
+  let bodyText = (content ?? "New message").slice(0, 100)
+  if (replyToId) {
+    const parentSnippet = replyToContent ? `"${replyToContent.slice(0, 30)}..."` : "message"
+    bodyText = `↩️ Replied to ${replyToSenderName ? replyToSenderName + "'s" : "your"} ${parentSnippet}: ${bodyText}`
+  }
 
   // 4. Fetch push subscriptions for all recipients
   const { data: subs } = await admin
@@ -88,7 +111,7 @@ export async function POST(request: Request) {
 
   const payload = JSON.stringify({
     title,
-    body: (content ?? "New message").slice(0, 100),
+    body: bodyText,
     url: `/chat/${convo.type === "group" || convo.type === "anonymous_group" ? `group/${conversationId}` : senderId}`,
     conversationId,
     tag: conversationId, // one notification slot per conversation
