@@ -91,46 +91,87 @@ export function ImageLightbox({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 select-none animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/95 flex flex-col justify-between select-none animate-in fade-in duration-200"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Top Header Toolbar */}
-      <div className="flex items-center justify-between text-white z-10">
-        <div className="text-xs font-mono bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
-          {images.length > 1 ? `${index + 1} / ${images.length}` : "Media View"}
+      {/* Top Header Floating Toolbar (WhatsApp/Insta style) */}
+      <div className="flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent z-20">
+        <div className="flex items-center gap-2">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-10 w-10 text-white hover:bg-white/20 rounded-full"
+            onClick={onClose}
+            title="Back"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </Button>
+          <span className="text-xs font-semibold text-white/90">
+            {images.length > 1 ? `${index + 1} of ${images.length}` : "Photo"}
+          </span>
         </div>
-        <div className="flex items-center gap-1.5">
+
+        <div className="flex items-center gap-1">
           {!isVideo && (
             <>
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:bg-white/20" onClick={() => setZoom((z) => Math.min(z + 0.25, 3))} title="Zoom In">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
+                onClick={() => setZoom((z) => Math.min(z + 0.5, 3))}
+                title="Zoom In"
+              >
                 <ZoomIn className="h-4 w-4" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:bg-white/20" onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))} title="Zoom Out">
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:bg-white/20" onClick={() => setZoom(1)} title="Reset Zoom">
-                <RotateCcw className="h-4 w-4" />
-              </Button>
+              {zoom > 1 && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
+                  onClick={() => setZoom(1)}
+                  title="Reset Zoom"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
             </>
           )}
-          <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:bg-white/20" onClick={handleDownload} disabled={downloading} title="Download">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
+            onClick={handleDownload}
+            disabled={downloading}
+            title="Download to Device"
+          >
             <Download className="h-4 w-4" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:bg-white/20" onClick={onClose} title="Close">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
+            onClick={onClose}
+            title="Close"
+          >
             <X className="h-5 w-5" />
           </Button>
         </div>
       </div>
 
       {/* Main Image Display Area */}
-      <div className="relative flex-1 flex items-center justify-center overflow-hidden my-2">
+      <div
+        className="relative flex-1 flex items-center justify-center overflow-hidden p-2"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose()
+        }}
+      >
         {images.length > 1 && (
           <>
             <Button
               size="icon"
               variant="ghost"
-              className="absolute left-2 z-10 h-10 w-10 text-white bg-black/40 hover:bg-black/70 rounded-full"
+              className="absolute left-3 z-10 h-10 w-10 text-white bg-black/50 hover:bg-black/80 rounded-full shadow-lg"
               onClick={handlePrev}
             >
               <ChevronLeft className="h-6 w-6" />
@@ -138,7 +179,7 @@ export function ImageLightbox({
             <Button
               size="icon"
               variant="ghost"
-              className="absolute right-2 z-10 h-10 w-10 text-white bg-black/40 hover:bg-black/70 rounded-full"
+              className="absolute right-3 z-10 h-10 w-10 text-white bg-black/50 hover:bg-black/80 rounded-full shadow-lg"
               onClick={handleNext}
             >
               <ChevronRight className="h-6 w-6" />
@@ -147,19 +188,20 @@ export function ImageLightbox({
         )}
 
         {isVideo ? (
-          <video src={currentUrl} controls autoPlay className="max-w-full max-h-full rounded-lg" />
+          <video src={currentUrl} controls autoPlay className="max-w-full max-h-full rounded-xl object-contain shadow-2xl" />
         ) : (
           <img
             src={currentUrl}
-            alt="Shared content"
-            className="max-w-full max-h-full object-contain transition-transform duration-150 ease-out rounded-sm"
+            alt="Shared media"
+            className="max-w-full max-h-full object-contain transition-transform duration-200 ease-out shadow-2xl"
             style={{ transform: `scale(${zoom})` }}
           />
         )}
       </div>
 
-      <div className="text-center text-[11px] text-white/60">
-        Press ESC or tap X to close • Use ← → to navigate • Scroll / pinch to zoom
+      {/* Bottom Subtle Bar */}
+      <div className="p-3 bg-gradient-to-t from-black/80 to-transparent text-center text-[11px] text-white/50 z-20">
+        Tap outside or swipe to dismiss • Pinch to zoom
       </div>
     </div>
   )
