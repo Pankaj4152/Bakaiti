@@ -33,6 +33,7 @@ interface ConversationItem {
   participants: Participant[] | null
   lastMessage: { content: string; created_at: string; isMine: boolean; senderName?: string | null; audio_url?: string; image_url?: string; sticker_url?: string } | null
   unreadCount: number
+  created_at?: string
 }
 
 const isOnline = (lastSeen: string | null | undefined) => {
@@ -228,14 +229,19 @@ export function UserList({ onNav }: { onNav?: () => void }) {
   const visibleConversations = conversations
     .filter((conversation) => conversation.type === "group" || !!conversation.otherUser?.id)
     .sort((a, b) => {
-      // Unread messages float to the top first
-      if (a.unreadCount > 0 && b.unreadCount === 0) return -1
-      if (b.unreadCount > 0 && a.unreadCount === 0) return 1
-      if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount
+      // Sort purely by newest message / activity timestamp (WhatsApp/Instagram style)
+      const timeA = a.lastMessage?.created_at
+        ? new Date(a.lastMessage.created_at).getTime()
+        : a.created_at
+        ? new Date(a.created_at).getTime()
+        : 0
 
-      // Otherwise sort by newest activity / message timestamp
-      const timeA = a.lastMessage?.created_at ? new Date(a.lastMessage.created_at).getTime() : 0
-      const timeB = b.lastMessage?.created_at ? new Date(b.lastMessage.created_at).getTime() : 0
+      const timeB = b.lastMessage?.created_at
+        ? new Date(b.lastMessage.created_at).getTime()
+        : b.created_at
+        ? new Date(b.created_at).getTime()
+        : 0
+
       return timeB - timeA
     })
 
