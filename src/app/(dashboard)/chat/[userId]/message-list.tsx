@@ -430,13 +430,7 @@ export function MessageList({
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    const el = scrollContainerRef.current
-    if (el) {
-      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 300
-      if (isNearBottom) {
-        scrollToBottom("smooth")
-      }
-    }
+    scrollToBottom("smooth")
   }, [display.length, scrollToBottom])
 
   // Optimistic send: show our own freshly-inserted message instantly, before
@@ -450,6 +444,7 @@ export function MessageList({
       newMsg.sender = senderCache.current[newMsg.sender_id]
       messages.current = [...messages.current, newMsg]
       setDisplay([...messages.current])
+      requestAnimationFrame(() => scrollToBottom("smooth"))
     }
     window.addEventListener("bakaiti:new-message", onNewMessage)
     return () => window.removeEventListener("bakaiti:new-message", onNewMessage)
