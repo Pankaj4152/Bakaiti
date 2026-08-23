@@ -5,6 +5,7 @@ import { RegisterSW } from "@/components/register-sw"
 import { NetworkStatus } from "@/components/network-status"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { AutoUpdateChecker } from "@/components/auto-update-checker"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -46,6 +47,7 @@ export default function RootLayout({
           </NotificationProvider>
           <NetworkStatus />
           <RegisterSW />
+          <AutoUpdateChecker />
           <Analytics />
           <SpeedInsights />
         </ThemeProvider>
