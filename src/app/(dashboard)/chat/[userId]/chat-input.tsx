@@ -13,6 +13,7 @@ import { NicknameBattleDialog } from "@/components/chat/nickname-battle-dialog"
 import { CommandSuggestions } from "@/components/chat/command-suggestions"
 import { COMMANDS, type Command } from "@/lib/commands"
 import { sounds } from "@/lib/sounds"
+import { haptics } from "@/lib/haptics"
 import * as chrono from "chrono-node"
 
 const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<File> => {
@@ -103,6 +104,20 @@ export function ChatInput({
   const supabase = createClient()
   const typingChannel = useRef<ReturnType<typeof supabase.channel>>(undefined)
   const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  // 1. Mobile VisualViewport smooth keyboard tracking
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return
+    const handleResize = () => {
+      window.scrollTo(0, document.body.scrollHeight)
+    }
+    window.visualViewport.addEventListener("resize", handleResize)
+    window.visualViewport.addEventListener("scroll", handleResize)
+    return () => {
+      window.visualViewport?.removeEventListener("resize", handleResize)
+      window.visualViewport?.removeEventListener("scroll", handleResize)
+    }
+  }, [])
 
   useEffect(() => {
     const handleReply = (e: CustomEvent) => {
@@ -680,6 +695,7 @@ export function ChatInput({
         }
       }
       sounds.playSentSound()
+      haptics.light()
       window.dispatchEvent(new CustomEvent("bakaiti:new-message", { detail: inserted }))
     }
 

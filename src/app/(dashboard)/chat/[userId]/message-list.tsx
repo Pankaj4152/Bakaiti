@@ -18,6 +18,7 @@ import { FlashPollCard } from "@/components/chat/flash-poll-card"
 import { NicknameBattleCard } from "@/components/chat/nickname-battle-card"
 import { ProfilePreviewDialog } from "@/components/profile/profile-preview-dialog"
 import { sounds } from "@/lib/sounds"
+import { haptics } from "@/lib/haptics"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -457,6 +458,7 @@ export function MessageList({
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     if (readOnly) return
     sounds.playReactionSound()
+    haptics.light()
     const existing = (reactions[messageId] ?? []).find((r) => r.user_id === currentUserId && r.emoji === emoji)
 
     setReactions((prev) => {

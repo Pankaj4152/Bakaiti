@@ -48,8 +48,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     const initNotifications = async () => {
-      const permission = Notification.permission
-      if (permission === "default") {
+      // 1. If permission is default, ask on first user interaction
+      if (Notification.permission === "default") {
         localStorage.setItem("chitput:notifications-enabled", "true")
         if (!requestOnInteraction) {
           requestOnInteraction = () => {
@@ -61,10 +61,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           window.addEventListener("pointerdown", requestOnInteraction, { once: true })
           window.addEventListener("keydown", requestOnInteraction, { once: true })
         }
-        return
       }
-
-      if (permission !== "granted") return
 
       const { data: profile } = await supabase
         .from("allowed_users")
@@ -75,7 +72,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if (!profile || !isSubscribed) return
 
       // Web Push API (works when app is closed / in background)
-      if ("serviceWorker" in navigator) {
+      if ("serviceWorker" in navigator && (Notification.permission === "granted" || Notification.permission === "default")) {
         try {
           const reg = await navigator.serviceWorker.register("/sw.js")
           await navigator.serviceWorker.ready
