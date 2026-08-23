@@ -230,6 +230,10 @@ export function MessageList({
         .limit(50)
 
       if (data && data.length > 0) {
+        const container = scrollContainerRef.current
+        const previousScrollHeight = container?.scrollHeight ?? 0
+        const previousScrollTop = container?.scrollTop ?? 0
+
         const older = data.reverse()
         for (const m of older) {
           if (m.sender && !senderCache.current[m.sender_id]) senderCache.current[m.sender_id] = m.sender
@@ -238,6 +242,14 @@ export function MessageList({
         oldestRef.current = older[0].created_at
         setDisplay([...messages.current])
         setHasMore(data.length >= 50)
+
+        // Restore scroll position after DOM update so user doesn't experience screen jumping
+        requestAnimationFrame(() => {
+          if (container) {
+            const heightDiff = container.scrollHeight - previousScrollHeight
+            container.scrollTop = previousScrollTop + heightDiff
+          }
+        })
       } else {
         setHasMore(false)
       }
@@ -815,11 +827,11 @@ export function MessageList({
                           You (Anonymous)
                         </div>
                       ) : (
-                        !isMine && isGroup && msg.sender?.name && !grouped && (
+                        !isMine && isGroup && msg.sender?.name && (!grouped || msg.image_url || msg.audio_url) && (
                           <ProfilePreviewDialog user={{ id: msg.sender_id, name: msg.sender.name, avatar_url: msg.sender?.avatar_url }}>
                             <button
                               onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                              className="text-[11px] font-bold text-amber-500 dark:text-amber-400 hover:underline mb-0.5 block truncate max-w-full text-left"
+                              className="text-[11px] font-bold text-amber-500 dark:text-amber-400 hover:underline mb-1 block truncate max-w-full text-left"
                             >
                               {msg.sender.name}
                             </button>
