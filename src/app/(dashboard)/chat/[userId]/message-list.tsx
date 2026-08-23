@@ -641,7 +641,7 @@ export function MessageList({
 
   const [activeEffect, setActiveEffect] = useState<string | null>(null)
 
-  const EFFECT_MESSAGES = ["confetti", "fireworks", "rain", "glitch"]
+  const EFFECT_MESSAGES = ["glitch", "rain"]
 
   useEffect(() => {
     const lastMsg = display[display.length - 1]
