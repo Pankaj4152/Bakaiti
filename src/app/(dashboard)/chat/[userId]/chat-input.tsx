@@ -669,6 +669,16 @@ export function ChatInput({
     // Optimistically deliver the message to the current view immediately (the
     // realtime INSERT will dedupe by id so nothing posts twice).
     if (inserted) {
+      if (replyTarget && !inserted.reply_to) {
+        inserted.reply_to = {
+          id: replyTarget.id,
+          content: replyTarget.content,
+          image_url: replyTarget.image_url,
+          audio_url: replyTarget.audio_url,
+          sticker_url: replyTarget.sticker_url,
+          sender_name: replyTarget.sender?.name,
+        }
+      }
       sounds.playSentSound()
       window.dispatchEvent(new CustomEvent("bakaiti:new-message", { detail: inserted }))
     }
