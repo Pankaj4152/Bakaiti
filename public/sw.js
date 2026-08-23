@@ -1,4 +1,4 @@
-const STATIC_CACHE = "bakaiti-static-v2"
+const STATIC_CACHE = "bakaiti-static-v3"
 const OFFLINE_URL = "/offline.html"
 
 self.addEventListener("install", (event) => {
