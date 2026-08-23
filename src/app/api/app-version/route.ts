@@ -6,9 +6,10 @@ export const revalidate = 0
 export async function GET() {
   return NextResponse.json(
     {
-      version: "1.0.1",
-      // "minor" or "major" will instantly refresh and update the app automatically in 1 second
-      type: "major",
+      version: "1.0.2",
+      type: "apk_update",
+      apkUrl: "https://bakaiti-ten.vercel.app/downloads/bakaiti-latest.apk",
+      changeNotes: "Fixed notification drawer, image picker, and chat improvements",
       updatedAt: new Date().toISOString(),
     },
     {
