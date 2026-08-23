@@ -829,7 +829,7 @@ export function MessageList({
                           </ProfilePreviewDialog>
                         )
                       )}
-                      {msg.reply_to && (
+                      {msg.reply_to && msg.reply_to.id && (
                         <div
                           onClick={(e) => {
                             e.stopPropagation()

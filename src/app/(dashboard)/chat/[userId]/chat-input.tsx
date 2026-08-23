@@ -663,7 +663,7 @@ export function ChatInput({
     const { data: inserted } = await supabase
       .from("messages")
       .insert(payload)
-      .select("*, sender:allowed_users(*), reply_to:messages!reply_to_id(id, content, sender:allowed_users(name))")
+      .select("*, sender:allowed_users(*), reply_to:messages!reply_to_id(id, content, image_url, audio_url, sticker_url, sender:allowed_users(name))")
       .single()
 
     // Optimistically deliver the message to the current view immediately (the
