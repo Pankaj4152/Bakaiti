@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Sparkles, Download, RefreshCw, AlertCircle, ShieldAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-const CURRENT_NATIVE_VERSION = "1.0.0"
+const CURRENT_NATIVE_VERSION = "1.0.1"
 
 export function AutoUpdateChecker() {
   const [updateAvailable, setUpdateAvailable] = useState(false)
@@ -22,7 +22,9 @@ export function AutoUpdateChecker() {
         const res = await fetch(`/api/app-version?t=${Date.now()}`, { cache: "no-store" })
         if (res.ok) {
           const data = await res.json()
-          if (data.version && data.version !== CURRENT_NATIVE_VERSION) {
+          const currentApplied = localStorage.getItem("bakaiti_applied_version") || CURRENT_NATIVE_VERSION
+
+          if (data.version && data.version !== CURRENT_NATIVE_VERSION && data.version !== currentApplied) {
             setNewVersion(data.version)
             setChangeNotes(data.changeNotes ?? null)
 
@@ -48,6 +50,8 @@ export function AutoUpdateChecker() {
                 await reg.update()
               }
             }
+          } else {
+            setUpdateAvailable(false)
           }
         }
       } catch {}
@@ -72,6 +76,9 @@ export function AutoUpdateChecker() {
 
   const handleWebUpdateNow = async () => {
     setUpdating(true)
+    if (newVersion) {
+      localStorage.setItem("bakaiti_applied_version", newVersion)
+    }
     try {
       if ("serviceWorker" in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations()
