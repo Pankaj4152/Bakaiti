@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ImageLightbox } from "./image-lightbox"
+import { X } from "lucide-react"
 
 export function ImageMessage({ url }: { url: string }) {
   const [open, setOpen] = useState(false)
@@ -35,11 +35,39 @@ export function ImageMessage({ url }: { url: string }) {
         </div>
       )}
 
-      <ImageLightbox
-        images={[url]}
-        open={open}
-        onClose={() => setOpen(false)}
-      />
+      {open && (
+        <div
+          className="fixed inset-0 z-[99999] bg-black/95 flex items-center justify-center p-0 select-none animate-in fade-in duration-150"
+          onClick={() => setOpen(false)}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(false)
+            }}
+            className="absolute top-4 right-4 z-50 h-10 w-10 text-white bg-black/50 hover:bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md cursor-pointer border border-white/10"
+            title="Close"
+          >
+            <X className="h-6 w-6" />
+          </button>
+
+          <div
+            className="relative w-full h-full flex items-center justify-center overflow-hidden p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {isVideo ? (
+              <video src={url} controls autoPlay className="max-w-full max-h-full object-contain" />
+            ) : (
+              <img
+                src={url}
+                alt="Media"
+                className="max-w-full max-h-full object-contain cursor-zoom-out"
+                onClick={() => setOpen(false)}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }
