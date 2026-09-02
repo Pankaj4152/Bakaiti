@@ -11,6 +11,15 @@ create table if not exists allowed_users (
   created_at timestamptz default now()
 );
 
+-- System Broadcasts / Announcements table
+create table if not exists system_broadcasts (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  message text not null,
+  type text default 'banner',
+  created_at timestamptz default now()
+);
+
 -- 2. Conversations (DMs between two users or groups)
 create table if not exists conversations (
   id uuid primary key default gen_random_uuid(),
@@ -999,3 +1008,166 @@ begin
   return coalesce(deleted_count, 0);
 end;
 $$;
+
+-- Helper function to extract user ID from standard storage file paths (e.g. avatars/{user_id}/file.ext)
+create or replace function storage_path_user_id(name text) returns text as $$
+  select split_part(name, '/', 1);
+$$ language sql immutable set search_path = public;
+
+-- TIGHTEN MESSAGES UPDATE POLICY
+drop policy if exists "can update read flag own conversations" on messages;
+drop policy if exists "authenticated can update messages" on messages;
+
+create policy "can update read flag own conversations"
+  on messages for update to authenticated
+  using (
+    is_conversation_participant(conversation_id, current_user_id())
+  )
+  with check (
+    is_conversation_participant(conversation_id, current_user_id())
+    and sender_id = (select m.sender_id from messages m where m.id = id)
+    and conversation_id = (select m.conversation_id from messages m where m.id = id)
+  );
+
+-- TIGHTEN POLLS & POLL OPTIONS RLS POLICIES
+drop policy if exists "polls read" on polls;
+drop policy if exists "polls insert" on polls;
+create policy "polls read" on polls for select to authenticated
+  using (is_conversation_participant(conversation_id, current_user_id()));
+
+create policy "polls insert" on polls for insert to authenticated
+  with check (
+    created_by = current_user_id()
+    and is_active_conversation_member(conversation_id, current_user_id())
+  );
+
+drop policy if exists "poll_options read" on poll_options;
+drop policy if exists "poll_options insert" on poll_options;
+create policy "poll_options read" on poll_options for select to authenticated
+  using (
+    exists (
+      select 1 from polls p
+      where p.id = poll_options.poll_id
+        and is_conversation_participant(p.conversation_id, current_user_id())
+    )
+  );
+
+create policy "poll_options insert" on poll_options for insert to authenticated
+  with check (
+    exists (
+      select 1 from polls p
+      where p.id = poll_options.poll_id
+        and p.created_by = current_user_id()
+        and is_active_conversation_member(p.conversation_id, current_user_id())
+    )
+  );
+
+drop policy if exists "poll_votes read" on poll_votes;
+drop policy if exists "poll_votes insert" on poll_votes;
+create policy "poll_votes read" on poll_votes for select to authenticated
+  using (
+    exists (
+      select 1 from poll_options po
+      join polls p on p.id = po.poll_id
+      where po.id = poll_votes.option_id
+        and is_conversation_participant(p.conversation_id, current_user_id())
+    )
+  );
+
+create policy "poll_votes insert" on poll_votes for insert to authenticated
+  with check (
+    user_id = current_user_id()
+    and exists (
+      select 1 from poll_options po
+      join polls p on p.id = po.poll_id
+      where po.id = poll_votes.option_id
+        and is_active_conversation_member(p.conversation_id, current_user_id())
+    )
+  );
+
+-- HARDEN STORAGE BUCKET RLS POLICIES
+drop policy if exists "avatars read" on storage.objects;
+drop policy if exists "avatars insert" on storage.objects;
+drop policy if exists "avatars update" on storage.objects;
+drop policy if exists "avatars delete" on storage.objects;
+
+create policy "avatars read" on storage.objects for select to authenticated
+  using (bucket_id = 'avatars');
+
+create policy "avatars insert" on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'avatars'
+    and owner = auth.uid()
+    and storage_path_user_id(name) = current_user_id()::text
+  );
+
+create policy "avatars update" on storage.objects for update to authenticated
+  using (
+    bucket_id = 'avatars'
+    and owner = auth.uid()
+    and storage_path_user_id(name) = current_user_id()::text
+  );
+
+create policy "avatars delete" on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (owner = auth.uid() or storage_path_user_id(name) = current_user_id()::text)
+  );
+
+drop policy if exists "images read" on storage.objects;
+drop policy if exists "images insert" on storage.objects;
+drop policy if exists "images delete" on storage.objects;
+
+create policy "images read" on storage.objects for select to authenticated
+  using (bucket_id = 'images');
+
+create policy "images insert" on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'images'
+    and owner = auth.uid()
+  );
+
+create policy "images delete" on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'images'
+    and owner = auth.uid()
+  );
+
+drop policy if exists "audio read" on storage.objects;
+drop policy if exists "audio insert" on storage.objects;
+drop policy if exists "audio delete" on storage.objects;
+
+create policy "audio read" on storage.objects for select to authenticated
+  using (bucket_id = 'audio');
+
+create policy "audio insert" on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'audio'
+    and owner = auth.uid()
+  );
+
+create policy "audio delete" on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'audio'
+    and owner = auth.uid()
+  );
+
+drop policy if exists "stickers read" on storage.objects;
+drop policy if exists "stickers insert" on storage.objects;
+drop policy if exists "stickers delete" on storage.objects;
+
+create policy "stickers read" on storage.objects for select to authenticated
+  using (bucket_id = 'stickers');
+
+create policy "stickers insert" on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'stickers'
+    and owner = auth.uid()
+  );
+
+create policy "stickers delete" on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'stickers'
+    and owner = auth.uid()
+  );
+
