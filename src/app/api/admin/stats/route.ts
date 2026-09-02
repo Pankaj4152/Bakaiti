@@ -1,24 +1,29 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 
 export async function GET() {
+  const cookieStore = await cookies()
+  const adminToken = cookieStore.get("bakaiti_admin_token")?.value
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user?.email) {
-    return NextResponse.json({ error: "Unauthorized. Please sign in to access admin stats." }, { status: 401 })
+
+  if (adminToken !== "secret_admin_session_granted" && !user?.email) {
+    return NextResponse.json({ error: "Unauthorized. Please enter Admin Password." }, { status: 401 })
   }
 
   const admin = createAdminClient()
 
   try {
     const [
-      { count: totalUsers, error: err1 },
+      { count: totalUsers },
       { count: approvedUsers },
       { count: pendingUsers },
       { count: blockedUsers },
-      { count: totalMessages, error: err2 },
-      { count: totalConversations, error: err3 },
+      { count: totalMessages },
+      { count: totalConversations },
     ] = await Promise.all([
       admin.from("allowed_users").select("*", { count: "exact", head: true }),
       admin.from("allowed_users").select("*", { count: "exact", head: true }).eq("status", "approved"),
@@ -27,10 +32,6 @@ export async function GET() {
       admin.from("messages").select("*", { count: "exact", head: true }),
       admin.from("conversations").select("*", { count: "exact", head: true }),
     ])
-
-    if (err1 || err2 || err3) {
-      console.error("Admin stats query errors:", { err1, err2, err3 })
-    }
 
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
     const { count: activeOnline } = await admin
@@ -49,7 +50,6 @@ export async function GET() {
       timestamp: new Date().toISOString(),
     })
   } catch (err: any) {
-    console.error("Admin stats exception:", err)
     return NextResponse.json({ error: err.message ?? "Failed to fetch stats" }, { status: 500 })
   }
 }

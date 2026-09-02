@@ -13,12 +13,13 @@ import {
   CheckCircle2,
   Ban,
   Trash2,
-  ArrowLeft,
   Crown,
   Database,
   Radio,
+  Lock,
+  KeyRound,
+  LogOut,
 } from "lucide-react"
-import Link from "next/link"
 
 interface Stats {
   totalUsers: number
@@ -61,13 +62,14 @@ export default function AdminDashboardPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [feedback, setFeedback] = useState("")
 
-  const [unauthorized, setUnauthorized] = useState(false)
-  const [errorMessage, setErrorMessage] = useState("")
+  const [passwordInput, setPasswordInput] = useState("")
+  const [authError, setAuthError] = useState("")
+  const [authenticating, setAuthenticating] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   const loadData = useCallback(async () => {
     setLoading(true)
-    setUnauthorized(false)
-    setErrorMessage("")
+    setAuthError("")
     try {
       const [statsRes, usersRes, convosRes] = await Promise.all([
         fetch("/api/admin/stats"),
@@ -76,27 +78,26 @@ export default function AdminDashboardPage() {
       ])
 
       if (statsRes.status === 401 || usersRes.status === 401) {
-        setUnauthorized(true)
+        setIsAuthenticated(false)
         return
       }
 
-      if (statsRes.ok) setStats(await statsRes.json())
-      else {
-        const errJson = await statsRes.json().catch(() => ({}))
-        setErrorMessage(errJson.error ?? "Failed to fetch admin stats")
+      if (statsRes.ok) {
+        setStats(await statsRes.json())
+        setIsAuthenticated(true)
       }
 
       if (usersRes.ok) {
         const uData = await usersRes.json()
         setUsers(uData.users ?? [])
       }
+
       if (convosRes.ok) {
         const cData = await convosRes.json()
         setConversations(cData.conversations ?? [])
       }
     } catch (err: any) {
       console.error("Failed to load admin data:", err)
-      setErrorMessage(err?.message ?? "Error connecting to server")
     } finally {
       setLoading(false)
     }
@@ -105,6 +106,42 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!passwordInput) return
+    setAuthenticating(true)
+    setAuthError("")
+
+    try {
+      const res = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: passwordInput }),
+      })
+      const data = await res.json()
+
+      if (res.ok) {
+        setIsAuthenticated(true)
+        setPasswordInput("")
+        loadData()
+      } else {
+        setAuthError(data.error ?? "Incorrect Admin Password")
+      }
+    } catch {
+      setAuthError("Could not verify password")
+    } finally {
+      setAuthenticating(false)
+    }
+  }
+
+  const handleAdminLogout = async () => {
+    await fetch("/api/admin/auth", { method: "DELETE" })
+    setIsAuthenticated(false)
+    setStats(null)
+    setUsers([])
+    setConversations([])
+  }
 
   const updateUserStatus = async (targetUserId: string, newStatus: "approved" | "pending" | "blocked") => {
     setActionLoading(targetUserId)
@@ -150,6 +187,58 @@ export default function AdminDashboardPage() {
     }
   }
 
+  if (!isAuthenticated && !loading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-zinc-900 border border-purple-500/30 p-8 rounded-3xl shadow-2xl space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 rounded-2xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center mx-auto shadow-inner">
+              <Crown className="w-7 h-7" />
+            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-white">Bakaiti Admin Suite</h1>
+            <p className="text-xs text-zinc-400">Enter Admin Secret Password to unlock dashboard</p>
+          </div>
+
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-purple-400" />
+                <span>Admin Secret Password</span>
+              </label>
+              <input
+                type="password"
+                placeholder="Enter password (default: admin123)"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 focus:border-purple-500 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition-colors"
+                autoFocus
+              />
+            </div>
+
+            {authError && (
+              <p className="text-xs text-red-400 font-medium text-center bg-red-500/10 border border-red-500/20 p-2.5 rounded-xl">
+                ⚠️ {authError}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={authenticating}
+              className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-colors shadow-lg shadow-purple-600/25 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {authenticating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+              <span>Unlock Admin Panel</span>
+            </button>
+          </form>
+
+          <p className="text-[11px] text-zinc-500 text-center">
+            Set custom <code className="text-purple-400 font-mono">ADMIN_PASSWORD</code> in Vercel env vars.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 sm:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -174,45 +263,20 @@ export default function AdminDashboardPage() {
             <button
               onClick={loadData}
               disabled={loading}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-medium transition-colors border border-zinc-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-medium transition-colors border border-zinc-700 disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Refresh</span>
             </button>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition-colors shadow-sm"
+            <button
+              onClick={handleAdminLogout}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-semibold transition-colors"
             >
-              <span>Sign In</span>
-            </Link>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Lock Admin</span>
+            </button>
           </div>
         </div>
-
-        {unauthorized && (
-          <div className="bg-zinc-900 border border-purple-500/30 p-8 rounded-2xl text-center space-y-4 max-w-md mx-auto shadow-2xl">
-            <div className="w-12 h-12 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center mx-auto">
-              <Crown className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h2 className="text-lg font-bold text-white">Admin Authentication Required</h2>
-              <p className="text-xs text-zinc-400">
-                You must sign in with an approved admin account to view live analytics, moderate users, and inspect conversations.
-              </p>
-            </div>
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-colors shadow-lg shadow-purple-600/25 w-full"
-            >
-              Sign In to Admin Panel
-            </Link>
-          </div>
-        )}
-
-        {errorMessage && !unauthorized && (
-          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium text-center">
-            ⚠️ {errorMessage}
-          </div>
-        )}
 
         {feedback && (
           <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-medium text-center animate-in fade-in">
