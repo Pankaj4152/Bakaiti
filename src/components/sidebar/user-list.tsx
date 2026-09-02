@@ -12,6 +12,7 @@ import { NewActionsDialog } from "./new-actions-dialog"
 import { ActivityDialog } from "./activity-dialog"
 import { JoinGroupDialog } from "./join-group-dialog"
 import { HelpDialog } from "./help-dialog"
+import { SettingsDialog } from "./settings-dialog"
 import { useSidebar } from "./sidebar-context"
 import { useNicknames } from "@/components/chat/use-nicknames"
 import { useOnlineUsers } from "@/lib/realtime-presence"
@@ -258,6 +259,7 @@ export function UserList({ onNav }: { onNav?: () => void }) {
         <ActivityDialog />
         <JoinGroupDialog />
         <NewActionsDialog />
+        <SettingsDialog profile={myProfile} soundEnabled={soundEnabled} onToggleSound={toggleSound} onNav={onNav} />
       </div>
       <div className="flex-1 overflow-y-auto">
         {loading ? (
@@ -265,36 +267,33 @@ export function UserList({ onNav }: { onNav?: () => void }) {
             <RoundLoader size={24} />
           </div>
         ) : visibleConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
-            <MessageCircle className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No conversations yet</p>
-            <p className="text-xs text-muted-foreground">Click + to find someone and start chatting</p>
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            No conversations yet. Use <span className="font-medium text-foreground">+</span> to start a chat!
           </div>
         ) : (
-          <div>
+          <div className="divide-y divide-border/40">
             {onlineUsers.length > 0 && (
               <div className="px-4 py-3 border-b">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Users className="h-3 w-3 text-green-500" />
-                  <span className="text-xs font-semibold text-green-500 uppercase tracking-wider">Online Now</span>
-                </div>
-                <div className="flex gap-2 flex-wrap">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                  Active Now ({onlineUsers.length})
+                </span>
+                <div className="flex items-center gap-2.5 overflow-x-auto pb-1 no-scrollbar">
                   {onlineUsers.map((u) => (
                     <Link
                       key={u.id}
                       href={`/chat/${u.id}`}
                       onClick={() => onNav?.()}
-                      className="flex flex-col items-center gap-1 group"
+                      className="flex flex-col items-center gap-1 group shrink-0"
                     >
                       <div className="relative">
-                        <Avatar className="h-8 w-8 ring-2 ring-green-500/50 group-hover:ring-green-500 transition-all">
+                        <Avatar className="h-10 w-10 border-2 border-green-500/50 group-hover:scale-105 transition-transform">
                           <AvatarImage src={u.avatar_url ?? undefined} />
-                          <AvatarFallback className="text-[10px]">{u.name[0]?.toUpperCase()}</AvatarFallback>
+                          <AvatarFallback className="text-xs">{u.name[0]?.toUpperCase()}</AvatarFallback>
                         </Avatar>
-                        <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border border-background" />
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
                       </div>
-                      <span className="text-[10px] text-muted-foreground truncate max-w-[48px] text-center leading-tight">
-                        {u.name.split(" ")[0]}
+                      <span className="text-[10px] text-muted-foreground group-hover:text-foreground truncate max-w-[50px]">
+                        {nicknames[u.id] ?? u.name.split(" ")[0]}
                       </span>
                     </Link>
                   ))}
@@ -390,31 +389,6 @@ export function UserList({ onNav }: { onNav?: () => void }) {
           })}
           </div>
         )}
-      </div>
-      <div className="border-t p-2 space-y-1">
-        <HelpDialog placement="footer" />
-        <button
-          onClick={toggleSound}
-          className="w-full flex items-center justify-between px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-          title="Toggle UI sound effects"
-        >
-          <span className="flex items-center gap-2">
-            {soundEnabled ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4" />}
-            Sound Effects
-          </span>
-          <span className="text-[11px] font-mono opacity-80">{soundEnabled ? "ON" : "OFF"}</span>
-        </button>
-        <button
-          onClick={async () => {
-            await supabase.auth.signOut()
-            router.push("/login")
-            router.refresh()
-          }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </button>
       </div>
       <Dialog open={!!contextConversation} onOpenChange={(open) => { if (!open) setContextConversation(null) }}>
         <DialogContent className="max-w-sm">
