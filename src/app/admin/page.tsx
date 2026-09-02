@@ -144,6 +144,40 @@ export default function AdminDashboardPage() {
   }
 
   const [inspectUser, setInspectUser] = useState<UserItem | null>(null)
+  const [inspectConvoId, setInspectConvoId] = useState<string | null>(null)
+  const [inspectConvoName, setInspectConvoName] = useState<string>("")
+  const [inspectMessages, setInspectMessages] = useState<any[]>([])
+  const [loadingMessages, setLoadingMessages] = useState(false)
+
+  const loadConvoMessages = async (convoId: string, name: string) => {
+    setInspectConvoId(convoId)
+    setInspectConvoName(name)
+    setLoadingMessages(true)
+    try {
+      const res = await fetch(`/api/admin/conversations/messages?conversationId=${convoId}`)
+      const data = await res.json()
+      if (res.ok) {
+        setInspectMessages(data.messages ?? [])
+      } else {
+        setFeedback(data.error ?? "Failed to load messages")
+      }
+    } catch {
+      setFeedback("Failed to load messages")
+    } finally {
+      setLoadingMessages(false)
+    }
+  }
+
+  const deleteSingleMessage = async (messageId: string) => {
+    try {
+      const res = await fetch(`/api/admin/conversations/messages?messageId=${messageId}`, { method: "DELETE" })
+      if (res.ok) {
+        setInspectMessages((prev) => prev.filter((m) => m.id !== messageId))
+        setFeedback("✓ Message purged")
+        setTimeout(() => setFeedback(""), 3000)
+      }
+    } catch {}
+  }
 
   const startImpersonation = async (user: UserItem) => {
     setInspectUser(user)
@@ -495,7 +529,18 @@ export default function AdminDashboardPage() {
                       <td className="p-3 text-zinc-400">
                         {c.last_message_at ? new Date(c.last_message_at).toLocaleString() : "No messages"}
                       </td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-right space-x-2">
+                        <button
+                          onClick={() =>
+                            loadConvoMessages(
+                              c.id,
+                              c.name ?? `${c.user1?.name ?? "User 1"} & ${c.user2?.name ?? "User 2"}`
+                            )
+                          }
+                          className="px-3 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-[11px] font-semibold transition-colors"
+                        >
+                          Inspect Chat 👁️
+                        </button>
                         <button
                           onClick={() => deleteConversation(c.id)}
                           disabled={actionLoading === c.id}
@@ -508,6 +553,98 @@ export default function AdminDashboardPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Live Conversation Inspector Modal */}
+        {inspectConvoId && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-zinc-900 border border-purple-500/30 rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center font-bold">
+                    👁️
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">{inspectConvoName}</h3>
+                    <p className="text-xs text-zinc-400">Live Conversation Message Inspection</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setInspectConvoId(null)
+                    setInspectMessages([])
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-300 transition-colors"
+                >
+                  Close ✕
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-3 p-2 min-h-0">
+                {loadingMessages ? (
+                  <div className="flex items-center justify-center py-12 text-zinc-400 text-xs gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-purple-400" />
+                    <span>Fetching live conversation messages...</span>
+                  </div>
+                ) : inspectMessages.length === 0 ? (
+                  <div className="text-center py-12 text-zinc-500 text-xs">
+                    No messages recorded in this conversation.
+                  </div>
+                ) : (
+                  inspectMessages.map((m) => (
+                    <div
+                      key={m.id}
+                      className="bg-zinc-950/80 border border-zinc-800 p-3.5 rounded-2xl space-y-1.5 group hover:border-zinc-700 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-xs text-purple-300">
+                            {m.sender?.name ?? "Unknown User"}
+                          </span>
+                          <span className="text-[10px] text-zinc-500">@{m.sender?.username ?? "user"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-zinc-500">
+                            {new Date(m.created_at).toLocaleString()}
+                          </span>
+                          <button
+                            onClick={() => deleteSingleMessage(m.id)}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:bg-red-500/20 rounded transition-all"
+                            title="Delete this message"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {m.content && <p className="text-xs text-zinc-200 whitespace-pre-wrap">{m.content}</p>}
+
+                      {m.media_url && (
+                        <div className="mt-2">
+                          {m.message_type === "image" || m.media_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                            <img
+                              src={m.media_url}
+                              alt="Uploaded media"
+                              className="max-h-48 rounded-xl object-cover border border-zinc-800"
+                            />
+                          ) : (
+                            <a
+                              href={m.media_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-purple-400 underline"
+                            >
+                              📎 View Attachment ({m.message_type ?? "media"})
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
