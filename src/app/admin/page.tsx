@@ -58,9 +58,39 @@ export default function AdminDashboardPage() {
   const [conversations, setConversations] = useState<ConvoItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState<"metrics" | "users" | "conversations">("metrics")
+  const [activeTab, setActiveTab] = useState<"metrics" | "users" | "conversations" | "broadcast">("metrics")
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [feedback, setFeedback] = useState("")
+
+  const [broadcastTitle, setBroadcastTitle] = useState("")
+  const [broadcastMessage, setBroadcastMessage] = useState("")
+  const [publishingBroadcast, setPublishingBroadcast] = useState(false)
+
+  const sendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) return
+    setPublishingBroadcast(true)
+    try {
+      const res = await fetch("/api/admin/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: broadcastTitle, message: broadcastMessage }),
+      })
+      if (res.ok) {
+        setFeedback("📢 System Announcement Broadcasted to all squad members!")
+        setBroadcastTitle("")
+        setBroadcastMessage("")
+        setTimeout(() => setFeedback(""), 4500)
+      } else {
+        const data = await res.json()
+        setFeedback(data.error ?? "Failed to publish broadcast")
+      }
+    } catch {
+      setFeedback("Failed to publish broadcast")
+    } finally {
+      setPublishingBroadcast(false)
+    }
+  }
 
   const [passwordInput, setPasswordInput] = useState("")
   const [authError, setAuthError] = useState("")
@@ -361,6 +391,18 @@ export default function AdminDashboardPage() {
             <MessageSquare className="w-4 h-4" />
             <span>Conversations ({conversations.length})</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab("broadcast")}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === "broadcast"
+                ? "bg-purple-600 text-white shadow-lg shadow-purple-600/25"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+            }`}
+          >
+            <Radio className="w-4 h-4 text-purple-300" />
+            <span>Broadcast Announcement 📢</span>
+          </button>
         </div>
 
         {/* TAB 1: Metrics & Health */}
@@ -554,6 +596,55 @@ export default function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* TAB 4: Broadcast System Announcement */}
+        {activeTab === "broadcast" && (
+          <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 shadow-xl max-w-2xl space-y-5">
+            <div className="flex items-center gap-3 border-b border-zinc-800 pb-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center font-bold">
+                📢
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-white">Broadcast System Announcement</h3>
+                <p className="text-xs text-zinc-400">Publish a banner & push notification to all active squad members</p>
+              </div>
+            </div>
+
+            <form onSubmit={sendBroadcast} className="space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="font-semibold text-zinc-300">Announcement Title</label>
+                <input
+                  type="text"
+                  placeholder="e.g., SYSTEM UPDATE, BACKEND MAINTENANCE, NEW FEATURE RELEASE"
+                  value={broadcastTitle}
+                  onChange={(e) => setBroadcastTitle(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-purple-500 rounded-xl px-4 py-2.5 text-zinc-100 placeholder:text-zinc-600 outline-none transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-semibold text-zinc-300">Announcement Message</label>
+                <textarea
+                  rows={4}
+                  placeholder="Enter detailed broadcast message text to display across all active user screens..."
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-purple-500 rounded-xl p-3 text-zinc-100 placeholder:text-zinc-600 outline-none transition-colors resize-none"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end">
+                <button
+                  type="submit"
+                  disabled={publishingBroadcast || !broadcastTitle.trim() || !broadcastMessage.trim()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold transition-colors shadow-lg shadow-purple-600/25 disabled:opacity-50"
+                >
+                  {publishingBroadcast ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Send Broadcast to Squad 🚀</span>}
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
