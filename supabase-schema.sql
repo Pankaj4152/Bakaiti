@@ -976,3 +976,26 @@ returns int as $$
      where user_id = p_user_id)
   );
 $$ language sql stable set search_path = public;
+
+-- 30-day automatic message and media cleanup helper
+create or replace function cleanup_old_messages()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  deleted_count integer;
+begin
+  with deleted as (
+    delete from messages
+    where created_at < now() - interval '30 days'
+    returning id
+  )
+  select count(*) into deleted_count from deleted;
+
+  delete from meme_cooldowns where next_allowed_at < now() - interval '1 day';
+
+  return coalesce(deleted_count, 0);
+end;
+$$;
