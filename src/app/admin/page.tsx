@@ -61,8 +61,13 @@ export default function AdminDashboardPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [feedback, setFeedback] = useState("")
 
+  const [unauthorized, setUnauthorized] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
+
   const loadData = useCallback(async () => {
     setLoading(true)
+    setUnauthorized(false)
+    setErrorMessage("")
     try {
       const [statsRes, usersRes, convosRes] = await Promise.all([
         fetch("/api/admin/stats"),
@@ -70,7 +75,17 @@ export default function AdminDashboardPage() {
         fetch("/api/admin/conversations"),
       ])
 
+      if (statsRes.status === 401 || usersRes.status === 401) {
+        setUnauthorized(true)
+        return
+      }
+
       if (statsRes.ok) setStats(await statsRes.json())
+      else {
+        const errJson = await statsRes.json().catch(() => ({}))
+        setErrorMessage(errJson.error ?? "Failed to fetch admin stats")
+      }
+
       if (usersRes.ok) {
         const uData = await usersRes.json()
         setUsers(uData.users ?? [])
@@ -79,8 +94,9 @@ export default function AdminDashboardPage() {
         const cData = await convosRes.json()
         setConversations(cData.conversations ?? [])
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load admin data:", err)
+      setErrorMessage(err?.message ?? "Error connecting to server")
     } finally {
       setLoading(false)
     }
@@ -164,14 +180,39 @@ export default function AdminDashboardPage() {
               <span>Refresh</span>
             </button>
             <Link
-              href="/chat"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold transition-colors shadow-sm"
+              href="/login"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition-colors shadow-sm"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to App</span>
+              <span>Sign In</span>
             </Link>
           </div>
         </div>
+
+        {unauthorized && (
+          <div className="bg-zinc-900 border border-purple-500/30 p-8 rounded-2xl text-center space-y-4 max-w-md mx-auto shadow-2xl">
+            <div className="w-12 h-12 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center mx-auto">
+              <Crown className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-white">Admin Authentication Required</h2>
+              <p className="text-xs text-zinc-400">
+                You must sign in with an approved admin account to view live analytics, moderate users, and inspect conversations.
+              </p>
+            </div>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-colors shadow-lg shadow-purple-600/25 w-full"
+            >
+              Sign In to Admin Panel
+            </Link>
+          </div>
+        )}
+
+        {errorMessage && !unauthorized && (
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium text-center">
+            ⚠️ {errorMessage}
+          </div>
+        )}
 
         {feedback && (
           <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-medium text-center animate-in fade-in">
