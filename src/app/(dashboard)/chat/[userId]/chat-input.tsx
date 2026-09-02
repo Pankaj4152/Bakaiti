@@ -450,6 +450,7 @@ export function ChatInput({
       const userMsg = content.slice(6).trim()
       setText("")
       setSending(true)
+      setFeedback("🔥 Gemini is generating roast...")
       try {
         if (userMsg) {
           await supabase.from("messages").insert({
@@ -471,9 +472,16 @@ export function ChatInput({
             content: data.roast,
             is_ai: true,
           })
+          setFeedback("✓ Roast posted!")
+        } else {
+          setFeedback(data.error ?? "Failed to generate roast")
         }
-      } catch {}
-      setSending(false)
+      } catch {
+        setFeedback("Failed to generate roast")
+      } finally {
+        setSending(false)
+        setTimeout(() => setFeedback(""), 3500)
+      }
       return
     }
 
@@ -481,6 +489,7 @@ export function ChatInput({
       const userMsg = content.slice(6).trim()
       setText("")
       setSending(true)
+      setFeedback("📰 Generating chaos news...")
       try {
         if (userMsg) {
           await supabase.from("messages").insert({
@@ -502,9 +511,16 @@ export function ChatInput({
             content: data.chaos,
             is_ai: true,
           })
+          setFeedback("✓ Chaos news posted!")
+        } else {
+          setFeedback(data.error ?? "Failed to generate chaos")
         }
-      } catch {}
-      setSending(false)
+      } catch {
+        setFeedback("Failed to generate chaos")
+      } finally {
+        setSending(false)
+        setTimeout(() => setFeedback(""), 3500)
+      }
       return
     }
 
@@ -512,16 +528,17 @@ export function ChatInput({
       const userPrompt = content.slice(5).trim() || undefined
       setText("")
       setSending(true)
+      setFeedback("🎨 Generating & sending meme...")
       try {
         const response = await fetch("/api/meme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, userPrompt }) })
         const data = await response.json()
-        setFeedback(response.ok ? "Meme sent" : data.error ?? "Could not send meme")
+        setFeedback(response.ok ? "✓ Meme sent!" : data.error ?? "Could not send meme")
       } catch {
         setFeedback("Could not send meme")
       } finally {
         setSending(false)
         focusInput()
-        setTimeout(() => setFeedback(""), 5000)
+        setTimeout(() => setFeedback(""), 4000)
       }
       return
     }
