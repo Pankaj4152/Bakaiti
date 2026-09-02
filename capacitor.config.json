@@ -3,7 +3,7 @@
   "appName": "Bakaiti",
   "webDir": "out",
   "server": {
-    "url": "https://bakaiti-ten.vercel.app",
+    "url": "https://bakaiti-ten.vercel.app/chat",
     "cleartext": true
   }
 }

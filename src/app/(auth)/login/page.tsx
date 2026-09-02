@@ -65,7 +65,7 @@ export default function LoginPage() {
       }
 
       log.info("SIGNIN", "Approved, redirecting to chat")
-      router.replace("/chat")
+      window.location.href = "/chat"
     } else {
       if (usernameError) { setLoading(false); return }
 
@@ -104,7 +104,7 @@ export default function LoginPage() {
       }
 
       log.info("SIGNUP", "Done, redirecting to chat")
-      router.replace("/chat")
+      window.location.href = "/chat"
     }
     setLoading(false)
   }

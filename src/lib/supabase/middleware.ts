@@ -40,6 +40,17 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/setup") ||
     path.startsWith("/auth")
 
+  const userAgent = request.headers.get("user-agent") || ""
+  const isNativeApp =
+    userAgent.includes("com.chitput.bakaiti") ||
+    userAgent.includes("Capacitor") ||
+    request.headers.get("x-capacitor-app") === "true"
+
+  if (!user && (path === "/" && isNativeApp)) {
+    url.pathname = "/login"
+    return NextResponse.redirect(url)
+  }
+
   if (!user && !isPublicRoute && !path.startsWith("/api")) {
     url.pathname = "/login"
     return NextResponse.redirect(url)
