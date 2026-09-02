@@ -270,17 +270,6 @@ export function MessageList({
     return () => el.removeEventListener("scroll", onScroll)
   }, [loadOlder])
 
-
-  useEffect(() => {
-    const el = scrollContainerRef.current
-    if (!el) return
-    const onScroll = () => {
-      if (el.scrollTop < 40) loadOlder()
-    }
-    el.addEventListener("scroll", onScroll)
-    return () => el.removeEventListener("scroll", onScroll)
-  }, [loadOlder])
-
   useEffect(() => {
     const channelName = `messages:${conversationId}:${Math.random().toString(36).substring(2, 8)}`
     const channel = supabase
