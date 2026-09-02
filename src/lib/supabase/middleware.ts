@@ -45,7 +45,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && path === "/login") {
+  if (user && (path === "/login" || path === "/")) {
     url.pathname = "/chat"
     return NextResponse.redirect(url)
   }

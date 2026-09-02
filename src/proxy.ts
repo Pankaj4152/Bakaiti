@@ -57,6 +57,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  if (user && (pathname === "/" || pathname === "/login")) {
+    log.info("MIDDLEWARE", "Authenticated user visiting root/login, redirecting to /chat")
+    const url = request.nextUrl.clone()
+    url.pathname = "/chat"
+    return NextResponse.redirect(url)
+  }
+
   log.info("MIDDLEWARE", "User authorized:", user.email)
   return supabaseResponse
 }

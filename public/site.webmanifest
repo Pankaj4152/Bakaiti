@@ -5,7 +5,7 @@
   "description": "Private real-time chat, voice messages, polls, and anonymous modes for college squads.",
   "lang": "en",
   "dir": "ltr",
-  "start_url": "/",
+  "start_url": "/chat",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
