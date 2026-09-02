@@ -532,13 +532,20 @@ export function ChatInput({
       try {
         const response = await fetch("/api/meme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId, userPrompt }) })
         const data = await response.json()
-        setFeedback(response.ok ? "✓ Meme sent!" : data.error ?? "Could not send meme")
+        if (response.ok && data.message) {
+          sounds.playSentSound()
+          haptics.light()
+          window.dispatchEvent(new CustomEvent("bakaiti:new-message", { detail: data.message }))
+          setFeedback("✓ Meme sent!")
+        } else {
+          setFeedback(data.error ?? "Could not send meme")
+        }
       } catch {
         setFeedback("Could not send meme")
       } finally {
         setSending(false)
         focusInput()
-        setTimeout(() => setFeedback(""), 4000)
+        setTimeout(() => setFeedback(""), 3500)
       }
       return
     }
