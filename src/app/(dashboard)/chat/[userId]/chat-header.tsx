@@ -1,14 +1,16 @@
 "use client"
 
-import { useSidebar } from "@/components/sidebar/sidebar-context"
-import { Button } from "@/components/ui/button"
-import { Menu } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 
 export function MobileMenuButton() {
-  const { setOpen } = useSidebar()
   return (
-    <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={() => setOpen(true)} aria-label="Open chat navigation">
-      <Menu className="h-5 w-5" />
-    </Button>
+    <Link
+      href="/chat"
+      className="md:hidden p-2 rounded-full hover:bg-white/10 text-foreground shrink-0 flex items-center justify-center transition-colors"
+      aria-label="Back to chat list"
+    >
+      <ArrowLeft className="h-5 w-5" />
+    </Link>
   )
 }
