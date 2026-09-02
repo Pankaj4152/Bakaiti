@@ -256,6 +256,9 @@ export function UserList({ onNav }: { onNav?: () => void }) {
           </Avatar>
         </button>
         <h1 className="font-bold text-lg flex-1">Bakaiti</h1>
+        <Link href="/vault" onClick={() => onNav?.()} className="p-2 text-muted-foreground hover:text-foreground transition-colors" title="The Vault & Group Lore">
+          🧠
+        </Link>
         <ActivityDialog />
         <JoinGroupDialog />
         <NewActionsDialog />
