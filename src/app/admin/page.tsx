@@ -143,6 +143,27 @@ export default function AdminDashboardPage() {
     setConversations([])
   }
 
+  const startImpersonation = async (targetUserId: string) => {
+    setActionLoading(targetUserId)
+    try {
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId }),
+      })
+      if (res.ok) {
+        window.location.href = "/chat"
+      } else {
+        const data = await res.json()
+        setFeedback(data.error ?? "Could not start impersonation")
+      }
+    } catch {
+      setFeedback("Could not start impersonation")
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   const updateUserStatus = async (targetUserId: string, newStatus: "approved" | "pending" | "blocked") => {
     setActionLoading(targetUserId)
     try {
@@ -424,6 +445,14 @@ export default function AdminDashboardPage() {
                       </td>
                       <td className="p-3 text-zinc-400">{new Date(u.created_at).toLocaleDateString()}</td>
                       <td className="p-3 text-right space-x-2">
+                        <button
+                          onClick={() => startImpersonation(u.id)}
+                          disabled={actionLoading === u.id}
+                          className="px-3 py-1.5 rounded-lg bg-purple-600/30 hover:bg-purple-600 border border-purple-500/40 text-purple-200 hover:text-white font-semibold text-[11px] transition-colors disabled:opacity-50"
+                          title={`View app as ${u.name}`}
+                        >
+                          Impersonate 🎭
+                        </button>
                         {u.status !== "approved" && (
                           <button
                             onClick={() => updateUserStatus(u.id, "approved")}
