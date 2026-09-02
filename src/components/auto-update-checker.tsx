@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Sparkles, Download, RefreshCw, AlertCircle, ShieldAlert } from "lucide-react"
+import { Sparkles, Download, RefreshCw, AlertCircle, ShieldAlert, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-const CURRENT_NATIVE_VERSION = "1.0.1"
+const CURRENT_NATIVE_VERSION = "1.0.2"
 
 export function AutoUpdateChecker() {
   const [updateAvailable, setUpdateAvailable] = useState(false)
@@ -14,15 +14,24 @@ export function AutoUpdateChecker() {
   const [updating, setUpdating] = useState(false)
   const [newVersion, setNewVersion] = useState<string | null>(null)
   const [changeNotes, setChangeNotes] = useState<string | null>(null)
+  const [dismissed, setDismissed] = useState(false)
+
+  const handleDismiss = () => {
+    setDismissed(true)
+    sessionStorage.setItem("bakaiti_dismissed_update", "true")
+  }
 
   useEffect(() => {
-    // Only check and display updates inside the Native APK / Mobile App, NOT on regular web browsers
+    // Only check native updates inside Capacitor APK app, NOT standard web/PWA browsers
     const isNativeApp =
       typeof window !== "undefined" &&
-      ((window as any).Capacitor?.isNativePlatform?.() ||
-        /Capacitor|BakaitiNative|Android/i.test(navigator.userAgent))
+      (Boolean((window as any).Capacitor?.isNativePlatform?.()) ||
+        /Capacitor|BakaitiNative/i.test(navigator.userAgent))
 
     if (!isNativeApp) return
+
+    // Check if user already dismissed update banner during this session
+    if (sessionStorage.getItem("bakaiti_dismissed_update") === "true") return
 
     // Check for updates periodically & on focus
     const checkVersion = async () => {
@@ -98,7 +107,7 @@ export function AutoUpdateChecker() {
     window.location.reload()
   }
 
-  if (!updateAvailable) return null
+  if (!updateAvailable || dismissed) return null
 
   // Mandatory Fullscreen Modal for Critical APK Updates (Cannot be dismissed)
   if (isApkUpdate) {
@@ -166,12 +175,12 @@ export function AutoUpdateChecker() {
               New Update Ready! {newVersion && <span className="text-[10px] bg-purple-500/30 px-1.5 py-0.2 rounded-full border border-purple-400/30">v{newVersion}</span>}
             </p>
             <p className="text-[11px] text-muted-foreground truncate opacity-85">
-              Tap Update to get latest Bakaiti features
+              Tap Update to get latest features
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <Button
             size="sm"
             onClick={handleWebUpdateNow}
@@ -181,6 +190,13 @@ export function AutoUpdateChecker() {
             <RefreshCw className={`h-3.5 w-3.5 ${updating ? "animate-spin" : ""}`} />
             {updating ? "Updating..." : "Update Now"}
           </Button>
+          <button
+            onClick={handleDismiss}
+            className="p-1 rounded-lg text-purple-300 hover:text-white hover:bg-white/10 transition-colors"
+            title="Dismiss update notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>
