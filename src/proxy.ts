@@ -57,8 +57,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && (pathname === "/" || pathname === "/login")) {
-    log.info("MIDDLEWARE", "Authenticated user visiting root/login, redirecting to /chat")
+  if (user && pathname === "/login") {
+    log.info("MIDDLEWARE", "Authenticated user visiting login, redirecting to /chat")
     const url = request.nextUrl.clone()
     url.pathname = "/chat"
     return NextResponse.redirect(url)
