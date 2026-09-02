@@ -70,3 +70,54 @@ export async function isConversationMember(userId: string, conversationId: strin
 
   return !!participant
 }
+
+// Get all user IDs and display names for a conversation (handles both DMs and Group Chats)
+export async function getConversationUserMap(
+  conversationId: string,
+  convo?: { type: string; user1_id: string; user2_id: string | null } | null
+): Promise<{ userIdToName: Record<string, string>; userNames: string[] }> {
+  const admin = createAdminClient()
+  let type = convo?.type
+  let user1_id = convo?.user1_id
+  let user2_id = convo?.user2_id
+
+  if (!convo) {
+    const { data: fetched } = await admin
+      .from("conversations")
+      .select("type, user1_id, user2_id")
+      .eq("id", conversationId)
+      .maybeSingle()
+    if (!fetched) return { userIdToName: {}, userNames: [] }
+    type = fetched.type
+    user1_id = fetched.user1_id
+    user2_id = fetched.user2_id
+  }
+
+  let userIds: string[] = []
+  if (type === "group") {
+    const { data: participants } = await admin
+      .from("conversation_participants")
+      .select("user_id")
+      .eq("conversation_id", conversationId)
+    userIds = (participants ?? []).map((p) => p.user_id)
+  } else {
+    userIds = [user1_id, user2_id].filter(Boolean) as string[]
+  }
+
+  if (userIds.length === 0) return { userIdToName: {}, userNames: [] }
+
+  const { data: users } = await admin
+    .from("allowed_users")
+    .select("id, name")
+    .in("id", userIds)
+
+  const userIdToName: Record<string, string> = {}
+  const userNames: string[] = []
+  if (users) {
+    for (const u of users) {
+      userIdToName[u.id] = u.name
+      userNames.push(u.name)
+    }
+  }
+  return { userIdToName, userNames }
+}

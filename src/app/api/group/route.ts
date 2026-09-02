@@ -161,9 +161,17 @@ export async function PATCH(request: Request) {
   const addIds = body.addIds as string[] | undefined
   if (Array.isArray(addIds) && addIds.length > 0) {
     const validIds = await validateUsers(admin, addIds)
+    const { data: existingParts } = await admin
+      .from("conversation_participants")
+      .select("user_id")
+      .eq("conversation_id", conversationId)
+      .in("user_id", addIds)
+
+    const existingSet = new Set((existingParts ?? []).map((p) => p.user_id))
     const rows = [...new Set(addIds)]
-      .filter((id) => validIds.has(id))
+      .filter((id) => validIds.has(id) && !existingSet.has(id))
       .map((userId) => ({ conversation_id: conversationId, user_id: userId }))
+
     if (rows.length > 0) {
       const { error: addError } = await admin.from("conversation_participants").insert(rows)
       if (addError) {

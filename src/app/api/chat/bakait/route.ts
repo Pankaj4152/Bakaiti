@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { chatAsBakait } from "@/lib/gemini"
-import { getAuthUser, isConversationMember } from "@/lib/auth"
+import { getAuthUser, isConversationMember, getConversationUserMap } from "@/lib/auth"
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>
@@ -32,19 +32,13 @@ export async function POST(request: Request) {
 
   const { data: convo } = await admin
     .from("conversations")
-    .select("user1_id, user2_id")
+    .select("type, user1_id, user2_id")
     .eq("id", conversationId)
     .single()
 
   if (!convo) return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
 
-  const { data: allUsers } = await admin.from("allowed_users").select("id, name").in("id", [convo.user1_id, convo.user2_id])
-  const userIdToName: Record<string, string> = {}
-  const userNames: string[] = []
-  if (allUsers) for (const u of allUsers) {
-    userIdToName[u.id] = u.name
-    userNames.push(u.name)
-  }
+  const { userIdToName, userNames } = await getConversationUserMap(conversationId, convo)
 
   // Fetch recent context SERVER-SIDE instead of trusting client-fabricated recentMessages.
   const { data: recent } = await admin

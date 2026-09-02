@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateRoast } from "@/lib/gemini"
-import { getAuthUser, isConversationMember } from "@/lib/auth"
+import { getAuthUser, isConversationMember, getConversationUserMap } from "@/lib/auth"
 
 const FUN_RESPONSES: Record<string, (targetName?: string, userNames?: string[]) => string> = {
   "/callbhabhi": (target) =>
@@ -58,21 +58,13 @@ export async function POST(request: Request) {
 
   const { data: convo } = await admin
     .from("conversations")
-    .select("id, user1_id, user2_id")
+    .select("id, type, user1_id, user2_id")
     .eq("id", conversationId)
     .single()
 
   if (!convo) return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
 
-  // Get all participants for context
-  const { data: participants } = await admin
-    .from("conversation_participants")
-    .select("user_id")
-    .eq("conversation_id", conversationId)
-
-  const userIds = [convo.user1_id, convo.user2_id, ...(participants?.map((p) => p.user_id) ?? [])].filter(Boolean) as string[]
-  const { data: allUsers } = await admin.from("allowed_users").select("id, name").in("id", userIds)
-  const userNames = allUsers?.map((u) => u.name) ?? []
+  const { userIdToName, userNames } = await getConversationUserMap(conversationId, convo)
 
   // Get recent messages for context
   const { data: messages } = await admin
@@ -83,11 +75,11 @@ export async function POST(request: Request) {
     .limit(50)
 
   const chatLog = (messages ?? []).reverse().map((m) => {
-    const name = allUsers?.find((u) => u.id === m.sender_id)?.name ?? "Unknown"
+    const name = userIdToName[m.sender_id] ?? "Unknown"
     return `[${name}]: ${m.content ?? "🎤 Voice message"}`
   }).join("\n")
 
-  const targetName = targetUserId ? allUsers?.find((u) => u.id === targetUserId)?.name : undefined
+  const targetName = targetUserId ? userIdToName[targetUserId] : undefined
 
   // Handle fun commands with static responses
   if (FUN_RESPONSES[command]) {
