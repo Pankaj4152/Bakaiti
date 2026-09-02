@@ -5,8 +5,8 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key",
     {
       cookies: {
         getAll() {
@@ -33,13 +33,14 @@ export async function updateSession(request: NextRequest) {
   const url = request.nextUrl.clone()
   const path = url.pathname
 
-  const isAuthRoute =
+  const isPublicRoute =
+    path === "/" ||
     path.startsWith("/login") ||
     path.startsWith("/pending") ||
     path.startsWith("/setup") ||
     path.startsWith("/auth")
 
-  if (!user && !isAuthRoute && !path.startsWith("/api")) {
+  if (!user && !isPublicRoute && !path.startsWith("/api")) {
     url.pathname = "/login"
     return NextResponse.redirect(url)
   }
