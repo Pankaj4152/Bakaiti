@@ -143,25 +143,12 @@ export default function AdminDashboardPage() {
     setConversations([])
   }
 
-  const startImpersonation = async (targetUserId: string) => {
-    setActionLoading(targetUserId)
-    try {
-      const res = await fetch("/api/admin/impersonate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetUserId }),
-      })
-      if (res.ok) {
-        window.location.href = "/chat"
-      } else {
-        const data = await res.json()
-        setFeedback(data.error ?? "Could not start impersonation")
-      }
-    } catch {
-      setFeedback("Could not start impersonation")
-    } finally {
-      setActionLoading(null)
-    }
+  const [inspectUser, setInspectUser] = useState<UserItem | null>(null)
+
+  const startImpersonation = async (user: UserItem) => {
+    setInspectUser(user)
+    setFeedback(`🎭 Inspecting user: @${user.username} (${user.name})`)
+    setTimeout(() => setFeedback(""), 4000)
   }
 
   const updateUserStatus = async (targetUserId: string, newStatus: "approved" | "pending" | "blocked") => {
@@ -446,12 +433,12 @@ export default function AdminDashboardPage() {
                       <td className="p-3 text-zinc-400">{new Date(u.created_at).toLocaleDateString()}</td>
                       <td className="p-3 text-right space-x-2">
                         <button
-                          onClick={() => startImpersonation(u.id)}
+                          onClick={() => startImpersonation(u)}
                           disabled={actionLoading === u.id}
                           className="px-3 py-1.5 rounded-lg bg-purple-600/30 hover:bg-purple-600 border border-purple-500/40 text-purple-200 hover:text-white font-semibold text-[11px] transition-colors disabled:opacity-50"
-                          title={`View app as ${u.name}`}
+                          title={`Inspect user details for ${u.name}`}
                         >
-                          Impersonate 🎭
+                          Inspect User 🎭
                         </button>
                         {u.status !== "approved" && (
                           <button
@@ -521,6 +508,77 @@ export default function AdminDashboardPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+        {/* User Inspector Modal */}
+        {inspectUser && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-zinc-900 border border-purple-500/30 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl animate-in zoom-in-95">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center border border-purple-500/30">
+                    {inspectUser.name[0]?.toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">{inspectUser.name}</h3>
+                    <p className="text-xs text-zinc-400">@{inspectUser.username}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setInspectUser(null)}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-300 transition-colors"
+                >
+                  Close ✕
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Email</span>
+                    <span className="font-mono text-zinc-200 truncate block">{inspectUser.email}</span>
+                  </div>
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Account Status</span>
+                    <span className="font-bold capitalize text-emerald-400">{inspectUser.status}</span>
+                  </div>
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Joined Date</span>
+                    <span className="text-zinc-300">{new Date(inspectUser.created_at).toLocaleString()}</span>
+                  </div>
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Last Seen Active</span>
+                    <span className="text-zinc-300">
+                      {inspectUser.last_seen ? new Date(inspectUser.last_seen).toLocaleString() : "Never"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+                {inspectUser.status !== "blocked" ? (
+                  <button
+                    onClick={() => {
+                      updateUserStatus(inspectUser.id, "blocked")
+                      setInspectUser(null)
+                    }}
+                    className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-xs transition-colors"
+                  >
+                    Block User
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      updateUserStatus(inspectUser.id, "approved")
+                      setInspectUser(null)
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors"
+                  >
+                    Approve / Unblock
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}

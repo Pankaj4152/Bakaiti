@@ -1,0 +1,7 @@
+com.chitput.bakaiti.test.app-core-1.7.0-0 C:\Users\adity\.gradle\caches\8.14.3\transforms\e7cc64b7d7a5ea0fa62c1d7854b4ea4a\transformed\core-1.7.0\res
+com.chitput.bakaiti.test.app-tracing-1.2.0-1 C:\Users\adity\.gradle\caches\8.14.3\transforms\f537c5316932970c000fffd492e7c42a\transformed\tracing-1.2.0\res
+com.chitput.bakaiti.test.app-androidTest-2 D:\Pankaj\Bakaiti\android\app\build\generated\res\resValues\androidTest\debug
+com.chitput.bakaiti.test.app-updated_navigation_xml-3 D:\Pankaj\Bakaiti\android\app\build\generated\updated_navigation_xml\debugAndroidTest
+com.chitput.bakaiti.test.app-mergeDebugAndroidTestResources-4 D:\Pankaj\Bakaiti\android\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
+com.chitput.bakaiti.test.app-mergeDebugAndroidTestResources-5 D:\Pankaj\Bakaiti\android\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
+com.chitput.bakaiti.test.app-debugAndroidTest-6 D:\Pankaj\Bakaiti\android\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources

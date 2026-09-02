@@ -1,71 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { updateSession } from "@/lib/supabase/middleware"
-import { createServerClient } from "@supabase/ssr"
-import { log } from "@/lib/logger"
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (
-    pathname === "/" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/access-denied") ||
-    pathname.startsWith("/pending") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname === "/favicon.ico" ||
-    pathname === "/sw.js" ||
-    pathname === "/site.webmanifest"
-  ) {
-    log.info("MIDDLEWARE", "Public path:", pathname)
-    return await updateSession(request)
-  }
-
-  log.info("MIDDLEWARE", "Protected path:", pathname)
-
-  let supabaseResponse = NextResponse.next({ request })
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key",
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    log.info("MIDDLEWARE", "No user, redirecting to login")
+  // On the dedicated admin branch, all routes serve the Admin Suite or Admin APIs directly
+  if (pathname.startsWith("/chat") || pathname.startsWith("/login")) {
     const url = request.nextUrl.clone()
-    url.pathname = "/login"
+    url.pathname = "/"
     return NextResponse.redirect(url)
   }
 
-  if (user && pathname === "/login") {
-    log.info("MIDDLEWARE", "Authenticated user visiting login, redirecting to /chat")
-    const url = request.nextUrl.clone()
-    url.pathname = "/chat"
-    return NextResponse.redirect(url)
-  }
-
-  log.info("MIDDLEWARE", "User authorized:", user.email)
-  return supabaseResponse
+  return NextResponse.next()
 }
 
 export const config = {

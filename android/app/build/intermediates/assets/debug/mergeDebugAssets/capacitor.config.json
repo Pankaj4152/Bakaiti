@@ -1,0 +1,9 @@
+{
+	"appId": "com.chitput.bakaiti",
+	"appName": "Bakaiti",
+	"webDir": "out",
+	"server": {
+		"url": "https://bakaiti-ten.vercel.app",
+		"cleartext": true
+	}
+}
